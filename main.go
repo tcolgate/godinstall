@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/armor"
+	"code.google.com/p/go-uuid/uuid"
   "github.com/gorilla/mux"
 	"fmt"
 	"log"
+	"time"
 )
 
 const encryptedMessage = `-----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -77,7 +79,7 @@ func main() {
 
 func rootHandler(w http.ResponseWriter, r *http.Request){
   //params := mux.Vars(r)
-  w.Write([]byte("Hello"))
+  w.Write([]byte("Nothing to see here"))
 }
 
 func repoHandler(w http.ResponseWriter, r *http.Request){
@@ -86,7 +88,23 @@ func repoHandler(w http.ResponseWriter, r *http.Request){
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request){
-  //params := mux.Vars(r)
-  w.Write([]byte("Hello3"))
+  cookieName := "godinstall-sess"
+  expire := time.Now().AddDate(0,0,1)
+  cookie, err := r.Cookie(cookieName)
+
+  if err != nil {
+    log.Println(err)
+    sess := uuid.New()
+    cookie := http.Cookie{
+      Name: cookieName,
+      Value: sess,
+      Path: "/package/upload/",
+      Expires: expire}
+    http.SetCookie(w, &cookie)
+    w.Write([]byte(uuid.New()))
+  } else {
+    w.Write([]byte("Hello3 " + cookie.Value))
+  }
+
 }
 
