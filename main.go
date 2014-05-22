@@ -88,6 +88,13 @@ func repoHandler(w http.ResponseWriter, r *http.Request){
   w.Write([]byte("Hello2"))
 }
 
+func pathHandle(dir string){
+  log.Println("delay: " + dir)
+  time.Sleep(5 * time.Second)
+  log.Println("deleting: " + dir)
+  os.Remove(dir)
+}
+
 func uploadHandler(w http.ResponseWriter, r *http.Request){
   tmpDir := "/tmp"
   cookieName := "godinstall-sess"
@@ -106,7 +113,10 @@ func uploadHandler(w http.ResponseWriter, r *http.Request){
     http.SetCookie(w, &cookie)
     w.Write([]byte(uuid.New()))
 
-    os.Mkdir(tmpDir + "/" + sess, os.FileMode(0755))
+    dir := tmpDir + "/" + sess
+    os.Mkdir(dir, os.FileMode(0755))
+    go pathHandle(dir)
+
   } else {
     w.Write([]byte("Hello3 " + cookie.Value))
   }
