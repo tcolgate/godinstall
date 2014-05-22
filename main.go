@@ -98,8 +98,9 @@ func uploadHandler(w http.ResponseWriter, r *http.Request){
     cookie := http.Cookie{
       Name: cookieName,
       Value: sess,
-      Path: "/package/upload/",
-      Expires: expire}
+      Expires: expire,
+      HttpOnly: false,
+      Path: "/package/upload"}
     http.SetCookie(w, &cookie)
     w.Write([]byte(uuid.New()))
   } else {
