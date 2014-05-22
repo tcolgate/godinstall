@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+	"os"
 )
 
 const encryptedMessage = `-----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -88,6 +89,7 @@ func repoHandler(w http.ResponseWriter, r *http.Request){
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request){
+  tmpDir := "/tmp"
   cookieName := "godinstall-sess"
   expire := time.Now().AddDate(0,0,1)
   cookie, err := r.Cookie(cookieName)
@@ -103,6 +105,8 @@ func uploadHandler(w http.ResponseWriter, r *http.Request){
       Path: "/package/upload"}
     http.SetCookie(w, &cookie)
     w.Write([]byte(uuid.New()))
+
+    os.Mkdir(tmpDir + "/" + sess, os.FileMode(0755))
   } else {
     w.Write([]byte("Hello3 " + cookie.Value))
   }
