@@ -1,0 +1,11 @@
+!_TAG_FILE_FORMAT	2	
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted/
+!_TAG_PROGRAM_AUTHOR	Joel Stemmer	/stemmertech@gmail.com/
+!_TAG_PROGRAM_NAME	gotags	
+!_TAG_PROGRAM_URL	https://github.com/jstemmer/gotags	
+!_TAG_PROGRAM_VERSION	1.2.0	
+Sqrt	sqrt.go	5;"	f	access:public	line:5	signature:(x float64)	type:float64
+TestSqrt	sqrt_test.go	5;"	f	access:public	line:5	signature:(t *testing.T)
+newmath	sqrt.go	2;"	p	line:2
+newmath	sqrt_test.go	1;"	p	line:1
+testing	sqrt_test.go	3;"	i	line:3
