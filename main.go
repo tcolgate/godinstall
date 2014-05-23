@@ -30,7 +30,7 @@ func main() {
 		putLocks <- 1
 	}
 
-	aptLock := make(chan int)
+	aptLock := make(chan int,1)
 	aptLock <- 1
 
 	r := mux.NewRouter()
@@ -76,7 +76,7 @@ func makeUploadHandler(
 		//maybe in a cookie?
 		if !found {
 			cookie, err := r.Cookie(cookieName)
-			if err != nil {
+			if err == nil {
 				session = cookie.Value
 			}
 		}
