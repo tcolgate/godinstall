@@ -12,7 +12,6 @@ import (
 )
 
 func main() {
-
 	maxGets := 4
 	maxPuts := 4
 	repoDir := "/tmp/myrepo"
@@ -49,6 +48,11 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Nothing to see here"))
 }
 
+/*
+ * This handler servers the repo itself, we use a channel to
+ * rate limit the requests, and to let us lock out all requests
+ * when trying to update the archive
+ */
 func makeRepoHandler(lockChan chan int, dir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		lock := <-lockChan
@@ -61,6 +65,16 @@ func makeRepoHandler(lockChan chan int, dir string) http.HandlerFunc {
 	}
 }
 
+
+type uploadReq struct {
+  S string
+  W http.ResponseWriter
+  R *http.Request
+}
+
+/*
+ *
+ */
 func pathHandle(dir string, timeout time.Duration) {
 	expired := make(chan bool)
 
@@ -79,15 +93,39 @@ func pathHandle(dir string, timeout time.Duration) {
 	}
 }
 
+func dispatcher(reqs chan *uploadReq, done chan string) {
+  var sessMap map[string]chan *uploadReq
+  for{
+    select{
+    case d := <- done:
+      _,ok := sessMap[d]
+      if ok {
+        delete(sessMap,d)
+      } else {
+      }
+    case r := <-reqs:
+      c,ok := sessMap[r.S]
+      if ok {
+        c <- r
+      } else {
+      }
+    }
+  }
+}
+
+/*
+ */
 func makeUploadHandler(
 	tmpDir string,
 	cookieName string,
 	expire time.Duration) func(http.ResponseWriter, *http.Request) {
 
+  dispatch := make(chan *uploadReq)
+  complete := make(chan string)
+
+  go dispatcher(dispatch, complete)
+
 	return func(w http.ResponseWriter, r *http.Request) {
-
-		// These should be configurable and closure'd in
-
 		// Did we get a session
 		session, found := mux.Vars(r)["session"]
 
@@ -117,7 +155,7 @@ func makeUploadHandler(
 
 		} else {
 			w.Write([]byte("Hello3 " + session))
+      dispatch <- &uploadReq{session, w, r}
 		}
-
 	}
 }
