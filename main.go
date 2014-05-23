@@ -6,7 +6,6 @@ package main
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"github.com/gorilla/mux"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -57,9 +56,6 @@ func makeRepoHandler(lockChan chan int, dir string) http.HandlerFunc {
 
 		file := mux.Vars(r)["rest"]
 		realFile := dir + "/" + file
-
-		log.Println(file)
-		log.Println(realFile)
 
 		http.ServeFile(w, r, realFile)
 	}
