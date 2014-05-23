@@ -1,0 +1,29 @@
+{
+	"ImportPath": "github.com/tcolgate/godinstall",
+	"GoVersion": "go1.2.1",
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/go-uuid/uuid",
+			"Comment": "null-12",
+			"Rev": "7dda39b2e7d5e265014674c5af696ba4186679e9"
+		},
+		{
+			"ImportPath": "code.google.com/p/go.crypto/cast5",
+			"Comment": "null-208",
+			"Rev": "d88182750244fc65f69250b385af9a62acb920f4"
+		},
+		{
+			"ImportPath": "code.google.com/p/go.crypto/openpgp",
+			"Comment": "null-208",
+			"Rev": "d88182750244fc65f69250b385af9a62acb920f4"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "b06ed15e1c7a08fa1ba783fe94fff89127587f9e"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "136d54f81f00414c45c3c68dd47e98cc97519c5e"
+		}
+	]
+}
