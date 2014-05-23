@@ -16,6 +16,7 @@ func main() {
 
 	maxGets := 4
 	maxPuts := 4
+	repoDir := "/tmp/myrepo"
 	tmpDir := "/tmp"
 	cookieName := "godinstall-sess"
 	expire, _ := time.ParseDuration("15s")
@@ -30,12 +31,12 @@ func main() {
 		putLocks <- 1
 	}
 
-	aptLock := make(chan int,1)
+	aptLock := make(chan int, 1)
 	aptLock <- 1
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", rootHandler).Methods("GET")
-	r.HandleFunc("/repo", repoHandler).Methods("GET")
+	r.HandleFunc("/repo/{rest:.*}", makeRepoHandler(getLocks, repoDir)).Methods("GET")
 
 	handler := makeUploadHandler(tmpDir, cookieName, expire)
 	r.HandleFunc("/package/upload", handler).Methods("POST", "PUT")
@@ -49,16 +50,37 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Nothing to see here"))
 }
 
-func repoHandler(w http.ResponseWriter, r *http.Request) {
-	//params := mux.Vars(r)
-	w.Write([]byte("Hello2"))
+func makeRepoHandler(lockChan chan int, dir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		lock := <-lockChan
+		defer func() { lockChan <- lock }()
+
+		file := mux.Vars(r)["rest"]
+		realFile := dir + "/" + file
+
+		log.Println(file)
+		log.Println(realFile)
+
+		http.ServeFile(w, r, realFile)
+	}
 }
 
-func pathHandle(dir string) {
-	log.Println("delay: " + dir)
-	time.Sleep(5 * time.Second)
-	log.Println("deleting: " + dir)
-	os.Remove(dir)
+func pathHandle(dir string, timeout time.Duration) {
+	expired := make(chan bool)
+
+	go func() {
+		time.Sleep(timeout)
+		expired <- true
+	}()
+
+	defer os.Remove(dir)
+
+	for {
+		select {
+		case <-expired:
+			return
+		}
+	}
 }
 
 func makeUploadHandler(
@@ -95,7 +117,7 @@ func makeUploadHandler(
 			dir := tmpDir + "/" + session
 			os.Mkdir(dir, os.FileMode(0755))
 
-			go pathHandle(dir)
+			go pathHandle(dir, expire)
 
 		} else {
 			w.Write([]byte("Hello3 " + session))
