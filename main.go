@@ -1,19 +1,19 @@
 package main
 
-	//"crypto/md5"
-  //"github.com/stapelberg/godebiancontrol"
+//"crypto/md5"
+//"github.com/stapelberg/godebiancontrol"
 
 import (
 	"bytes"
-	"net/http"
+	"code.google.com/p/go-uuid/uuid"
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/armor"
-	"code.google.com/p/go-uuid/uuid"
-  "github.com/gorilla/mux"
 	"fmt"
+	"github.com/gorilla/mux"
 	"log"
-	"time"
+	"net/http"
 	"os"
+	"time"
 )
 
 const encryptedMessage = `-----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -47,8 +47,7 @@ Go/ntXaFa63K2EwaGOvwmXFI1G9CSZ10tulOQldvboBPu8m2wQ==
 =p2l/
 -----END PGP PUBLIC KEY BLOCK-----`
 
-
-func TestVeriffy(){
+func TestVeriffy() {
 	decbuf := bytes.NewBuffer([]byte(encryptedMessage))
 	result, err := armor.Decode(decbuf)
 	if err != nil {
@@ -61,65 +60,79 @@ func TestVeriffy(){
 		log.Fatal(err)
 	}
 
-  //fmt.Println("dec version:", result.Header["Version"])
+	//fmt.Println("dec version:", result.Header["Version"])
 	fmt.Println("dec type:", result.Type)
 	fmt.Println("dec type:", md)
-  //bytes, err := ioutil.ReadAll(md.UnverifiedBody)
+	//bytes, err := ioutil.ReadAll(md.UnverifiedBody)
 	//fmt.Println("md:", string(bytes))
 }
 
-
 func main() {
-  r :=  mux.NewRouter()
-  r.HandleFunc("/", rootHandler).Methods("GET")
-  r.HandleFunc("/repo", repoHandler).Methods("GET")
-  r.HandleFunc("/package/upload", uploadHandler).Methods("POST", "PUT")
-  http.Handle("/",r)
-  http.ListenAndServe(":3000",nil)
+
+	maxGets := 4
+	getLocks := make(chan int, maxGets)
+	for i := 0; i < maxGets; i++ {
+		getLocks <- 1
+	}
+
+	maxPuts := 4
+	putLocks := make(chan int, maxPuts)
+	for i := 0; i < maxPuts; i++ {
+		putLocks <- 1
+	}
+
+	aptLock := make(chan int)
+	aptLock <- 1
+
+	r := mux.NewRouter()
+	r.HandleFunc("/", rootHandler).Methods("GET")
+	r.HandleFunc("/repo", repoHandler).Methods("GET")
+	r.HandleFunc("/package/upload", uploadHandler).Methods("POST", "PUT")
+	http.Handle("/", r)
+	http.ListenAndServe(":3000", nil)
 }
 
-func rootHandler(w http.ResponseWriter, r *http.Request){
-  //params := mux.Vars(r)
-  w.Write([]byte("Nothing to see here"))
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	//params := mux.Vars(r)
+	w.Write([]byte("Nothing to see here"))
 }
 
-func repoHandler(w http.ResponseWriter, r *http.Request){
-  //params := mux.Vars(r)
-  w.Write([]byte("Hello2"))
+func repoHandler(w http.ResponseWriter, r *http.Request) {
+	//params := mux.Vars(r)
+	w.Write([]byte("Hello2"))
 }
 
-func pathHandle(dir string){
-  log.Println("delay: " + dir)
-  time.Sleep(5 * time.Second)
-  log.Println("deleting: " + dir)
-  os.Remove(dir)
+func pathHandle(dir string) {
+	log.Println("delay: " + dir)
+	time.Sleep(5 * time.Second)
+	log.Println("deleting: " + dir)
+	os.Remove(dir)
 }
 
-func uploadHandler(w http.ResponseWriter, r *http.Request){
-  tmpDir := "/tmp"
-  cookieName := "godinstall-sess"
-  expire := time.Now().AddDate(0,0,1)
-  cookie, err := r.Cookie(cookieName)
+func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	tmpDir := "/tmp"
+	cookieName := "godinstall-sess"
+	expire := time.Now().AddDate(0, 0, 1)
+	cookie, err := r.Cookie(cookieName)
 
-  if err != nil {
-    log.Println(err)
-    sess := uuid.New()
-    cookie := http.Cookie{
-      Name: cookieName,
-      Value: sess,
-      Expires: expire,
-      HttpOnly: false,
-      Path: "/package/upload"}
-    http.SetCookie(w, &cookie)
-    w.Write([]byte(uuid.New()))
+	if err != nil {
+		log.Println(err)
+		sess := uuid.New()
+		cookie := http.Cookie{
+			Name:     cookieName,
+			Value:    sess,
+			Expires:  expire,
+			HttpOnly: false,
+			Path:     "/package/upload"}
+		http.SetCookie(w, &cookie)
+		w.Write([]byte(uuid.New()))
 
-    dir := tmpDir + "/" + sess
-    os.Mkdir(dir, os.FileMode(0755))
-    go pathHandle(dir)
+		dir := tmpDir + "/" + sess
+		os.Mkdir(dir, os.FileMode(0755))
+		go pathHandle(dir)
 
-  } else {
-    w.Write([]byte("Hello3 " + cookie.Value))
-  }
+	} else {
+		w.Write([]byte("Hello3 " + cookie.Value))
+	}
 
 }
-
