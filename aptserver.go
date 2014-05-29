@@ -64,11 +64,55 @@ func makeDownloadHandler(a *AptServer) http.HandlerFunc {
 	}
 }
 
+// This allows us to dynamically manager a set of request
+// and despatch request to invidividual handlers
+
+type uploadReq struct {
+	SessionId string
+	W         http.ResponseWriter
+	R         *http.Request
+	create    bool // This is a request to create a new upload session
+}
+
+func requestMuxer(a *AptServer, reqs chan *uploadReq) {
+	var sessMap map[string]chan *uploadReq
+
+	for {
+		select {
+		case r := <-reqs:
+			if r.create {
+				// We've been asked to create an existing session
+				// Should never get here
+				s := r.SessionId
+				cookie := http.Cookie{
+					Name:     a.CookieName,
+					Value:    s,
+					Expires:  time.Now().Add(a.TTL),
+					HttpOnly: false,
+					Path:     "/package/upload",
+				}
+				http.SetCookie(r.W, &cookie)
+				r.W.Write([]byte(s))
+
+				dir := a.TmpDir + "/" + s
+				os.Mkdir(dir, os.FileMode(0755))
+
+				go pathHandle(dir, a.TTL)
+			} else {
+				c, ok := sessMap[r.SessionId]
+				if ok {
+					c <- r
+				} else {
+				}
+			}
+		}
+	}
+}
+
 func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Request)) {
 	dispatch := make(chan *uploadReq)
-	complete := make(chan string)
 
-	go dispatcher(dispatch, complete)
+	go requestMuxer(a, dispatch)
 
 	f = func(w http.ResponseWriter, r *http.Request) {
 		// Did we get a session
@@ -84,33 +128,14 @@ func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Requ
 
 		if session == "" {
 			session := uuid.New()
-			cookie := http.Cookie{
-				Name:     a.CookieName,
-				Value:    session,
-				Expires:  time.Now().Add(a.TTL),
-				HttpOnly: false,
-				Path:     "/package/upload"}
-			http.SetCookie(w, &cookie)
-			w.Write([]byte(uuid.New()))
-
-			dir := a.TmpDir + "/" + session
-			os.Mkdir(dir, os.FileMode(0755))
-
-			go pathHandle(dir, a.TTL)
-
+			dispatch <- &uploadReq{session, w, r, true}
 		} else {
 			w.Write([]byte("Hello3 " + session))
-			dispatch <- &uploadReq{session, w, r}
+			dispatch <- &uploadReq{session, w, r, false}
 		}
 	}
 
 	return
-}
-
-type uploadReq struct {
-	S string
-	W http.ResponseWriter
-	R *http.Request
 }
 
 func pathHandle(dir string, timeout time.Duration) {
@@ -127,26 +152,6 @@ func pathHandle(dir string, timeout time.Duration) {
 		select {
 		case <-expired:
 			return
-		}
-	}
-}
-
-func dispatcher(reqs chan *uploadReq, done chan string) {
-	var sessMap map[string]chan *uploadReq
-	for {
-		select {
-		case d := <-done:
-			_, ok := sessMap[d]
-			if ok {
-				delete(sessMap, d)
-			} else {
-			}
-		case r := <-reqs:
-			c, ok := sessMap[r.S]
-			if ok {
-				c <- r
-			} else {
-			}
 		}
 	}
 }
