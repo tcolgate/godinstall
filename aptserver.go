@@ -64,18 +64,18 @@ func makeDownloadHandler(a *AptServer) http.HandlerFunc {
 	}
 }
 
-// This allows us to dynamically manager a set of request
-// and despatch request to invidividual handlers
 
-type uploadReq struct {
+type uploadSessionReq struct {
 	SessionId string
 	W         http.ResponseWriter
 	R         *http.Request
 	create    bool // This is a request to create a new upload session
 }
 
-func requestMuxer(a *AptServer, reqs chan *uploadReq) {
-	var sessMap map[string]chan *uploadReq
+// This allows us to dynamically manager a set of request
+// and despatch request to invidividual handlers
+func requestMuxer(a *AptServer, reqs chan *uploadSessionReq) {
+	var sessMap map[string]chan *uploadSessionReq
 
 	for {
 		select {
@@ -110,7 +110,7 @@ func requestMuxer(a *AptServer, reqs chan *uploadReq) {
 }
 
 func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Request)) {
-	dispatch := make(chan *uploadReq)
+	dispatch := make(chan *uploadSessionReq)
 
 	go requestMuxer(a, dispatch)
 
@@ -128,10 +128,10 @@ func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Requ
 
 		if session == "" {
 			session := uuid.New()
-			dispatch <- &uploadReq{session, w, r, true}
+			dispatch <- &uploadSessionReq{session, w, r, true}
 		} else {
 			w.Write([]byte("Hello3 " + session))
-			dispatch <- &uploadReq{session, w, r, false}
+			dispatch <- &uploadSessionReq{session, w, r, false}
 		}
 	}
 
