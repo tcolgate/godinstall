@@ -71,6 +71,15 @@ type uploadSessionReq struct {
 	create    bool // This is a request to create a new upload session
 }
 
+type uploadSession struct {
+	SessionId string
+  dir string
+}
+
+func (s *uploadSession) Close(){
+  os.Remove(s.dir)
+}
+
 func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Request)) {
   sessMap := NewSafeMap()
 
@@ -113,13 +122,11 @@ func dispatchRequest(a *AptServer, sessMap *SafeMap, r *uploadSessionReq) {
 
     dir := a.TmpDir + "/" + s
     os.Mkdir(dir, os.FileMode(0755))
-    go pathHandle(sessMap, dir, a.TTL)
-
-    sessMap.Set(r.SessionId, r)
+    sessMap.Set(r.SessionId, &uploadSession{dir: dir})
+    go pathHandle(sessMap, r.SessionId, a.TTL)
   } else {
     c := sessMap.Get(r.SessionId)
     if c != nil {
-      //c(r.W, r.R)
       r.W.Write([]byte("Got a hit"))
     } else {
       log.Println("request for unknown session")
@@ -128,7 +135,18 @@ func dispatchRequest(a *AptServer, sessMap *SafeMap, r *uploadSessionReq) {
   }
 }
 
-func pathHandle(sessMap *SafeMap, dir string, timeout time.Duration) {
+func pathHandle(sessMap *SafeMap, s string, timeout time.Duration) {
 	time.Sleep(timeout)
-	os.Remove(dir)
+  c := sessMap.Get(s)
+  if c != nil {
+    switch sess := c.(type){
+      case *uploadSession:
+        log.Println("Close session")
+    	  sess.Close()
+      default:
+        log.Println("Shouldn't get here")
+    }
+  }else{
+    log.Println("Didn't find session")
+  }
 }
