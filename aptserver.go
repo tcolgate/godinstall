@@ -64,7 +64,6 @@ func makeDownloadHandler(a *AptServer) http.HandlerFunc {
 	}
 }
 
-
 type uploadSessionReq struct {
 	SessionId string
 	W         http.ResponseWriter
@@ -72,47 +71,8 @@ type uploadSessionReq struct {
 	create    bool // This is a request to create a new upload session
 }
 
-// This allows us to dynamically manager a set of request
-// and despatch request to invidividual handlers
-func requestMuxer(a *AptServer, reqs chan *uploadSessionReq) {
-	var sessMap map[string]chan *uploadSessionReq
-
-	for {
-		select {
-		case r := <-reqs:
-			if r.create {
-				// We've been asked to create an existing session
-				// Should never get here
-				s := r.SessionId
-				cookie := http.Cookie{
-					Name:     a.CookieName,
-					Value:    s,
-					Expires:  time.Now().Add(a.TTL),
-					HttpOnly: false,
-					Path:     "/package/upload",
-				}
-				http.SetCookie(r.W, &cookie)
-				r.W.Write([]byte(s))
-
-				dir := a.TmpDir + "/" + s
-				os.Mkdir(dir, os.FileMode(0755))
-
-				go pathHandle(dir, a.TTL)
-			} else {
-				c, ok := sessMap[r.SessionId]
-				if ok {
-					c <- r
-				} else {
-				}
-			}
-		}
-	}
-}
-
 func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Request)) {
-	dispatch := make(chan *uploadSessionReq)
-
-	go requestMuxer(a, dispatch)
+  sessMap := NewSafeMap()
 
 	f = func(w http.ResponseWriter, r *http.Request) {
 		// Did we get a session
@@ -128,30 +88,47 @@ func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Requ
 
 		if session == "" {
 			session := uuid.New()
-			dispatch <- &uploadSessionReq{session, w, r, true}
+			dispatchRequest(a, sessMap, &uploadSessionReq{session, w, r, true})
 		} else {
-			w.Write([]byte("Hello3 " + session))
-			dispatch <- &uploadSessionReq{session, w, r, false}
+			dispatchRequest(a, sessMap, &uploadSessionReq{session, w, r, false})
 		}
 	}
 
 	return
 }
 
-func pathHandle(dir string, timeout time.Duration) {
-	expired := make(chan bool)
+func dispatchRequest(a *AptServer, sessMap *SafeMap, r *uploadSessionReq) {
+  if r.create {
+    // We've been asked to create an existing session
+    // Should never get here
+    s := r.SessionId
+    cookie := http.Cookie{
+      Name:     a.CookieName,
+      Value:    s,
+      Expires:  time.Now().Add(a.TTL),
+      HttpOnly: false,
+      Path:     "/package/upload",
+    }
+    http.SetCookie(r.W, &cookie)
 
-	go func() {
-		time.Sleep(timeout)
-		expired <- true
-	}()
+    dir := a.TmpDir + "/" + s
+    os.Mkdir(dir, os.FileMode(0755))
+    go pathHandle(sessMap, dir, a.TTL)
 
-	defer os.Remove(dir)
+    sessMap.Set(r.SessionId, r)
+  } else {
+    c := sessMap.Get(r.SessionId)
+    if c != nil {
+      //c(r.W, r.R)
+      r.W.Write([]byte("Got a hit"))
+    } else {
+      log.Println("request for unknown session")
+      http.NotFound(r.W, r.R)
+    }
+  }
+}
 
-	for {
-		select {
-		case <-expired:
-			return
-		}
-	}
+func pathHandle(sessMap *SafeMap, dir string, timeout time.Duration) {
+	time.Sleep(timeout)
+	os.Remove(dir)
 }
