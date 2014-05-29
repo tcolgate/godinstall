@@ -6,25 +6,25 @@ package main
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"github.com/gorilla/mux"
+	"log"
 	"net/http"
 	"os"
 	"time"
-	"log"
 )
 
-type AptServer struct{
-	MaxGets int
-	MaxPuts int
-	RepoDir string
-	TmpDir string
+type AptServer struct {
+	MaxGets    int
+	MaxPuts    int
+	RepoDir    string
+	TmpDir     string
 	CookieName string
-	TTL time.Duration
+	TTL        time.Duration
 
-  getLocks chan int
-  putLocks chan int
-  aptLock chan int
-  uploadHandler http.HandlerFunc
-  downloadHandler http.HandlerFunc
+	getLocks        chan int
+	putLocks        chan int
+	aptLock         chan int
+	uploadHandler   http.HandlerFunc
+	downloadHandler http.HandlerFunc
 }
 
 func (a *AptServer) InitAptServer() {
@@ -40,7 +40,7 @@ func (a *AptServer) InitAptServer() {
 
 	a.aptLock = make(chan int, 1)
 	a.aptLock <- 1
-  a.downloadHandler = makeDownloadHandler(a)
+	a.downloadHandler = makeDownloadHandler(a)
 	a.uploadHandler = makeUploadHandler(a)
 }
 
@@ -58,19 +58,19 @@ func makeDownloadHandler(a *AptServer) http.HandlerFunc {
 		file := mux.Vars(r)["rest"]
 		realFile := a.TmpDir + "/" + file
 
-    log.Println("req'd " + realFile)
+		log.Println("req'd " + realFile)
 
 		http.ServeFile(w, r, realFile)
 	}
 }
 
-func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Request)){
-  dispatch := make(chan *uploadReq)
-  complete := make(chan string)
+func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Request)) {
+	dispatch := make(chan *uploadReq)
+	complete := make(chan string)
 
-  go dispatcher(dispatch, complete)
+	go dispatcher(dispatch, complete)
 
-  f = func(w http.ResponseWriter, r *http.Request) {
+	f = func(w http.ResponseWriter, r *http.Request) {
 		// Did we get a session
 		session, found := mux.Vars(r)["session"]
 
@@ -100,17 +100,17 @@ func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Requ
 
 		} else {
 			w.Write([]byte("Hello3 " + session))
-      dispatch <- &uploadReq{session, w, r}
+			dispatch <- &uploadReq{session, w, r}
 		}
 	}
 
-  return
+	return
 }
 
 type uploadReq struct {
-  S string
-  W http.ResponseWriter
-  R *http.Request
+	S string
+	W http.ResponseWriter
+	R *http.Request
 }
 
 func pathHandle(dir string, timeout time.Duration) {
@@ -132,22 +132,21 @@ func pathHandle(dir string, timeout time.Duration) {
 }
 
 func dispatcher(reqs chan *uploadReq, done chan string) {
-  var sessMap map[string]chan *uploadReq
-  for{
-    select{
-    case d := <- done:
-      _,ok := sessMap[d]
-      if ok {
-        delete(sessMap,d)
-      } else {
-      }
-    case r := <-reqs:
-      c,ok := sessMap[r.S]
-      if ok {
-        c <- r
-      } else {
-      }
-    }
-  }
+	var sessMap map[string]chan *uploadReq
+	for {
+		select {
+		case d := <-done:
+			_, ok := sessMap[d]
+			if ok {
+				delete(sessMap, d)
+			} else {
+			}
+		case r := <-reqs:
+			c, ok := sessMap[r.S]
+			if ok {
+				c <- r
+			} else {
+			}
+		}
+	}
 }
-

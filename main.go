@@ -4,10 +4,10 @@ package main
 //"github.com/stapelberg/godebiancontrol"
 
 import (
+	"flag"
 	"github.com/gorilla/mux"
 	"net/http"
 	"time"
-	"flag"
 )
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
@@ -15,27 +15,27 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-  var listenAddress = flag.String("listen", ":3000", "ip:port to listen on")
+	var listenAddress = flag.String("listen", ":3000", "ip:port to listen on")
 
-  flag.Parse()
+	flag.Parse()
 
 	expire, _ := time.ParseDuration("15s")
 
-  server := &AptServer{
-	  MaxGets: 4,
-	  MaxPuts: 4,
-	  RepoDir: "/tmp/myrepo",
-	  TmpDir: "/tmp",
-	  CookieName: "godinstall-sess",
-    TTL: expire,
-  }
+	server := &AptServer{
+		MaxGets:    4,
+		MaxPuts:    4,
+		RepoDir:    "/tmp/myrepo",
+		TmpDir:     "/tmp",
+		CookieName: "godinstall-sess",
+		TTL:        expire,
+	}
 
-  server.InitAptServer()
+	server.InitAptServer()
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", rootHandler).Methods("GET")
 
-  server.Register(r)
+	server.Register(r)
 
 	http.Handle("/", r)
 	http.ListenAndServe(*listenAddress, nil)
