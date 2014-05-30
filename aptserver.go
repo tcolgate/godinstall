@@ -8,8 +8,10 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"mime/multipart"
 	"os"
 	"time"
+	"strings"
 )
 
 type AptServer struct {
@@ -108,8 +110,30 @@ func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Requ
 
 func dispatchRequest(a *AptServer, sessMap *SafeMap, r *uploadSessionReq) {
   if r.create {
-    // We've been asked to create an existing session
-    // Should never get here
+    err := r.R.ParseMultipartForm(64000000)
+    if err != nil {
+      http.Error(r.W, err.Error(), http.StatusInternalServerError)
+      return
+    }
+
+    form := r.R.MultipartForm
+    log.Println(form)
+    files := form.File["debfiles"]
+    log.Println(files)
+    var changes multipart.File
+    for _, f := range files {
+       log.Println(f.Filename)
+       if (strings.HasSuffix(f.Filename, ".changes")){
+         changes,err = f.Open()
+         break
+       }
+    }
+
+    if changes == nil {
+      http.Error(r.W, "No debian changes file in request", http.StatusInternalServerError)
+      return
+    }
+
     s := r.SessionId
     cookie := http.Cookie{
       Name:     a.CookieName,
@@ -122,6 +146,7 @@ func dispatchRequest(a *AptServer, sessMap *SafeMap, r *uploadSessionReq) {
 
     dir := a.TmpDir + "/" + s
     os.Mkdir(dir, os.FileMode(0755))
+
     sessMap.Set(r.SessionId, &uploadSession{dir: dir})
     go pathHandle(sessMap, r.SessionId, a.TTL)
   } else {

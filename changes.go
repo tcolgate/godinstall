@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 )
+  //"github.com/stapelberg/godebiancontrol"
 
 /* package changes processes an incoming debian changes file */
 
