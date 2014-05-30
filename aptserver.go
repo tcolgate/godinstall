@@ -7,10 +7,10 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"github.com/gorilla/mux"
 	"log"
-	"net/http"
 	"mime/multipart"
-	"time"
+	"net/http"
 	"strings"
+	"time"
 )
 
 type AptServer struct {
@@ -26,7 +26,7 @@ type AptServer struct {
 	aptLock         chan int
 	uploadHandler   http.HandlerFunc
 	downloadHandler http.HandlerFunc
-  sessMap         *SafeMap
+	sessMap         *SafeMap
 }
 
 func (a *AptServer) InitAptServer() {
@@ -44,7 +44,7 @@ func (a *AptServer) InitAptServer() {
 	a.aptLock <- 1
 	a.downloadHandler = makeDownloadHandler(a)
 	a.uploadHandler = makeUploadHandler(a)
-  a.sessMap = NewSafeMap()
+	a.sessMap = NewSafeMap()
 }
 
 func (a *AptServer) Register(r *mux.Router) {
@@ -99,48 +99,48 @@ func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Requ
 }
 
 func dispatchRequest(a *AptServer, r *uploadSessionReq) {
-  if r.create {
-    err := r.R.ParseMultipartForm(64000000)
-    if err != nil {
-      http.Error(r.W, err.Error(), http.StatusInternalServerError)
-      return
-    }
+	if r.create {
+		err := r.R.ParseMultipartForm(64000000)
+		if err != nil {
+			http.Error(r.W, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-    form := r.R.MultipartForm
-    files := form.File["debfiles"]
-    var changes multipart.File
-    for _, f := range files {
-       if (strings.HasSuffix(f.Filename, ".changes")){
-         changes,err = f.Open()
-         break
-       }
-    }
+		form := r.R.MultipartForm
+		files := form.File["debfiles"]
+		var changes multipart.File
+		for _, f := range files {
+			if strings.HasSuffix(f.Filename, ".changes") {
+				changes, err = f.Open()
+				break
+			}
+		}
 
-    if changes == nil {
-      http.Error(r.W, "No debian changes file in request", http.StatusInternalServerError)
-      return
-    }
+		if changes == nil {
+			http.Error(r.W, "No debian changes file in request", http.StatusInternalServerError)
+			return
+		}
 
-    s := r.SessionId
+		s := r.SessionId
 
-    a.NewUploadSession(s)
+		a.NewUploadSession(s)
 
-    cookie := http.Cookie{
-      Name:     a.CookieName,
-      Value:    s,
-      Expires:  time.Now().Add(a.TTL),
-      HttpOnly: false,
-      Path:     "/package/upload",
-    }
-    http.SetCookie(r.W, &cookie)
+		cookie := http.Cookie{
+			Name:     a.CookieName,
+			Value:    s,
+			Expires:  time.Now().Add(a.TTL),
+			HttpOnly: false,
+			Path:     "/package/upload",
+		}
+		http.SetCookie(r.W, &cookie)
 
-  } else {
-    c := a.sessMap.Get(r.SessionId)
-    if c != nil {
-      r.W.Write([]byte("Got a hit"))
-    } else {
-      log.Println("request for unknown session")
-      http.NotFound(r.W, r.R)
-    }
-  }
+	} else {
+		c := a.sessMap.Get(r.SessionId)
+		if c != nil {
+			r.W.Write([]byte("Got a hit"))
+		} else {
+			log.Println("request for unknown session")
+			http.NotFound(r.W, r.R)
+		}
+	}
 }
