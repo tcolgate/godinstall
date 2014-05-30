@@ -132,7 +132,11 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		s := r.SessionId
 
 		us := a.NewUploadSession(s)
-		us.AddChanges(changes)
+		err = us.AddChanges(changes)
+		if err != nil {
+			http.Error(r.W, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		cookie := http.Cookie{
 			Name:     a.CookieName,
@@ -142,6 +146,12 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 			Path:     "/package/upload",
 		}
 		http.SetCookie(r.W, &cookie)
+
+		r.W.WriteHeader(201)
+
+		// I should write a JSON reponse here with the session Id
+		r.W.Write([]byte("Upload session created: " + s))
+		return
 
 	} else {
 		c := a.sessMap.Get(r.SessionId)

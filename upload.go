@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/clearsign"
+	"fmt"
 	"github.com/stapelberg/godebiancontrol"
 	"io/ioutil"
 	"log"
@@ -61,16 +62,17 @@ func (s *uploadSession) AddChanges(f multipart.File) (err error) {
 
 	msg, rest := clearsign.Decode(b)
 	if len(rest) != 0 {
-		log.Println("changes file not signed")
+		err = fmt.Errorf("changes file not signed")
+		return
 	}
-	br := bytes.NewReader(msg.Bytes)
-	log.Println(br)
-	log.Println(msg.Plaintext)
-	log.Println(msg.Bytes)
 
+	br := bytes.NewReader(msg.Bytes)
 	signer, err := openpgp.CheckDetachedSignature(s.keyRing, br, msg.ArmoredSignature.Body)
+	if err != nil {
+		return
+	}
+
 	log.Println(signer)
-	log.Println(err)
 
 	br = bytes.NewReader(msg.Plaintext)
 	changes, err := godebiancontrol.Parse(br)
