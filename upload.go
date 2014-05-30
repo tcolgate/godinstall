@@ -10,8 +10,9 @@ import (
   //"github.com/stapelberg/godebiancontrol"
 
 type uploadSession struct {
-	SessionId string
-  dir string
+	SessionId string   // Name of the session
+  dir string         // Temporary directory for storage
+  changes DebChanges
 }
 
 func (s *uploadSession) Close(){
