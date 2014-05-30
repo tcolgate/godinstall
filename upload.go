@@ -1,18 +1,23 @@
 package main
 
 import (
+	"bytes"
+	"code.google.com/p/go.crypto/openpgp"
+	"code.google.com/p/go.crypto/openpgp/clearsign"
+	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"os"
 	"time"
 )
 
-//"code.google.com/p/go.crypto/openpgp"
 //"code.google.com/p/go.crypto/openpgp/armor"
 //"github.com/stapelberg/godebiancontrol"
 
 type uploadSession struct {
 	SessionId string // Name of the session
 	dir       string // Temporary directory for storage
+	keyRing   openpgp.KeyRing
 	changes   DebChanges
 }
 
@@ -20,15 +25,18 @@ func (s *uploadSession) Close() {
 	os.Remove(s.dir)
 }
 
-func (a *AptServer) NewUploadSession(sessionId string) {
+func (a *AptServer) NewUploadSession(sessionId string) *uploadSession {
 	var s uploadSession
 	s.SessionId = sessionId
+	s.keyRing = a.pubRing
 	s.dir = a.TmpDir + "/" + sessionId
 
 	os.Mkdir(s.dir, os.FileMode(0755))
 
 	a.sessMap.Set(sessionId, &s)
 	go pathHandle(a.sessMap, sessionId, a.TTL)
+
+	return &s
 }
 
 func pathHandle(sessMap *SafeMap, s string, timeout time.Duration) {
@@ -45,4 +53,26 @@ func pathHandle(sessMap *SafeMap, s string, timeout time.Duration) {
 	} else {
 		log.Println("Didn't find session")
 	}
+}
+
+func (s *uploadSession) AddChanges(f multipart.File) (err error) {
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		return
+	}
+
+	msg, rest := clearsign.Decode(b)
+	if len(rest) != 0 {
+		log.Println("changes file not signed")
+	}
+	br := bytes.NewReader(msg.Bytes)
+	log.Println(br)
+	log.Println(msg.Plaintext)
+	log.Println(msg.Bytes)
+
+	signer, err := openpgp.CheckDetachedSignature(s.keyRing, br, msg.ArmoredSignature.Body)
+	log.Println(signer)
+	log.Println(err)
+
+	return
 }

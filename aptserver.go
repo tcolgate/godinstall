@@ -5,10 +5,12 @@ package main
 
 import (
 	"code.google.com/p/go-uuid/uuid"
+	"code.google.com/p/go.crypto/openpgp"
 	"github.com/gorilla/mux"
 	"log"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -27,6 +29,8 @@ type AptServer struct {
 	uploadHandler   http.HandlerFunc
 	downloadHandler http.HandlerFunc
 	sessMap         *SafeMap
+	pubRing         openpgp.KeyRing
+	privRing        openpgp.KeyRing
 }
 
 func (a *AptServer) InitAptServer() {
@@ -45,6 +49,10 @@ func (a *AptServer) InitAptServer() {
 	a.downloadHandler = makeDownloadHandler(a)
 	a.uploadHandler = makeUploadHandler(a)
 	a.sessMap = NewSafeMap()
+	pubringFile, _ := os.Open("pubring.gpg")
+	a.pubRing, _ = openpgp.ReadKeyRing(pubringFile)
+	privringFile, _ := os.Open("secring.gpg")
+	a.privRing, _ = openpgp.ReadKeyRing(privringFile)
 }
 
 func (a *AptServer) Register(r *mux.Router) {
@@ -123,7 +131,8 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 
 		s := r.SessionId
 
-		a.NewUploadSession(s)
+		us := a.NewUploadSession(s)
+		us.AddChanges(changes)
 
 		cookie := http.Cookie{
 			Name:     a.CookieName,
