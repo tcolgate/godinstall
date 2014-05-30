@@ -4,15 +4,13 @@ import (
 	"bytes"
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/clearsign"
+	"github.com/stapelberg/godebiancontrol"
 	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"os"
 	"time"
 )
-
-//"code.google.com/p/go.crypto/openpgp/armor"
-//"github.com/stapelberg/godebiancontrol"
 
 type uploadSession struct {
 	SessionId string // Name of the session
@@ -73,6 +71,14 @@ func (s *uploadSession) AddChanges(f multipart.File) (err error) {
 	signer, err := openpgp.CheckDetachedSignature(s.keyRing, br, msg.ArmoredSignature.Body)
 	log.Println(signer)
 	log.Println(err)
+
+	br = bytes.NewReader(msg.Plaintext)
+	changes, err := godebiancontrol.Parse(br)
+	if err != nil {
+		return
+	}
+
+	log.Println(changes)
 
 	return
 }
