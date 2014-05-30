@@ -58,7 +58,7 @@ func (a *AptServer) InitAptServer() {
 func (a *AptServer) Register(r *mux.Router) {
 	r.HandleFunc("/repo/{rest:.*}", a.downloadHandler).Methods("GET")
 	r.HandleFunc("/package/upload", a.uploadHandler).Methods("POST", "PUT")
-	r.HandleFunc("/package/upload/{session}", a.uploadHandler).Methods("POST", "PUT")
+	r.HandleFunc("/package/upload/{session}", a.uploadHandler).Methods("GET","POST", "PUT")
 }
 
 func makeDownloadHandler(a *AptServer) http.HandlerFunc {
@@ -129,9 +129,16 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 			return
 		}
 
+		// This should probably move into the upload session constructor
 		s := r.SessionId
 
 		us := a.NewUploadSession(s)
+		us.changes, err = ParseDebianChanges(changes)
+		if err != nil {
+			http.Error(r.W, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		err = us.AddChanges(changes)
 		if err != nil {
 			http.Error(r.W, err.Error(), http.StatusInternalServerError)
@@ -156,7 +163,13 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 	} else {
 		c := a.sessMap.Get(r.SessionId)
 		if c != nil {
-			r.W.Write([]byte("Got a hit"))
+			// Move this logic elseqhere
+			switch sess := c.(type) {
+			case *uploadSession:
+				sess.HandleReq(r.W, r.R)
+			default:
+				log.Println("Shouldn't get here")
+			}
 		} else {
 			log.Println("request for unknown session")
 			http.NotFound(r.W, r.R)

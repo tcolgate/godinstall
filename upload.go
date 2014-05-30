@@ -5,10 +5,10 @@ import (
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/clearsign"
 	"fmt"
-	"github.com/stapelberg/godebiancontrol"
 	"io/ioutil"
 	"log"
 	"mime/multipart"
+	"net/http"
 	"os"
 	"time"
 )
@@ -17,7 +17,12 @@ type uploadSession struct {
 	SessionId string // Name of the session
 	dir       string // Temporary directory for storage
 	keyRing   openpgp.KeyRing
-	changes   DebChanges
+	changes   *DebChanges
+}
+
+func (s *uploadSession) HandleReq(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Got a hit"))
+	return
 }
 
 func (s *uploadSession) Close() {
@@ -75,12 +80,10 @@ func (s *uploadSession) AddChanges(f multipart.File) (err error) {
 	log.Println(signer)
 
 	br = bytes.NewReader(msg.Plaintext)
-	changes, err := godebiancontrol.Parse(br)
+	s.changes, err = ParseDebianChanges(br)
 	if err != nil {
 		return
 	}
-
-	log.Println(changes)
 
 	return
 }
