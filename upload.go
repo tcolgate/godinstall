@@ -21,8 +21,26 @@ type uploadSession struct {
 }
 
 func (s *uploadSession) HandleReq(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Got a hit"))
-	return
+	switch r.Method {
+	case "GET":
+		{
+			w.Write([]byte("Display some status info here"))
+			return
+		}
+	case "PUT", "POST":
+		{
+			// This response code will depend on upload status
+			w.WriteHeader(202)
+			w.Write([]byte("Upload some junk"))
+			return
+		}
+	default:
+		{
+			http.Error(w, "unknown method", http.StatusInternalServerError)
+			return
+		}
+		return
+	}
 }
 
 func (s *uploadSession) Close() {
@@ -51,6 +69,7 @@ func pathHandle(sessMap *SafeMap, s string, timeout time.Duration) {
 		case *uploadSession:
 			log.Println("Close session")
 			sess.Close()
+			sessMap.Delete(s)
 		default:
 			log.Println("Shouldn't get here")
 		}
