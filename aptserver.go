@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"mime/multipart"
-	"os"
 	"time"
 	"strings"
 )
@@ -27,6 +26,7 @@ type AptServer struct {
 	aptLock         chan int
 	uploadHandler   http.HandlerFunc
 	downloadHandler http.HandlerFunc
+  sessMap         *SafeMap
 }
 
 func (a *AptServer) InitAptServer() {
@@ -44,6 +44,7 @@ func (a *AptServer) InitAptServer() {
 	a.aptLock <- 1
 	a.downloadHandler = makeDownloadHandler(a)
 	a.uploadHandler = makeUploadHandler(a)
+  a.sessMap = NewSafeMap()
 }
 
 func (a *AptServer) Register(r *mux.Router) {
@@ -73,18 +74,7 @@ type uploadSessionReq struct {
 	create    bool // This is a request to create a new upload session
 }
 
-type uploadSession struct {
-	SessionId string
-  dir string
-}
-
-func (s *uploadSession) Close(){
-  os.Remove(s.dir)
-}
-
 func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Request)) {
-  sessMap := NewSafeMap()
-
 	f = func(w http.ResponseWriter, r *http.Request) {
 		// Did we get a session
 		session, found := mux.Vars(r)["session"]
@@ -99,16 +89,16 @@ func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Requ
 
 		if session == "" {
 			session := uuid.New()
-			dispatchRequest(a, sessMap, &uploadSessionReq{session, w, r, true})
+			dispatchRequest(a, &uploadSessionReq{session, w, r, true})
 		} else {
-			dispatchRequest(a, sessMap, &uploadSessionReq{session, w, r, false})
+			dispatchRequest(a, &uploadSessionReq{session, w, r, false})
 		}
 	}
 
 	return
 }
 
-func dispatchRequest(a *AptServer, sessMap *SafeMap, r *uploadSessionReq) {
+func dispatchRequest(a *AptServer, r *uploadSessionReq) {
   if r.create {
     err := r.R.ParseMultipartForm(64000000)
     if err != nil {
@@ -117,12 +107,9 @@ func dispatchRequest(a *AptServer, sessMap *SafeMap, r *uploadSessionReq) {
     }
 
     form := r.R.MultipartForm
-    log.Println(form)
     files := form.File["debfiles"]
-    log.Println(files)
     var changes multipart.File
     for _, f := range files {
-       log.Println(f.Filename)
        if (strings.HasSuffix(f.Filename, ".changes")){
          changes,err = f.Open()
          break
@@ -135,6 +122,9 @@ func dispatchRequest(a *AptServer, sessMap *SafeMap, r *uploadSessionReq) {
     }
 
     s := r.SessionId
+
+    a.NewUploadSession(s)
+
     cookie := http.Cookie{
       Name:     a.CookieName,
       Value:    s,
@@ -144,34 +134,13 @@ func dispatchRequest(a *AptServer, sessMap *SafeMap, r *uploadSessionReq) {
     }
     http.SetCookie(r.W, &cookie)
 
-    dir := a.TmpDir + "/" + s
-    os.Mkdir(dir, os.FileMode(0755))
-
-    sessMap.Set(r.SessionId, &uploadSession{dir: dir})
-    go pathHandle(sessMap, r.SessionId, a.TTL)
   } else {
-    c := sessMap.Get(r.SessionId)
+    c := a.sessMap.Get(r.SessionId)
     if c != nil {
       r.W.Write([]byte("Got a hit"))
     } else {
       log.Println("request for unknown session")
       http.NotFound(r.W, r.R)
     }
-  }
-}
-
-func pathHandle(sessMap *SafeMap, s string, timeout time.Duration) {
-	time.Sleep(timeout)
-  c := sessMap.Get(s)
-  if c != nil {
-    switch sess := c.(type){
-      case *uploadSession:
-        log.Println("Close session")
-    	  sess.Close()
-      default:
-        log.Println("Shouldn't get here")
-    }
-  }else{
-    log.Println("Didn't find session")
   }
 }
