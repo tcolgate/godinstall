@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"code.google.com/p/go.crypto/openpgp"
-	"code.google.com/p/go.crypto/openpgp/clearsign"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,6 +9,9 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"code.google.com/p/go.crypto/openpgp"
+	"code.google.com/p/go.crypto/openpgp/clearsign"
 )
 
 type uploadSession struct {
@@ -39,7 +40,6 @@ func (s *uploadSession) HandleReq(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "unknown method", http.StatusInternalServerError)
 			return
 		}
-		return
 	}
 }
 
