@@ -49,15 +49,15 @@ func TestParseDebianChanges(t *testing.T) {
 				}
 
 				if match == false {
-					t.Errorf("%d. failed:\n  got: %q\n  expected: %q\n", i, c.Files, tt.expect)
+					t.Errorf("%d. failed:\n  got: %+v\n  expected: %+v\n", i, c.Files, tt.expect)
 				}
 
 				if c.signed != tt.signed {
-					t.Errorf("%d. Signed flag wrong:\n  got: %q\n  expected: %q\n", i, c.signed, tt.signed)
+					t.Errorf("%d. Signed flag wrong:\n  got: %t\n  expected: %t\n", i, c.signed, tt.signed)
 				}
 
 				if c.validated != tt.valid {
-					t.Errorf("%d. Valid flag wrong:\n  got: %q\n  expected: %q\n", i, c.validated, tt.valid)
+					t.Errorf("%d. Valid flag wrong:\n  got: %t\n  expected: %t\n", i, c.validated, tt.valid)
 				}
 			}
 		} else {
