@@ -59,13 +59,18 @@ func ParseDebianChanges(r io.Reader, kr *openpgp.KeyRing) (p *DebChanges, err er
 	}
 
 	if c.signed {
-		c.signedBy, err = openpgp.CheckDetachedSignature(*kr, br, msg.ArmoredSignature.Body)
-		if err == nil {
-			c.validated = true
-		} else {
+		if kr == nil {
+			log.Println("Validation requested, but keyring is null")
 			c.validated = false
+		} else {
+			c.signedBy, err = openpgp.CheckDetachedSignature(*kr, br, msg.ArmoredSignature.Body)
+			if err == nil {
+				c.validated = true
+			} else {
+				c.validated = false
+			}
+			br = bytes.NewReader(msg.Plaintext)
 		}
-		br = bytes.NewReader(msg.Plaintext)
 	} else {
 		c.validated = false
 	}
@@ -115,7 +120,7 @@ func ParseDebianChanges(r io.Reader, kr *openpgp.KeyRing) (p *DebChanges, err er
 				if ok {
 					f.Sha1 = fileDesc[0]
 				} else {
-					log.Println("Ignoring checksum for file not listed in Files")
+					log.Printf("Ignoring checksum for file not listed in Files: %s", name)
 				}
 			}
 		}
