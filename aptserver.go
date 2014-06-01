@@ -17,12 +17,14 @@ import (
 )
 
 type AptServer struct {
-	MaxGets    int
-	MaxPuts    int
-	RepoDir    string
-	TmpDir     string
-	CookieName string
-	TTL        time.Duration
+	MaxGets         int
+	MaxPuts         int
+	RepoDir         string
+	TmpDir          string
+	CookieName      string
+	TTL             time.Duration
+	ValidateChanges bool
+	ValidateDebs    bool
 
 	getLocks        *Governor
 	putLocks        *Governor
@@ -124,7 +126,16 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 			http.Error(r.W, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		log.Printf("%q", changes)
+
+		if a.ValidateChanges && !changes.signed {
+			http.Error(r.W, "Changes file was not signed", http.StatusInternalServerError)
+			return
+		}
+
+		if a.ValidateChanges && !changes.validated {
+			http.Error(r.W, "Changes file could not be validated", http.StatusInternalServerError)
+			return
+		}
 
 		// This should probably move into the upload session constructor
 		s := r.SessionId

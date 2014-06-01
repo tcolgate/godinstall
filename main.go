@@ -5,9 +5,10 @@ package main
 
 import (
 	"flag"
-	"github.com/gorilla/mux"
 	"net/http"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
@@ -16,18 +17,21 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	var listenAddress = flag.String("listen", ":3000", "ip:port to listen on")
+	var validate = flag.Bool("validate", true, "Validate signatures on changes and debs")
 
 	flag.Parse()
 
 	expire, _ := time.ParseDuration("15s")
 
 	server := &AptServer{
-		MaxGets:    4,
-		MaxPuts:    4,
-		RepoDir:    "/tmp/myrepo",
-		TmpDir:     "/tmp",
-		CookieName: "godinstall-sess",
-		TTL:        expire,
+		MaxGets:         4,
+		MaxPuts:         4,
+		RepoDir:         "/tmp/myrepo",
+		TmpDir:          "/tmp",
+		CookieName:      "godinstall-sess",
+		TTL:             expire,
+		ValidateChanges: *validate,
+		ValidateDebs:    *validate,
 	}
 
 	server.InitAptServer()
