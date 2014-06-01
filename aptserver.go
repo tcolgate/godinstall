@@ -4,15 +4,16 @@ package main
 //"github.com/stapelberg/godebiancontrol"
 
 import (
-	"code.google.com/p/go-uuid/uuid"
-	"code.google.com/p/go.crypto/openpgp"
-	"github.com/gorilla/mux"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"code.google.com/p/go-uuid/uuid"
+	"code.google.com/p/go.crypto/openpgp"
+	"github.com/gorilla/mux"
 )
 
 type AptServer struct {
@@ -23,9 +24,9 @@ type AptServer struct {
 	CookieName string
 	TTL        time.Duration
 
-	getLocks        chan int
-	putLocks        chan int
-	aptLock         chan int
+	getLocks        *Governor
+	putLocks        *Governor
+	aptLock         *Governor
 	uploadHandler   http.HandlerFunc
 	downloadHandler http.HandlerFunc
 	sessMap         *SafeMap
@@ -34,18 +35,10 @@ type AptServer struct {
 }
 
 func (a *AptServer) InitAptServer() {
-	a.getLocks = make(chan int, a.MaxGets)
-	for i := 0; i < a.MaxGets; i++ {
-		a.getLocks <- 1
-	}
+	a.getLocks, _ = NewGovernor(a.MaxGets)
+	a.putLocks, _ = NewGovernor(a.MaxPuts)
+	a.aptLock, _ = NewGovernor(1)
 
-	a.putLocks = make(chan int, a.MaxPuts)
-	for i := 0; i < a.MaxPuts; i++ {
-		a.putLocks <- 1
-	}
-
-	a.aptLock = make(chan int, 1)
-	a.aptLock <- 1
 	a.downloadHandler = makeDownloadHandler(a)
 	a.uploadHandler = makeUploadHandler(a)
 	a.sessMap = NewSafeMap()
@@ -63,15 +56,12 @@ func (a *AptServer) Register(r *mux.Router) {
 
 func makeDownloadHandler(a *AptServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		lock := <-a.getLocks
-		defer func() { a.getLocks <- lock }()
-
-		file := mux.Vars(r)["rest"]
-		realFile := a.TmpDir + "/" + file
-
-		log.Println("req'd " + realFile)
-
-		http.ServeFile(w, r, realFile)
+		a.getLocks.Run(func() {
+			file := mux.Vars(r)["rest"]
+			realFile := a.TmpDir + "/" + file
+			log.Println("req'd " + realFile)
+			http.ServeFile(w, r, realFile)
+		})
 	}
 }
 
@@ -82,28 +72,28 @@ type uploadSessionReq struct {
 	create    bool // This is a request to create a new upload session
 }
 
-func makeUploadHandler(a *AptServer) (f func(w http.ResponseWriter, r *http.Request)) {
-	f = func(w http.ResponseWriter, r *http.Request) {
-		// Did we get a session
-		session, found := mux.Vars(r)["session"]
+func makeUploadHandler(a *AptServer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		a.putLocks.Run(func() {
+			// Did we get a session
+			session, found := mux.Vars(r)["session"]
 
-		//maybe in a cookie?
-		if !found {
-			cookie, err := r.Cookie(a.CookieName)
-			if err == nil {
-				session = cookie.Value
+			//maybe in a cookie?
+			if !found {
+				cookie, err := r.Cookie(a.CookieName)
+				if err == nil {
+					session = cookie.Value
+				}
 			}
-		}
 
-		if session == "" {
-			session := uuid.New()
-			dispatchRequest(a, &uploadSessionReq{session, w, r, true})
-		} else {
-			dispatchRequest(a, &uploadSessionReq{session, w, r, false})
-		}
+			if session == "" {
+				session := uuid.New()
+				dispatchRequest(a, &uploadSessionReq{session, w, r, true})
+			} else {
+				dispatchRequest(a, &uploadSessionReq{session, w, r, false})
+			}
+		})
 	}
-
-	return
 }
 
 func dispatchRequest(a *AptServer, r *uploadSessionReq) {
