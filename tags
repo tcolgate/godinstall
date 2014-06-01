@@ -4,8 +4,123 @@
 !_TAG_PROGRAM_NAME	gotags	
 !_TAG_PROGRAM_URL	https://github.com/jstemmer/gotags	
 !_TAG_PROGRAM_VERSION	1.2.0	
-Sqrt	sqrt.go	5;"	f	access:public	line:5	signature:(x float64)	type:float64
-TestSqrt	sqrt_test.go	5;"	f	access:public	line:5	signature:(t *testing.T)
-newmath	sqrt.go	2;"	p	line:2
-newmath	sqrt_test.go	1;"	p	line:1
-testing	sqrt_test.go	3;"	i	line:3
+AddChanges	upload.go	79;"	m	access:public	ctype:uploadSession	line:79	signature:(c *DebChanges)
+AptServer	aptserver.go	20;"	t	access:public	line:20	type:struct
+ChangesFile	changes.go	19;"	t	access:public	line:19	type:struct
+Check	safemap.go	45;"	m	access:public	ctype:SafeMap	line:45	signature:(k interface{})	type:bool
+Close	upload.go	58;"	m	access:public	ctype:uploadSession	line:58	signature:()
+CookieName	aptserver.go	25;"	w	access:public	ctype:AptServer	line:25	type:string
+DebChanges	changes.go	28;"	t	access:public	line:28	type:struct
+Delete	safemap.go	54;"	m	access:public	ctype:SafeMap	line:54	signature:(k interface{})
+Filename	changes.go	20;"	w	access:public	ctype:ChangesFile	line:20	type:string
+Files	changes.go	32;"	w	access:public	ctype:DebChanges	line:32	type:map[string]*ChangesFile
+Get	safemap.go	20;"	m	access:public	ctype:SafeMap	line:20	signature:(k interface{})	type:interface{}
+Governor	governor.go	5;"	t	access:public	line:5	type:struct
+HandleReq	upload.go	35;"	m	access:public	ctype:uploadSession	line:35	signature:(w http.ResponseWriter, r *http.Request)
+InitAptServer	aptserver.go	40;"	m	access:public	ctype:AptServer	line:40	signature:()
+Max	governor.go	6;"	w	access:public	ctype:Governor	line:6	type:int
+MaxGets	aptserver.go	21;"	w	access:public	ctype:AptServer	line:21	type:int
+MaxPuts	aptserver.go	22;"	w	access:public	ctype:AptServer	line:22	type:int
+Md5	changes.go	22;"	w	access:public	ctype:ChangesFile	line:22	type:string
+NewGovernor	governor.go	10;"	f	access:public	ctype:Governor	line:10	signature:(max int)	type:*Governor, error
+NewSafeMap	safemap.go	12;"	f	access:public	ctype:SafeMap	line:12	signature:()	type:*SafeMap
+NewUploadSession	upload.go	21;"	m	access:public	ctype:AptServer	line:21	signature:(sessionId string)	type:*uploadSession
+ParseDebianChanges	changes.go	35;"	f	access:public	ctype:DebChanges	line:35	signature:(r io.Reader, kr *openpgp.KeyRing)	type:*DebChanges, error
+R	aptserver.go	74;"	w	access:public	ctype:uploadSessionReq	line:74	type:*http.Request
+Register	aptserver.go	54;"	m	access:public	ctype:AptServer	line:54	signature:(r *mux.Router)
+RepoDir	aptserver.go	23;"	w	access:public	ctype:AptServer	line:23	type:string
+Run	governor.go	26;"	m	access:public	ctype:Governor	line:26	signature:(f func())
+RunExclusive	governor.go	32;"	m	access:public	ctype:Governor	line:32	signature:(f func())
+SafeMap	safemap.go	7;"	t	access:public	line:7	type:struct
+SessionId	aptserver.go	72;"	w	access:public	ctype:uploadSessionReq	line:72	type:string
+SessionId	upload.go	14;"	w	access:public	ctype:uploadSession	line:14	type:string
+Set	safemap.go	31;"	m	access:public	ctype:SafeMap	line:31	signature:(k interface{}, v interface{})	type:bool
+Sha1	changes.go	23;"	w	access:public	ctype:ChangesFile	line:23	type:string
+Sha256	changes.go	24;"	w	access:public	ctype:ChangesFile	line:24	type:string
+Size	changes.go	21;"	w	access:public	ctype:ChangesFile	line:21	type:string
+TTL	aptserver.go	26;"	w	access:public	ctype:AptServer	line:26	type:time.Duration
+TestParseDebianChanges	changes_test.go	24;"	f	access:public	line:24	signature:(t *testing.T)
+TestRun	governor_test.go	7;"	f	access:public	line:7	signature:(t *testing.T)
+TestRunExclusive	governor_test.go	10;"	f	access:public	line:10	signature:(t *testing.T)
+TmpDir	aptserver.go	24;"	w	access:public	ctype:AptServer	line:24	type:string
+Uploaded	changes.go	25;"	w	access:public	ctype:ChangesFile	line:25	type:bool
+ValidateChanges	aptserver.go	27;"	w	access:public	ctype:AptServer	line:27	type:bool
+ValidateDebs	aptserver.go	28;"	w	access:public	ctype:AptServer	line:28	type:bool
+W	aptserver.go	73;"	w	access:public	ctype:uploadSessionReq	line:73	type:http.ResponseWriter
+aptLock	aptserver.go	32;"	w	access:private	ctype:AptServer	line:32	type:*Governor
+bm	safemap.go	9;"	w	access:private	ctype:SafeMap	line:9	type:map[interface{}]interface{}
+bytes	changes.go	5;"	i	line:5
+changes	upload.go	18;"	w	access:private	ctype:uploadSession	line:18	type:*DebChanges
+code.google.com/p/go-uuid/uuid	aptserver.go	15;"	i	line:15
+code.google.com/p/go.crypto/openpgp	aptserver.go	16;"	i	line:16
+code.google.com/p/go.crypto/openpgp	changes.go	12;"	i	line:12
+code.google.com/p/go.crypto/openpgp	changes_test.go	7;"	i	line:7
+code.google.com/p/go.crypto/openpgp	upload.go	10;"	i	line:10
+code.google.com/p/go.crypto/openpgp/clearsign	changes.go	13;"	i	line:13
+create	aptserver.go	75;"	w	access:private	ctype:uploadSessionReq	line:75	type:bool
+dir	upload.go	15;"	w	access:private	ctype:uploadSession	line:15	type:string
+dispatchRequest	aptserver.go	102;"	f	access:private	line:102	signature:(a *AptServer, r *uploadSessionReq)
+downloadHandler	aptserver.go	34;"	w	access:private	ctype:AptServer	line:34	type:http.HandlerFunc
+encoding/json	aptserver.go	7;"	i	line:7
+encoding/json	upload.go	4;"	i	line:4
+errors	changes.go	6;"	i	line:6
+errors	governor.go	3;"	i	line:3
+flag	main.go	7;"	i	line:7
+getLocks	aptserver.go	30;"	w	access:private	ctype:AptServer	line:30	type:*Governor
+github.com/gorilla/mux	aptserver.go	17;"	i	line:17
+github.com/gorilla/mux	main.go	11;"	i	line:11
+github.com/stapelberg/godebiancontrol	changes.go	14;"	i	line:14
+io	changes.go	7;"	i	line:7
+io/ioutil	changes.go	8;"	i	line:8
+keyRing	upload.go	16;"	w	access:private	ctype:uploadSession	line:16	type:openpgp.KeyRing
+lock	safemap.go	8;"	w	access:private	ctype:SafeMap	line:8	type:*sync.RWMutex
+locks	governor.go	7;"	w	access:private	ctype:Governor	line:7	type:chan int
+log	aptserver.go	8;"	i	line:8
+log	changes.go	9;"	i	line:9
+log	upload.go	5;"	i	line:5
+main	aptserver.go	1;"	p	line:1
+main	changes.go	1;"	p	line:1
+main	changes_test.go	1;"	p	line:1
+main	governor.go	1;"	p	line:1
+main	governor_test.go	1;"	p	line:1
+main	main.go	18;"	f	access:private	line:18	signature:()
+main	main.go	1;"	p	line:1
+main	safemap.go	1;"	p	line:1
+main	upload.go	1;"	p	line:1
+makeDownloadHandler	aptserver.go	60;"	f	access:private	line:60	signature:(a *AptServer)	type:http.HandlerFunc
+makeUploadHandler	aptserver.go	78;"	f	access:private	line:78	signature:(a *AptServer)	type:http.HandlerFunc
+mime/multipart	aptserver.go	9;"	i	line:9
+net/http	aptserver.go	10;"	i	line:10
+net/http	main.go	8;"	i	line:8
+net/http	upload.go	6;"	i	line:6
+os	aptserver.go	11;"	i	line:11
+os	upload.go	7;"	i	line:7
+pathHandle	upload.go	62;"	f	access:private	line:62	signature:(sessMap *SafeMap, s string, timeout time.Duration)
+privRing	aptserver.go	37;"	w	access:private	ctype:AptServer	line:37	type:openpgp.KeyRing
+pubRing	aptserver.go	36;"	w	access:private	ctype:AptServer	line:36	type:openpgp.KeyRing
+putLocks	aptserver.go	31;"	w	access:private	ctype:AptServer	line:31	type:*Governor
+requireSig	upload.go	17;"	w	access:private	ctype:uploadSession	line:17	type:bool
+rootHandler	main.go	14;"	f	access:private	line:14	signature:(w http.ResponseWriter, r *http.Request)
+sessMap	aptserver.go	35;"	w	access:private	ctype:AptServer	line:35	type:*SafeMap
+signed	changes.go	29;"	w	access:private	ctype:DebChanges	line:29	type:bool
+signedBy	changes.go	31;"	w	access:private	ctype:DebChanges	line:31	type:*openpgp.Entity
+strings	aptserver.go	12;"	i	line:12
+strings	changes.go	10;"	i	line:10
+strings	changes_test.go	4;"	i	line:4
+sync	safemap.go	4;"	i	line:4
+testInvalidUnsigned	changes_test.go	71;"	v	access:private	line:71
+testKrStr	changes_test.go	148;"	v	access:private	line:148
+testParseDebianChanges	changes_test.go	10;"	v	access:private	line:10
+testResult	changes_test.go	131;"	v	access:private	line:131
+testSignedInvalid	changes_test.go	107;"	v	access:private	line:107
+testSignedValid	changes_test.go	82;"	v	access:private	line:82
+testUnsigned	changes_test.go	72;"	v	access:private	line:72
+testing	changes_test.go	5;"	i	line:5
+testing	governor_test.go	4;"	i	line:4
+time	aptserver.go	13;"	i	line:13
+time	main.go	9;"	i	line:9
+time	upload.go	8;"	i	line:8
+uploadHandler	aptserver.go	33;"	w	access:private	ctype:AptServer	line:33	type:http.HandlerFunc
+uploadSession	upload.go	13;"	t	access:private	line:13	type:struct
+uploadSessionReq	aptserver.go	71;"	t	access:private	line:71	type:struct
+validated	changes.go	30;"	w	access:private	ctype:DebChanges	line:30	type:bool
