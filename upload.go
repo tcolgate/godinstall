@@ -1,8 +1,8 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
@@ -36,7 +36,8 @@ func (s *uploadSession) HandleReq(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		{
-			w.Write([]byte("Display some status info here"))
+			j, _ := json.Marshal(*s.changes)
+			w.Write(j)
 			return
 		}
 	case "PUT", "POST":
@@ -75,7 +76,6 @@ func pathHandle(sessMap *SafeMap, s string, timeout time.Duration) {
 	}
 }
 
-func (s *uploadSession) AddChanges(f multipart.File) (err error) {
-	s.changes, err = ParseDebianChanges(f, &s.keyRing)
-	return
+func (s *uploadSession) AddChanges(c *DebChanges) {
+	s.changes = c
 }

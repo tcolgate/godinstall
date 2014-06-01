@@ -25,6 +25,7 @@ func NewGovernor(max int) (*Governor, error) {
 
 func (g *Governor) Run(f func()) {
 	lock := <-g.locks
+	f()
 	defer func() { g.locks <- lock }()
 }
 

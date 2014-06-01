@@ -106,30 +106,29 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 
 		form := r.R.MultipartForm
 		files := form.File["debfiles"]
-		var changes multipart.File
+		var changesPart multipart.File
 		for _, f := range files {
 			if strings.HasSuffix(f.Filename, ".changes") {
-				changes, err = f.Open()
+				changesPart, err = f.Open()
 				break
 			}
 		}
 
-		if changes == nil {
+		if changesPart == nil {
 			http.Error(r.W, "No debian changes file in request", http.StatusInternalServerError)
 			return
 		}
 
-		// This should probably move into the upload session constructor
-		s := r.SessionId
-
-		us := a.NewUploadSession(s)
-
-		err = us.AddChanges(changes)
+		changes, err := ParseDebianChanges(changesPart, &a.pubRing)
 		if err != nil {
 			http.Error(r.W, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		log.Printf("%q", changes)
 
+		// This should probably move into the upload session constructor
+		s := r.SessionId
+		us := a.NewUploadSession(s)
 		cookie := http.Cookie{
 			Name:     a.CookieName,
 			Value:    s,
@@ -138,6 +137,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 			Path:     "/package/upload",
 		}
 		http.SetCookie(r.W, &cookie)
+		us.AddChanges(changes)
 
 		r.W.WriteHeader(201)
 
