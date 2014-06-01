@@ -4,6 +4,7 @@ package main
 //"github.com/stapelberg/godebiancontrol"
 
 import (
+	"encoding/json"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -153,7 +154,17 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		r.W.WriteHeader(201)
 
 		// I should write a JSON reponse here with the session Id
-		r.W.Write([]byte("Upload session created: " + s))
+		resp := struct {
+			SessionId  string
+			SessionURL string
+			Changes    DebChanges
+		}{
+			s,
+			"/package/upload/" + s,
+			*changes,
+		}
+		j, _ := json.Marshal(resp)
+		r.W.Write(j)
 		return
 
 	} else {
