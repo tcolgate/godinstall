@@ -23,6 +23,7 @@ type ChangesFile struct {
 	Sha1     string
 	Sha256   string
 	Uploaded bool
+	data     io.Reader
 }
 
 type DebChanges struct {

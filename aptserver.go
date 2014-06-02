@@ -154,18 +154,43 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		return
 
 	} else {
+		var us UploadSessioner
 		c := a.sessMap.Get(r.SessionId)
 		if c != nil {
 			// Move this logic elseqhere
 			switch sess := c.(type) {
 			case UploadSessioner:
-				sess.HandleReq(r.W, r.R)
+				us = sess
 			default:
-				log.Println("Shouldn't get here")
+				http.Error(r.W, "Invalid session map entry", http.StatusInternalServerError)
+				return
 			}
 		} else {
 			log.Println("request for unknown session")
 			http.NotFound(r.W, r.R)
 		}
+
+		// This should really be in the upload handler
+		//Add any files we have been passed
+		err := r.R.ParseMultipartForm(64000000)
+		if err != nil {
+			http.Error(r.W, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		form := r.R.MultipartForm
+		files := form.File["debfiles"]
+		for _, f := range files {
+			log.Println("Trying to upload: " + f.Filename)
+			reader, _ := f.Open()
+			err = us.AddFile(&ChangesFile{
+				Filename: f.Filename,
+				data:     reader,
+			})
+			if err != nil {
+				log.Println(err.Error())
+			}
+		}
+
+		us.HandleReq(r.W, r.R)
 	}
 }

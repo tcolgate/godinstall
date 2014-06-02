@@ -1,7 +1,13 @@
 package main
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -16,8 +22,8 @@ type UploadSessioner interface {
 	SessionURL() string
 	AddChanges(*DebChanges)
 	Changes() *DebChanges
-	AddFile(*DebFile)
-	Files() map[string]*DebFile
+	AddFile(*ChangesFile) error
+	Files() map[string]*ChangesFile
 	HandleReq(w http.ResponseWriter, r *http.Request)
 	Close()
 }
@@ -28,7 +34,6 @@ type uploadSession struct {
 	keyRing    openpgp.KeyRing
 	requireSig bool
 	changes    *DebChanges
-	files      map[string]*DebFile
 }
 
 func NewUploadSessioner(a *AptServer) UploadSessioner {
@@ -105,12 +110,47 @@ func (s *uploadSession) Changes() *DebChanges {
 	return s.changes
 }
 
-func (s *uploadSession) AddFile(f *DebFile) {
-	s.files[f.Filename] = f
+func (s *uploadSession) AddFile(f *ChangesFile) (err error) {
+	// Check that there is an upload slot
+	f, ok := s.changes.Files[f.Filename]
+	if !ok {
+		return errors.New("File not listed in upload set")
+	}
+
+	if f.Uploaded {
+		return errors.New("File already uploaded")
+	}
+
+	log.Println(f.data)
+
+	md5er := md5.New()
+	sha1er := sha1.New()
+	sha256er := sha256.New()
+	hasher := io.MultiWriter(md5er, sha1er, sha256er)
+	tee := io.TeeReader(f.data, hasher)
+	tmpfile, err := os.Create("/tmp/upload/" + f.Filename)
+	if err != nil {
+		return errors.New("Upload failed: " + err.Error())
+	}
+
+	_, err = io.Copy(tmpfile, tee)
+	if err != nil {
+		return errors.New("Upload failed: " + err.Error())
+	}
+
+	md5 := base64.StdEncoding.EncodeToString(md5er.Sum(nil))
+	sha1 := base64.StdEncoding.EncodeToString(sha1er.Sum(nil))
+	sha256 := base64.StdEncoding.EncodeToString(sha256er.Sum(nil))
+
+	log.Println("md5: " + string(md5))
+	log.Println("sha1 " + string(sha1))
+	log.Println("sha256 " + string(sha256))
+
+	return
 }
 
-func (s *uploadSession) Files() map[string]*DebFile {
-	return s.files
+func (s *uploadSession) Files() map[string]*ChangesFile {
+	return s.changes.Files
 }
 
 func UploadSessionToJSON(s UploadSessioner) []byte {

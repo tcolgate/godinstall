@@ -18,10 +18,11 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	var listenAddress = flag.String("listen", ":3000", "ip:port to listen on")
 	var validate = flag.Bool("validate", true, "Validate signatures on changes and debs")
+	var ttl = flag.String("ttl", "60s", "Session life time")
 
 	flag.Parse()
 
-	expire, _ := time.ParseDuration("15s")
+	expire, _ := time.ParseDuration(*ttl)
 
 	server := &AptServer{
 		MaxGets:         4,
