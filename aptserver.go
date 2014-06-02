@@ -4,7 +4,6 @@ package main
 //"github.com/stapelberg/godebiancontrol"
 
 import (
-	"encoding/json"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -12,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/go-uuid/uuid"
 	"code.google.com/p/go.crypto/openpgp"
 	"github.com/gorilla/mux"
 )
@@ -89,9 +87,9 @@ func makeUploadHandler(a *AptServer) http.HandlerFunc {
 				}
 			}
 
+			// THis all needs rewriting
 			if session == "" {
-				session := uuid.New()
-				dispatchRequest(a, &uploadSessionReq{session, w, r, true})
+				dispatchRequest(a, &uploadSessionReq{"", w, r, true})
 			} else {
 				dispatchRequest(a, &uploadSessionReq{session, w, r, false})
 			}
@@ -139,8 +137,8 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		}
 
 		// This should probably move into the upload session constructor
-		s := r.SessionId
-		us := a.NewUploadSession(s)
+		us := NewUploadSessioner(a)
+		s := us.SessionID()
 		cookie := http.Cookie{
 			Name:     a.CookieName,
 			Value:    s,
@@ -152,19 +150,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		us.AddChanges(changes)
 
 		r.W.WriteHeader(201)
-
-		// I should write a JSON reponse here with the session Id
-		resp := struct {
-			SessionId  string
-			SessionURL string
-			Changes    DebChanges
-		}{
-			s,
-			"/package/upload/" + s,
-			*changes,
-		}
-		j, _ := json.Marshal(resp)
-		r.W.Write(j)
+		r.W.Write(UploadSessionToJSON(us))
 		return
 
 	} else {
