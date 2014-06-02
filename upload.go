@@ -14,8 +14,10 @@ import (
 type UploadSessioner interface {
 	SessionID() string
 	SessionURL() string
-	AddChanges(c *DebChanges)
+	AddChanges(*DebChanges)
 	Changes() *DebChanges
+	AddFile(*DebFile)
+	Files() map[string]*DebFile
 	HandleReq(w http.ResponseWriter, r *http.Request)
 	Close()
 }
@@ -26,6 +28,7 @@ type uploadSession struct {
 	keyRing    openpgp.KeyRing
 	requireSig bool
 	changes    *DebChanges
+	files      map[string]*DebFile
 }
 
 func NewUploadSessioner(a *AptServer) UploadSessioner {
@@ -54,7 +57,7 @@ func (s *uploadSession) HandleReq(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		{
-			j, _ := json.Marshal(*s.changes)
+			j := UploadSessionToJSON(s)
 			w.Write(j)
 			return
 		}
@@ -100,6 +103,14 @@ func (s *uploadSession) AddChanges(c *DebChanges) {
 
 func (s *uploadSession) Changes() *DebChanges {
 	return s.changes
+}
+
+func (s *uploadSession) AddFile(f *DebFile) {
+	s.files[f.Filename] = f
+}
+
+func (s *uploadSession) Files() map[string]*DebFile {
+	return s.files
 }
 
 func UploadSessionToJSON(s UploadSessioner) []byte {
