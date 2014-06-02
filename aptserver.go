@@ -181,7 +181,11 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		files := form.File["debfiles"]
 		for _, f := range files {
 			log.Println("Trying to upload: " + f.Filename)
-			reader, _ := f.Open()
+			reader, err := f.Open()
+			if err != nil {
+				log.Println("Can't upload " + f.Filename + " - " + err.Error())
+				continue
+			}
 			err = us.AddFile(&ChangesFile{
 				Filename: f.Filename,
 				data:     reader,
