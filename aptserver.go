@@ -158,7 +158,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		if c != nil {
 			// Move this logic elseqhere
 			switch sess := c.(type) {
-			case *uploadSession:
+			case UploadSessioner:
 				sess.HandleReq(r.W, r.R)
 			default:
 				log.Println("Shouldn't get here")
