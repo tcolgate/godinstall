@@ -4,7 +4,7 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -110,9 +110,9 @@ func (s *uploadSession) Changes() *DebChanges {
 	return s.changes
 }
 
-func (s *uploadSession) AddFile(uploadFile *ChangesFile) (err error) {
+func (s *uploadSession) AddFile(upload *ChangesFile) (err error) {
 	// Check that there is an upload slot
-	expectedFile, ok := s.changes.Files[uploadFile.Filename]
+	expectedFile, ok := s.changes.Files[upload.Filename]
 	if !ok {
 		return errors.New("File not listed in upload set")
 	}
@@ -125,24 +125,35 @@ func (s *uploadSession) AddFile(uploadFile *ChangesFile) (err error) {
 	sha1er := sha1.New()
 	sha256er := sha256.New()
 	hasher := io.MultiWriter(md5er, sha1er, sha256er)
-	tee := io.TeeReader(uploadFile.data, hasher)
-	tmpfile, err := os.Create("/tmp/upload/" + uploadFile.Filename)
+	tee := io.TeeReader(upload.data, hasher)
+	tmpFilename := "/tmp/upload/" + upload.Filename
+	storeFilename := s.dir + "/" + upload.Filename
+	tmpfile, err := os.Create("/tmp/upload/" + upload.Filename)
 	if err != nil {
-		return errors.New("Upload failed: " + err.Error())
+		return errors.New("Upload temporary file failed, " + err.Error())
 	}
+	defer func() {
+		if err == nil {
+			os.Rename(tmpFilename, storeFilename)
+		} else {
+			os.Remove(tmpFilename)
+		}
+	}()
 
 	_, err = io.Copy(tmpfile, tee)
 	if err != nil {
 		return errors.New("Upload failed: " + err.Error())
 	}
 
-	md5 := base64.StdEncoding.EncodeToString(md5er.Sum(nil))
-	sha1 := base64.StdEncoding.EncodeToString(sha1er.Sum(nil))
-	sha256 := base64.StdEncoding.EncodeToString(sha256er.Sum(nil))
+	md5 := hex.EncodeToString(md5er.Sum(nil))
+	sha1 := hex.EncodeToString(sha1er.Sum(nil))
+	sha256 := hex.EncodeToString(sha256er.Sum(nil))
 
-	log.Println("md5: " + string(md5))
-	log.Println("sha1 " + string(sha1))
-	log.Println("sha256 " + string(sha256))
+	if expectedFile.Md5 != md5 ||
+		expectedFile.Sha1 != sha1 ||
+		expectedFile.Sha256 != sha256 {
+		return errors.New("Uploaded file hashes do not match")
+	}
 
 	return
 }

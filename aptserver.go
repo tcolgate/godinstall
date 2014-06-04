@@ -101,7 +101,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 	if r.create {
 		err := r.R.ParseMultipartForm(64000000)
 		if err != nil {
-			http.Error(r.W, err.Error(), http.StatusInternalServerError)
+			http.Error(r.W, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -116,23 +116,23 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		}
 
 		if changesPart == nil {
-			http.Error(r.W, "No debian changes file in request", http.StatusInternalServerError)
+			http.Error(r.W, "No debian changes file in request", http.StatusBadRequest)
 			return
 		}
 
 		changes, err := ParseDebianChanges(changesPart, &a.pubRing)
 		if err != nil {
-			http.Error(r.W, err.Error(), http.StatusInternalServerError)
+			http.Error(r.W, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if a.ValidateChanges && !changes.signed {
-			http.Error(r.W, "Changes file was not signed", http.StatusInternalServerError)
+			http.Error(r.W, "Changes file was not signed", http.StatusBadRequest)
 			return
 		}
 
 		if a.ValidateChanges && !changes.validated {
-			http.Error(r.W, "Changes file could not be validated", http.StatusInternalServerError)
+			http.Error(r.W, "Changes file could not be validated", http.StatusBadRequest)
 			return
 		}
 
@@ -182,7 +182,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 				//Add any files we have been passed
 				err := r.R.ParseMultipartForm(64000000)
 				if err != nil {
-					http.Error(r.W, err.Error(), http.StatusInternalServerError)
+					http.Error(r.W, err.Error(), http.StatusBadRequest)
 					return
 				}
 				form := r.R.MultipartForm
@@ -191,7 +191,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 					log.Println("Trying to upload: " + f.Filename)
 					reader, err := f.Open()
 					if err != nil {
-						log.Println("Can't upload " + f.Filename + " - " + err.Error())
+						http.Error(r.W, "Can't upload "+f.Filename+" - "+err.Error(), http.StatusBadRequest)
 						continue
 					}
 					err = us.AddFile(&ChangesFile{
@@ -206,7 +206,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 			}
 		default:
 			{
-				http.Error(r.W, "unknown method", http.StatusInternalServerError)
+				http.Error(r.W, "unknown method", http.StatusBadRequest)
 				return
 			}
 		}
