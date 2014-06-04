@@ -133,9 +133,7 @@ func (s *uploadSession) AddFile(upload *ChangesFile) (err error) {
 		return errors.New("Upload temporary file failed, " + err.Error())
 	}
 	defer func() {
-		if err == nil {
-			os.Rename(tmpFilename, storeFilename)
-		} else {
+		if err != nil {
 			os.Remove(tmpFilename)
 		}
 	}()
@@ -153,6 +151,11 @@ func (s *uploadSession) AddFile(upload *ChangesFile) (err error) {
 		expectedFile.Sha1 != sha1 ||
 		expectedFile.Sha256 != sha256 {
 		return errors.New("Uploaded file hashes do not match")
+	}
+
+	if err == nil {
+		os.Rename(tmpFilename, storeFilename)
+		expectedFile.Uploaded = true
 	}
 
 	return
