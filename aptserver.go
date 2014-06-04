@@ -170,31 +170,45 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 			http.NotFound(r.W, r.R)
 		}
 
-		// This should really be in the upload handler
-		//Add any files we have been passed
-		err := r.R.ParseMultipartForm(64000000)
-		if err != nil {
-			http.Error(r.W, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		form := r.R.MultipartForm
-		files := form.File["debfiles"]
-		for _, f := range files {
-			log.Println("Trying to upload: " + f.Filename)
-			reader, err := f.Open()
-			if err != nil {
-				log.Println("Can't upload " + f.Filename + " - " + err.Error())
-				continue
+		switch r.R.Method {
+		case "GET":
+			{
+				j := UploadSessionToJSON(us)
+				r.W.Write(j)
+				return
 			}
-			err = us.AddFile(&ChangesFile{
-				Filename: f.Filename,
-				data:     reader,
-			})
-			if err != nil {
-				log.Println(err.Error())
+		case "PUT", "POST":
+			{
+				//Add any files we have been passed
+				err := r.R.ParseMultipartForm(64000000)
+				if err != nil {
+					http.Error(r.W, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				form := r.R.MultipartForm
+				files := form.File["debfiles"]
+				for _, f := range files {
+					log.Println("Trying to upload: " + f.Filename)
+					reader, err := f.Open()
+					if err != nil {
+						log.Println("Can't upload " + f.Filename + " - " + err.Error())
+						continue
+					}
+					err = us.AddFile(&ChangesFile{
+						Filename: f.Filename,
+						data:     reader,
+					})
+					if err != nil {
+						log.Println(err.Error())
+					}
+				}
+				return
+			}
+		default:
+			{
+				http.Error(r.W, "unknown method", http.StatusInternalServerError)
+				return
 			}
 		}
-
-		us.HandleReq(r.W, r.R)
 	}
 }

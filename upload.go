@@ -110,25 +110,23 @@ func (s *uploadSession) Changes() *DebChanges {
 	return s.changes
 }
 
-func (s *uploadSession) AddFile(f *ChangesFile) (err error) {
+func (s *uploadSession) AddFile(uploadFile *ChangesFile) (err error) {
 	// Check that there is an upload slot
-	f, ok := s.changes.Files[f.Filename]
+	expectedFile, ok := s.changes.Files[uploadFile.Filename]
 	if !ok {
 		return errors.New("File not listed in upload set")
 	}
 
-	if f.Uploaded {
+	if expectedFile.Uploaded {
 		return errors.New("File already uploaded")
 	}
-
-	log.Println(f.data)
 
 	md5er := md5.New()
 	sha1er := sha1.New()
 	sha256er := sha256.New()
 	hasher := io.MultiWriter(md5er, sha1er, sha256er)
-	tee := io.TeeReader(f.data, hasher)
-	tmpfile, err := os.Create("/tmp/upload/" + f.Filename)
+	tee := io.TeeReader(uploadFile.data, hasher)
+	tmpfile, err := os.Create("/tmp/upload/" + uploadFile.Filename)
 	if err != nil {
 		return errors.New("Upload failed: " + err.Error())
 	}
