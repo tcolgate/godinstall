@@ -192,16 +192,34 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 					reader, err := f.Open()
 					if err != nil {
 						http.Error(r.W, "Can't upload "+f.Filename+" - "+err.Error(), http.StatusBadRequest)
-						continue
+						return
 					}
 					err = us.AddFile(&ChangesFile{
 						Filename: f.Filename,
 						data:     reader,
 					})
 					if err != nil {
-						log.Println(err.Error())
+						http.Error(r.W, "Can't upload "+f.Filename+" - "+err.Error(), http.StatusBadRequest)
+						return
 					}
 				}
+
+				complete := true
+				for _, f := range us.Files() {
+					if !f.Uploaded {
+						complete = false
+					}
+				}
+
+				if complete {
+					r.W.WriteHeader(200)
+					// Need to trigger the upload
+					r.W.Write([]byte("File uploads complete"))
+				} else {
+					r.W.WriteHeader(202)
+					r.W.Write([]byte("Feed me more files please"))
+				}
+
 				return
 			}
 		default:
