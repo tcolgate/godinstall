@@ -212,8 +212,8 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 				}
 
 				if complete {
-					r.W.WriteHeader(200)
 					// Need to trigger the upload
+					r.W.WriteHeader(200)
 					r.W.Write([]byte("File uploads complete"))
 				} else {
 					r.W.WriteHeader(202)
