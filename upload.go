@@ -82,7 +82,7 @@ func (s *uploadSession) HandleReq(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *uploadSession) Close() {
-	os.Remove(s.dir)
+	os.RemoveAll(s.dir)
 }
 
 func pathHandle(sessMap *SafeMap, s string, timeout time.Duration) {
