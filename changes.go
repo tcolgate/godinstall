@@ -138,7 +138,7 @@ func ParseDebianChanges(r io.Reader, kr *openpgp.KeyRing) (p *DebChanges, err er
 				if ok {
 					f.Sha256 = fileDesc[0]
 				} else {
-					log.Println("Ignoring sha256 for file not listed in Files: %s", name)
+					log.Printf("Ignoring sha256 for file not listed in Files: %s", name)
 				}
 			}
 		}
