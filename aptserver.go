@@ -15,6 +15,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var mimeMemoryBufferSize = int64(64000000)
+
 type AptServer struct {
 	MaxGets         int
 	MaxPuts         int
@@ -99,7 +101,7 @@ func makeUploadHandler(a *AptServer) http.HandlerFunc {
 
 func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 	if r.create {
-		err := r.R.ParseMultipartForm(64000000)
+		err := r.R.ParseMultipartForm(mimeMemoryBufferSize)
 		if err != nil {
 			http.Error(r.W, err.Error(), http.StatusBadRequest)
 			return
@@ -180,7 +182,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		case "PUT", "POST":
 			{
 				//Add any files we have been passed
-				err := r.R.ParseMultipartForm(64000000)
+				err := r.R.ParseMultipartForm(mimeMemoryBufferSize)
 				if err != nil {
 					http.Error(r.W, err.Error(), http.StatusBadRequest)
 					return
