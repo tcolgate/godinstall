@@ -24,6 +24,11 @@ func main() {
 	repoDir := flag.String("repo-dir", "/tmp/myrepo", "Location of repository root")
 	tmpDir := flag.String("tmp-dir", "/tmp/up", "Location for temporary storage")
 	cookieName := flag.String("cookie-name", "godinstall-sess", "Name for the sessio ookie")
+	aftpPath := flag.String("aftp-bin-path", "/usr/bin/apt-ftparchive", "Location of apt-ftparchive binary")
+	aftpConfig := flag.String("config", "/etc/aptconfig", "Location of apt-ftparchive configuration file")
+	releaseConfig := flag.String("rel-config", "/etc/aptconfig", "Location of apt-ftparchive releases file")
+	preAftpHook := flag.String("pre-aftp-hook", "", "Script to run before apt-ftparchive")
+	postAftpHook := flag.String("post-aftp-hook", "", "Script to run after apt-ftparchive")
 
 	flag.Parse()
 
@@ -38,6 +43,11 @@ func main() {
 		TTL:             expire,
 		ValidateChanges: *validate,
 		ValidateDebs:    *validate,
+		AftpPath:        *aftpPath,
+		AftpConfig:      *aftpConfig,
+		ReleaseConfig:   *releaseConfig,
+		PreAftpHook:     *preAftpHook,
+		PostAftpHook:    *postAftpHook,
 	}
 
 	server.InitAptServer()

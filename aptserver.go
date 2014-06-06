@@ -26,6 +26,11 @@ type AptServer struct {
 	TTL             time.Duration
 	ValidateChanges bool
 	ValidateDebs    bool
+	AftpPath        string
+	AftpConfig      string
+	ReleaseConfig   string
+	PreAftpHook     string
+	PostAftpHook    string
 
 	getLocks        *Governor
 	putLocks        *Governor
