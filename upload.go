@@ -23,6 +23,7 @@ type UploadSessioner interface {
 	AddChanges(*DebChanges)
 	Changes() *DebChanges
 	AddFile(*ChangesFile) error
+	Dir() string
 	Files() map[string]*ChangesFile
 	HandleReq(w http.ResponseWriter, r *http.Request)
 	Close()
@@ -43,6 +44,7 @@ func NewUploadSessioner(a *AptServer) UploadSessioner {
 	s.dir = a.TmpDir + "/" + s.SessionId
 
 	os.Mkdir(s.dir, os.FileMode(0755))
+	os.Mkdir(s.dir+"/upload", os.FileMode(0755))
 
 	a.sessMap.Set(s.SessionId, &s)
 	go pathHandle(a.sessMap, s.SessionId, a.TTL)
@@ -126,9 +128,9 @@ func (s *uploadSession) AddFile(upload *ChangesFile) (err error) {
 	sha256er := sha256.New()
 	hasher := io.MultiWriter(md5er, sha1er, sha256er)
 	tee := io.TeeReader(upload.data, hasher)
-	tmpFilename := "/tmp/upload/" + upload.Filename
+	tmpFilename := s.dir + "/upload/" + upload.Filename
 	storeFilename := s.dir + "/" + upload.Filename
-	tmpfile, err := os.Create("/tmp/upload/" + upload.Filename)
+	tmpfile, err := os.Create(tmpFilename)
 	if err != nil {
 		return errors.New("Upload temporary file failed, " + err.Error())
 	}
@@ -159,6 +161,10 @@ func (s *uploadSession) AddFile(upload *ChangesFile) (err error) {
 	}
 
 	return
+}
+
+func (s *uploadSession) Dir() string {
+	return s.dir
 }
 
 func (s *uploadSession) Files() map[string]*ChangesFile {

@@ -5,7 +5,9 @@ package main
 
 import (
 	"flag"
+	"log"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -27,13 +29,24 @@ func main() {
 	aftpPath := flag.String("aftp-bin-path", "/usr/bin/apt-ftparchive", "Location of apt-ftparchive binary")
 	aftpConfig := flag.String("config", "/etc/aptconfig", "Location of apt-ftparchive configuration file")
 	releaseConfig := flag.String("rel-config", "/etc/aptconfig", "Location of apt-ftparchive releases file")
+	postUploadHook := flag.String("post-upload-hook", "", "Script to run after for each uploaded file")
 	preAftpHook := flag.String("pre-aftp-hook", "", "Script to run before apt-ftparchive")
 	postAftpHook := flag.String("post-aftp-hook", "", "Script to run after apt-ftparchive")
-	poolPattern := flag.String("pool-pattern", "pool/{{ f.Filename }}", "A pattern to describe the pool layout")
+	poolPattern := flag.String("pool-pattern", "[a-z]|lib[a-z]", "A pattern to match package prefixes to split into directories in the pool")
 
 	flag.Parse()
 
-	expire, _ := time.ParseDuration(*ttl)
+	expire, err := time.ParseDuration(*ttl)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	poolRegexp, err := regexp.CompilePOSIX("^(" + *poolPattern + ")")
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
 
 	server := &AptServer{
 		MaxGets:         *maxGets,
@@ -47,9 +60,10 @@ func main() {
 		AftpPath:        *aftpPath,
 		AftpConfig:      *aftpConfig,
 		ReleaseConfig:   *releaseConfig,
+		PostUploadHook:  *postUploadHook,
 		PreAftpHook:     *preAftpHook,
 		PostAftpHook:    *postAftpHook,
-		PoolPattern:     *poolPattern,
+		PoolPattern:     poolRegexp,
 	}
 
 	server.InitAptServer()

@@ -8,6 +8,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -30,8 +32,9 @@ type AptServer struct {
 	AftpConfig      string
 	ReleaseConfig   string
 	PreAftpHook     string
+	PostUploadHook  string
 	PostAftpHook    string
-	PoolPattern     string
+	PoolPattern     *regexp.Regexp
 
 	getLocks        *Governor
 	putLocks        *Governor
@@ -222,6 +225,40 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 
 				if complete {
 					// Need to trigger the upload
+					os.Chdir(us.Dir())
+					if a.PreAftpHook != "" {
+						err = exec.Command(a.PreAftpHook, us.SessionID()).Run()
+						if !err.(*exec.ExitError).Success() {
+							http.Error(r.W, "Pre apt-ftparchive hook failed, "+err.Error(), http.StatusBadRequest)
+							return
+						}
+					}
+
+					//Move the files into the pool
+					for _, f := range us.Files() {
+						dstdir := a.RepoDir + "/"
+						matches := a.PoolPattern.FindSubmatch([]byte(f.Filename))
+						if len(matches) > 0 {
+							dstdir = dstdir + string(matches[0]) + "/"
+						}
+						err := os.Rename(f.Filename, dstdir+f.Filename)
+						if err != nil {
+							http.Error(r.W, "File move failed, "+err.Error(), http.StatusBadRequest)
+							return
+						}
+					}
+
+					err = exec.Command(a.AftpPath, "generate", a.AftpConfig).Run()
+					if !err.(*exec.ExitError).Success() {
+						http.Error(r.W, "Pre apt-ftparchive failed, "+err.Error(), http.StatusBadRequest)
+						return
+					}
+
+					if a.PreAftpHook != "" {
+						err = exec.Command(a.PreAftpHook, us.SessionID()).Run()
+						log.Println("Error executing post-aftp-hook, " + err.Error())
+					}
+
 					r.W.WriteHeader(200)
 					r.W.Write([]byte("File uploads complete"))
 				} else {
