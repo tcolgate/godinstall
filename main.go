@@ -16,20 +16,25 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	var listenAddress = flag.String("listen", ":3000", "ip:port to listen on")
-	var validate = flag.Bool("validate", true, "Validate signatures on changes and debs")
-	var ttl = flag.String("ttl", "60s", "Session life time")
+	listenAddress := flag.String("listen", ":3000", "ip:port to listen on")
+	validate := flag.Bool("validate", true, "Validate signatures on changes and debs")
+	ttl := flag.String("ttl", "60s", "Session life time")
+	maxGets := flag.Int("max-gets", 4, "Maximum concurrent GETs")
+	maxPuts := flag.Int("max-puts", 4, "Maximum concurrent POST/PUTs")
+	repoDir := flag.String("repo-dir", "/tmp/myrepo", "Location of repository root")
+	tmpDir := flag.String("tmp-dir", "/tmp/up", "Location for temporary storage")
+	cookieName := flag.String("cookie-name", "godinstall-sess", "Name for the sessio ookie")
 
 	flag.Parse()
 
 	expire, _ := time.ParseDuration(*ttl)
 
 	server := &AptServer{
-		MaxGets:         4,
-		MaxPuts:         4,
-		RepoDir:         "/tmp/myrepo",
-		TmpDir:          "/tmp",
-		CookieName:      "godinstall-sess",
+		MaxGets:         *maxGets,
+		MaxPuts:         *maxPuts,
+		RepoDir:         *repoDir,
+		TmpDir:          *tmpDir,
+		CookieName:      *cookieName,
 		TTL:             expire,
 		ValidateChanges: *validate,
 		ValidateDebs:    *validate,
