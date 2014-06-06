@@ -29,6 +29,7 @@ func main() {
 	releaseConfig := flag.String("rel-config", "/etc/aptconfig", "Location of apt-ftparchive releases file")
 	preAftpHook := flag.String("pre-aftp-hook", "", "Script to run before apt-ftparchive")
 	postAftpHook := flag.String("post-aftp-hook", "", "Script to run after apt-ftparchive")
+	poolPattern := flag.String("pool-pattern", "pool/{{ f.Filename }}", "A pattern to describe the pool layout")
 
 	flag.Parse()
 
@@ -48,6 +49,7 @@ func main() {
 		ReleaseConfig:   *releaseConfig,
 		PreAftpHook:     *preAftpHook,
 		PostAftpHook:    *postAftpHook,
+		PoolPattern:     *poolPattern,
 	}
 
 	server.InitAptServer()

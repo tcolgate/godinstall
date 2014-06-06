@@ -31,6 +31,7 @@ type AptServer struct {
 	ReleaseConfig   string
 	PreAftpHook     string
 	PostAftpHook    string
+	PoolPattern     string
 
 	getLocks        *Governor
 	putLocks        *Governor
@@ -175,6 +176,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		} else {
 			log.Println("request for unknown session")
 			http.NotFound(r.W, r.R)
+			return
 		}
 
 		switch r.R.Method {
