@@ -22,7 +22,8 @@ var mimeMemoryBufferSize = int64(64000000)
 type AptServer struct {
 	MaxGets         int
 	MaxPuts         int
-	RepoDir         string
+	RepoBase        string
+	PoolBase        string
 	TmpDir          string
 	CookieName      string
 	TTL             time.Duration
@@ -70,8 +71,7 @@ func makeDownloadHandler(a *AptServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		a.getLocks.Run(func() {
 			file := mux.Vars(r)["rest"]
-			realFile := a.TmpDir + "/" + file
-			log.Println("req'd " + realFile)
+			realFile := a.RepoBase + "/" + file
 			http.ServeFile(w, r, realFile)
 		})
 	}
@@ -236,7 +236,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 
 					//Move the files into the pool
 					for _, f := range us.Files() {
-						dstdir := a.RepoDir + "/"
+						dstdir := a.PoolBase + "/"
 						matches := a.PoolPattern.FindSubmatch([]byte(f.Filename))
 						if len(matches) > 0 {
 							dstdir = dstdir + string(matches[0]) + "/"
@@ -249,9 +249,11 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 					}
 
 					err = exec.Command(a.AftpPath, "generate", a.AftpConfig).Run()
-					if !err.(*exec.ExitError).Success() {
-						http.Error(r.W, "Pre apt-ftparchive failed, "+err.Error(), http.StatusBadRequest)
-						return
+					if err != nil {
+						if !err.(*exec.ExitError).Success() {
+							http.Error(r.W, "Pre apt-ftparchive failed, "+err.Error(), http.StatusBadRequest)
+							return
+						}
 					}
 
 					if a.PreAftpHook != "" {

@@ -23,7 +23,8 @@ func main() {
 	ttl := flag.String("ttl", "60s", "Session life time")
 	maxGets := flag.Int("max-gets", 4, "Maximum concurrent GETs")
 	maxPuts := flag.Int("max-puts", 4, "Maximum concurrent POST/PUTs")
-	repoDir := flag.String("repo-dir", "/tmp/myrepo", "Location of repository root")
+	repoBase := flag.String("repo-base", "/tmp/myrepo", "Location of repository root")
+	poolBase := flag.String("pool-base", "/tmp/myrepo/pool", "Location of the pool base")
 	tmpDir := flag.String("tmp-dir", "/tmp/up", "Location for temporary storage")
 	cookieName := flag.String("cookie-name", "godinstall-sess", "Name for the sessio ookie")
 	aftpPath := flag.String("aftp-bin-path", "/usr/bin/apt-ftparchive", "Location of apt-ftparchive binary")
@@ -51,7 +52,8 @@ func main() {
 	server := &AptServer{
 		MaxGets:         *maxGets,
 		MaxPuts:         *maxPuts,
-		RepoDir:         *repoDir,
+		RepoBase:        *repoBase,
+		PoolBase:        *poolBase,
 		TmpDir:          *tmpDir,
 		CookieName:      *cookieName,
 		TTL:             expire,
