@@ -1,10 +1,17 @@
 package main
 
-import "errors"
+import (
+	"errors"
+	"sync"
+)
 
+// The governor is used for rate liiting requests, and for locking
+// the repository from new requests when an apt-ftparchive run is
+// occuring
 type Governor struct {
-	Max   int
-	locks chan int
+	Max    int
+	locks  chan int
+	rwLock sync.RWMutex
 }
 
 func NewGovernor(max int) (*Governor, error) {
@@ -25,22 +32,18 @@ func NewGovernor(max int) (*Governor, error) {
 
 func (g *Governor) Run(f func()) {
 	lock := <-g.locks
+	g.rwLock.RLock()
+	defer func() {
+		g.locks <- lock
+		g.rwLock.RUnlock()
+	}()
+
 	f()
-	defer func() { g.locks <- lock }()
 }
 
 func (g *Governor) RunExclusive(f func()) {
-	holding := 0
-	defer func() {
-		for i := 0; i < holding; i++ {
-			g.locks <- 1
-		}
-	}()
-
-	for i := 0; i < g.Max; i++ {
-		<-g.locks
-		holding++
-	}
+	g.rwLock.Lock()
+	defer g.rwLock.Unlock()
 
 	f()
 }
