@@ -9,7 +9,6 @@ import (
 	"errors"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"time"
@@ -26,7 +25,6 @@ type UploadSessioner interface {
 	AddFile(*ChangesFile) error
 	Dir() string
 	Files() map[string]*ChangesFile
-	HandleReq(w http.ResponseWriter, r *http.Request)
 	Close()
 }
 
@@ -62,29 +60,6 @@ func (s *uploadSession) SessionID() string {
 
 func (s *uploadSession) SessionURL() string {
 	return "/package/upload/" + s.SessionId
-}
-
-func (s *uploadSession) HandleReq(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "GET":
-		{
-			j := UploadSessionToJSON(s)
-			w.Write(j)
-			return
-		}
-	case "PUT", "POST":
-		{
-			// This response code will depend on upload status
-			w.WriteHeader(202)
-			w.Write([]byte("Upload some junk"))
-			return
-		}
-	default:
-		{
-			http.Error(w, "unknown method", http.StatusInternalServerError)
-			return
-		}
-	}
 }
 
 func (s *uploadSession) Close() {
