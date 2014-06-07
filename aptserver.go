@@ -70,11 +70,12 @@ func (a *AptServer) Register(r *mux.Router) {
 
 func makeDownloadHandler(a *AptServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		a.getLocks.Run(func() {
-			file := mux.Vars(r)["rest"]
-			realFile := a.RepoBase + "/" + file
-			http.ServeFile(w, r, realFile)
-		})
+		a.getLocks.ReadLock()
+		defer a.getLocks.ReadUnLock()
+
+		file := mux.Vars(r)["rest"]
+		realFile := a.RepoBase + "/" + file
+		http.ServeFile(w, r, realFile)
 	}
 }
 
@@ -87,25 +88,26 @@ type uploadSessionReq struct {
 
 func makeUploadHandler(a *AptServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		a.putLocks.Run(func() {
-			// Did we get a session
-			session, found := mux.Vars(r)["session"]
+		a.putLocks.ReadLock()
+		defer a.putLocks.ReadUnLock()
 
-			//maybe in a cookie?
-			if !found {
-				cookie, err := r.Cookie(a.CookieName)
-				if err == nil {
-					session = cookie.Value
-				}
-			}
+		// Did we get a session
+		session, found := mux.Vars(r)["session"]
 
-			// THis all needs rewriting
-			if session == "" {
-				dispatchRequest(a, &uploadSessionReq{"", w, r, true})
-			} else {
-				dispatchRequest(a, &uploadSessionReq{session, w, r, false})
+		//maybe in a cookie?
+		if !found {
+			cookie, err := r.Cookie(a.CookieName)
+			if err == nil {
+				session = cookie.Value
 			}
-		})
+		}
+
+		// THis all needs rewriting
+		if session == "" {
+			dispatchRequest(a, &uploadSessionReq{"", w, r, true})
+		} else {
+			dispatchRequest(a, &uploadSessionReq{session, w, r, false})
+		}
 	}
 }
 
@@ -218,6 +220,11 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 				}
 
 				if us.IsComplete() {
+					a.getLocks.WriteLock()
+					defer a.getLocks.WriteUnLock()
+					a.aptLock.WriteLock()
+					defer a.aptLock.WriteUnLock()
+
 					os.Chdir(us.Dir()) // Chdir may be bad here
 					if a.PreAftpHook != "" {
 						err = exec.Command(a.PreAftpHook, us.SessionID()).Run()

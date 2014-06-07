@@ -47,3 +47,19 @@ func (g *Governor) RunExclusive(f func()) {
 
 	f()
 }
+
+func (g *Governor) ReadLock() {
+	g.rwLock.Lock()
+}
+
+func (g *Governor) ReadUnLock() {
+	g.rwLock.Unlock()
+}
+
+func (g *Governor) WriteLock() {
+	g.rwLock.Lock()
+}
+
+func (g *Governor) WriteUnLock() {
+	g.rwLock.Unlock()
+}
