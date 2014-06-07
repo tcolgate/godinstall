@@ -217,16 +217,9 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 					}
 				}
 
-				complete := true
-				for _, f := range us.Files() {
-					if !f.Uploaded {
-						complete = false
-					}
-				}
-
-				if complete {
+				if us.IsComplete() {
 					// Need to trigger the upload
-					os.Chdir(us.Dir())
+					os.Chdir(us.Dir()) // Chdir may be bad here
 					if a.PreAftpHook != "" {
 						err = exec.Command(a.PreAftpHook, us.SessionID()).Run()
 						if !err.(*exec.ExitError).Success() {

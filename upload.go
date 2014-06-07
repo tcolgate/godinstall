@@ -22,6 +22,7 @@ type UploadSessioner interface {
 	SessionURL() string
 	AddChanges(*DebChanges)
 	Changes() *DebChanges
+	IsComplete() bool
 	AddFile(*ChangesFile) error
 	Dir() string
 	Files() map[string]*ChangesFile
@@ -155,6 +156,16 @@ func (s *uploadSession) Dir() string {
 
 func (s *uploadSession) Files() map[string]*ChangesFile {
 	return s.changes.Files
+}
+
+func (s *uploadSession) IsComplete() bool {
+	complete := true
+	for _, f := range s.Files() {
+		if !f.Uploaded {
+			complete = false
+		}
+	}
+	return complete
 }
 
 func UploadSessionToJSON(s UploadSessioner) []byte {
