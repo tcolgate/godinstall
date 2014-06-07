@@ -98,7 +98,6 @@ func main() {
 		log.Println("Can't find signer id in keyring")
 		return
 	}
-	log.Println(signerId)
 
 	err = signerId.PrivateKey.Decrypt([]byte(""))
 	if err != nil {
