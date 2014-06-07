@@ -7,8 +7,11 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"time"
+
+	"code.google.com/p/go.crypto/openpgp"
 
 	"github.com/gorilla/mux"
 )
@@ -34,6 +37,9 @@ func main() {
 	preAftpHook := flag.String("pre-aftp-hook", "", "Script to run before apt-ftparchive")
 	postAftpHook := flag.String("post-aftp-hook", "", "Script to run after apt-ftparchive")
 	poolPattern := flag.String("pool-pattern", "[a-z]|lib[a-z]", "A pattern to match package prefixes to split into directories in the pool")
+	pubringFile := flag.String("gpg-pubring", "", "Public keyring file")
+	privringFile := flag.String("gpg-privring", "", "Private keyring file")
+	signerIdStr := flag.String("signer-id", "", "Key ID to use for signing releases")
 
 	flag.Parse()
 
@@ -44,8 +50,59 @@ func main() {
 	}
 
 	poolRegexp, err := regexp.CompilePOSIX("^(" + *poolPattern + ")")
+
 	if err != nil {
 		log.Println(err.Error())
+		return
+	}
+
+	var pubRing openpgp.EntityList
+	if *pubringFile != "" {
+		pubringReader, err := os.Open(*pubringFile)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+
+		pubRing, err = openpgp.ReadKeyRing(pubringReader)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+	}
+
+	var privRing openpgp.EntityList
+	if *privringFile != "" {
+		privringReader, err := os.Open(*privringFile)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+
+		privRing, err = openpgp.ReadKeyRing(privringReader)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+	}
+
+	if *validate {
+		if privRing == nil || pubRing == nil {
+			log.Println("Validation requested, but keyrings not loaded")
+			return
+		}
+	}
+
+	signerId := getKeyByEmail(privRing, *signerIdStr)
+	if signerId == nil {
+		log.Println("Can't find signer id in keyring")
+		return
+	}
+	log.Println(signerId)
+
+	err = signerId.PrivateKey.Decrypt([]byte(""))
+	if err != nil {
+		log.Println("Can't decrypt private key, " + err.Error())
 		return
 	}
 
@@ -66,6 +123,9 @@ func main() {
 		PreAftpHook:     *preAftpHook,
 		PostAftpHook:    *postAftpHook,
 		PoolPattern:     poolRegexp,
+		PubRing:         pubRing,
+		PrivRing:        privRing,
+		SignerId:        signerId,
 	}
 
 	server.InitAptServer()

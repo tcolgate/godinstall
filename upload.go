@@ -40,7 +40,7 @@ type uploadSession struct {
 func NewUploadSessioner(a *AptServer) UploadSessioner {
 	var s uploadSession
 	s.SessionId = uuid.New()
-	s.keyRing = a.pubRing
+	s.keyRing = a.PubRing
 	s.dir = a.TmpDir + "/" + s.SessionId
 
 	os.Mkdir(s.dir, os.FileMode(0755))

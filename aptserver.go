@@ -4,11 +4,14 @@ package main
 //"github.com/stapelberg/godebiancontrol"
 
 import (
+	"errors"
+	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -35,7 +38,10 @@ type AptServer struct {
 	PreAftpHook     string
 	PostUploadHook  string
 	PostAftpHook    string
+	SignerId        *openpgp.Entity
 	PoolPattern     *regexp.Regexp
+	PubRing         openpgp.EntityList
+	PrivRing        openpgp.EntityList
 
 	getLocks        *Governor
 	putLocks        *Governor
@@ -43,8 +49,6 @@ type AptServer struct {
 	uploadHandler   http.HandlerFunc
 	downloadHandler http.HandlerFunc
 	sessMap         *SafeMap
-	pubRing         openpgp.KeyRing
-	privRing        openpgp.KeyRing
 }
 
 func (a *AptServer) InitAptServer() {
@@ -55,10 +59,6 @@ func (a *AptServer) InitAptServer() {
 	a.downloadHandler = makeDownloadHandler(a)
 	a.uploadHandler = makeUploadHandler(a)
 	a.sessMap = NewSafeMap()
-	pubringFile, _ := os.Open("pubring.gpg")
-	a.pubRing, _ = openpgp.ReadKeyRing(pubringFile)
-	privringFile, _ := os.Open("secring.gpg")
-	a.privRing, _ = openpgp.ReadKeyRing(privringFile)
 }
 
 func (a *AptServer) Register(r *mux.Router) {
@@ -131,7 +131,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 			return
 		}
 
-		changes, err := ParseDebianChanges(changesPart, &a.pubRing)
+		changes, err := ParseDebianChanges(changesPart, a.PubRing)
 		if err != nil {
 			http.Error(r.W, err.Error(), http.StatusBadRequest)
 			return
@@ -261,6 +261,59 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 						log.Println("Error executing post-aftp-hook, " + err.Error())
 					}
 
+					if a.ReleaseConfig != "" {
+						// Generate the Releases and InReleases file
+						releaseBase, _ := a.FindReleaseBase()
+						releaseFilename := releaseBase + "/Release"
+
+						releaseWriter, err := os.Create(releaseFilename)
+						defer releaseWriter.Close()
+
+						if err != nil {
+							http.Error(r.W, "Error creating release file, "+err.Error(), http.StatusInternalServerError)
+							return
+						}
+
+						cmd := exec.Command(a.AftpPath, "-c", a.ReleaseConfig, "release", releaseBase)
+						releaseReader, _ := cmd.StdoutPipe()
+						cmd.Start()
+						io.Copy(releaseWriter, releaseReader)
+
+						err = cmd.Wait()
+						if err != nil {
+							if !err.(*exec.ExitError).Success() {
+								http.Error(r.W, "apt-ftparchive release generation failed, "+err.Error(), http.StatusInternalServerError)
+								return
+							}
+						}
+
+						if a.SignerId != nil {
+							rereadRelease, err := os.Open(releaseFilename)
+							defer rereadRelease.Close()
+							releaseSignatureWriter, err := os.Create(releaseBase + "/Release.gpg")
+							if err != nil {
+								http.Error(r.W, "Error creating release signature file, "+err.Error(), http.StatusInternalServerError)
+								return
+							}
+							defer releaseSignatureWriter.Close()
+
+							err = openpgp.ArmoredDetachSign(releaseSignatureWriter, a.SignerId, rereadRelease, nil)
+							if err != nil {
+								http.Error(r.W, "Detached Sign failed, , "+err.Error(), http.StatusInternalServerError)
+								return
+							}
+						}
+
+						// Release file generated
+
+						if err != nil {
+							if !err.(*exec.ExitError).Success() {
+								http.Error(r.W, "Pre apt-ftparchive failed, "+err.Error(), http.StatusBadRequest)
+								return
+							}
+						}
+					}
+
 					r.W.WriteHeader(200)
 					r.W.Write([]byte("File uploads complete"))
 				} else {
@@ -277,4 +330,39 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 			}
 		}
 	}
+}
+
+func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
+	for _, entity := range keyring {
+		for _, ident := range entity.Identities {
+			if ident.UserId.Email == email {
+				return entity
+			}
+		}
+	}
+
+	return nil
+}
+
+func (a *AptServer) FindReleaseBase() (string, error) {
+	releasePath := ""
+
+	visit := func(path string, f os.FileInfo, errIn error) (err error) {
+		switch {
+		case f.Name() == "Contents-all":
+			releasePath = filepath.Dir(path)
+			err = errors.New("Found file")
+		case f.Name() == "pool":
+			err = filepath.SkipDir
+		}
+		return err
+	}
+
+	filepath.Walk(a.RepoBase, visit)
+
+	if releasePath == "" {
+		return releasePath, errors.New("Can't locate release base dir")
+	}
+
+	return releasePath, nil
 }

@@ -33,7 +33,7 @@ type DebChanges struct {
 	Files     map[string]*ChangesFile
 }
 
-func ParseDebianChanges(r io.Reader, kr *openpgp.KeyRing) (p *DebChanges, err error) {
+func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *DebChanges, err error) {
 	var c DebChanges
 
 	b, err := ioutil.ReadAll(r)
@@ -64,7 +64,7 @@ func ParseDebianChanges(r io.Reader, kr *openpgp.KeyRing) (p *DebChanges, err er
 			log.Println("Validation requested, but keyring is null")
 			c.validated = false
 		} else {
-			c.signedBy, err = openpgp.CheckDetachedSignature(*kr, br, msg.ArmoredSignature.Body)
+			c.signedBy, err = openpgp.CheckDetachedSignature(kr, br, msg.ArmoredSignature.Body)
 			if err == nil {
 				c.validated = true
 			} else {
