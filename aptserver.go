@@ -218,7 +218,6 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 				}
 
 				if us.IsComplete() {
-					// Need to trigger the upload
 					os.Chdir(us.Dir()) // Chdir may be bad here
 					if a.PreAftpHook != "" {
 						err = exec.Command(a.PreAftpHook, us.SessionID()).Run()
@@ -242,89 +241,20 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 						}
 					}
 
-					err = exec.Command(a.AftpPath, "generate", a.AftpConfig).Run()
+					err = a.runAptFtpArchive()
+
 					if err != nil {
-						if !err.(*exec.ExitError).Success() {
-							http.Error(r.W, "Pre apt-ftparchive failed, "+err.Error(), http.StatusBadRequest)
-							return
+						r.W.WriteHeader(500)
+						r.W.Write([]byte("Apt FTP Archive failed"))
+					} else {
+						if a.PostAftpHook != "" {
+							err = exec.Command(a.PostAftpHook, us.SessionID()).Run()
+							log.Println("Error executing post-aftp-hook, " + err.Error())
 						}
+
+						r.W.WriteHeader(200)
+						r.W.Write([]byte("File uploads complete"))
 					}
-
-					if a.PreAftpHook != "" {
-						err = exec.Command(a.PreAftpHook, us.SessionID()).Run()
-						log.Println("Error executing post-aftp-hook, " + err.Error())
-					}
-
-					if a.ReleaseConfig != "" {
-						// Generate the Releases and InReleases file
-						releaseBase, _ := a.FindReleaseBase()
-						releaseFilename := releaseBase + "/Release"
-
-						releaseWriter, err := os.Create(releaseFilename)
-						defer releaseWriter.Close()
-
-						if err != nil {
-							http.Error(r.W, "Error creating release file, "+err.Error(), http.StatusInternalServerError)
-							return
-						}
-
-						cmd := exec.Command(a.AftpPath, "-c", a.ReleaseConfig, "release", releaseBase)
-						releaseReader, _ := cmd.StdoutPipe()
-						cmd.Start()
-						io.Copy(releaseWriter, releaseReader)
-
-						err = cmd.Wait()
-						if err != nil {
-							if !err.(*exec.ExitError).Success() {
-								http.Error(r.W, "apt-ftparchive release generation failed, "+err.Error(), http.StatusInternalServerError)
-								return
-							}
-						}
-
-						if a.SignerId != nil {
-							rereadRelease, err := os.Open(releaseFilename)
-							defer rereadRelease.Close()
-							releaseSignatureWriter, err := os.Create(releaseBase + "/Release.gpg")
-							if err != nil {
-								http.Error(r.W, "Error creating release signature file, "+err.Error(), http.StatusInternalServerError)
-								return
-							}
-							defer releaseSignatureWriter.Close()
-
-							err = openpgp.ArmoredDetachSign(releaseSignatureWriter, a.SignerId, rereadRelease, nil)
-							if err != nil {
-								http.Error(r.W, "Detached Sign failed, , "+err.Error(), http.StatusInternalServerError)
-								return
-							}
-
-							rereadRelease2, err := os.Open(releaseFilename)
-							defer rereadRelease2.Close()
-							inReleaseSignatureWriter, err := os.Create(releaseBase + "/InRelease")
-							if err != nil {
-								http.Error(r.W, "Error creating InRelease file, "+err.Error(), http.StatusInternalServerError)
-								return
-							}
-							inReleaseWriter, err := clearsign.Encode(inReleaseSignatureWriter, a.SignerId.PrivateKey, nil)
-							if err != nil {
-								http.Error(r.W, "Error InRelease clear-signer, "+err.Error(), http.StatusInternalServerError)
-								return
-							}
-							io.Copy(inReleaseWriter, rereadRelease2)
-							inReleaseWriter.Close()
-						}
-
-						// Release file generated
-
-						if err != nil {
-							if !err.(*exec.ExitError).Success() {
-								http.Error(r.W, "Pre apt-ftparchive failed, "+err.Error(), http.StatusBadRequest)
-								return
-							}
-						}
-					}
-
-					r.W.WriteHeader(200)
-					r.W.Write([]byte("File uploads complete"))
 				} else {
 					r.W.WriteHeader(202)
 					r.W.Write([]byte("Feed me more files please"))
@@ -374,4 +304,75 @@ func (a *AptServer) FindReleaseBase() (string, error) {
 	}
 
 	return releasePath, nil
+}
+
+func (a *AptServer) runAptFtpArchive() (err error) {
+	err = exec.Command(a.AftpPath, "generate", a.AftpConfig).Run()
+	if err != nil {
+		if !err.(*exec.ExitError).Success() {
+			return errors.New("Pre apt-ftparchive failed, " + err.Error())
+		}
+	}
+
+	if a.ReleaseConfig != "" {
+		// Generate the Releases and InReleases file
+		releaseBase, _ := a.FindReleaseBase()
+		releaseFilename := releaseBase + "/Release"
+
+		releaseWriter, err := os.Create(releaseFilename)
+		defer releaseWriter.Close()
+
+		if err != nil {
+			return errors.New("Error creating release file, " + err.Error())
+		}
+
+		cmd := exec.Command(a.AftpPath, "-c", a.ReleaseConfig, "release", releaseBase)
+		releaseReader, _ := cmd.StdoutPipe()
+		cmd.Start()
+		io.Copy(releaseWriter, releaseReader)
+
+		err = cmd.Wait()
+		if err != nil {
+			if !err.(*exec.ExitError).Success() {
+				return errors.New("apt-ftparchive release generation failed, " + err.Error())
+			}
+		}
+
+		if a.SignerId != nil {
+			rereadRelease, err := os.Open(releaseFilename)
+			defer rereadRelease.Close()
+			releaseSignatureWriter, err := os.Create(releaseBase + "/Release.gpg")
+			if err != nil {
+				return errors.New("Error creating release signature file, " + err.Error())
+			}
+			defer releaseSignatureWriter.Close()
+
+			err = openpgp.ArmoredDetachSign(releaseSignatureWriter, a.SignerId, rereadRelease, nil)
+			if err != nil {
+				return errors.New("Detached Sign failed, , " + err.Error())
+			}
+
+			rereadRelease2, err := os.Open(releaseFilename)
+			defer rereadRelease2.Close()
+			inReleaseSignatureWriter, err := os.Create(releaseBase + "/InRelease")
+			if err != nil {
+				return errors.New("Error creating InRelease file, " + err.Error())
+			}
+			inReleaseWriter, err := clearsign.Encode(inReleaseSignatureWriter, a.SignerId.PrivateKey, nil)
+			if err != nil {
+				return errors.New("Error InRelease clear-signer, " + err.Error())
+			}
+			io.Copy(inReleaseWriter, rereadRelease2)
+			inReleaseWriter.Close()
+		}
+
+		// Release file generated
+
+		if err != nil {
+			if !err.(*exec.ExitError).Success() {
+				return errors.New("Pre apt-ftparchive failed, " + err.Error())
+			}
+		}
+	}
+	return nil
 }
