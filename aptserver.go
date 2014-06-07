@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
+	"code.google.com/p/go.crypto/openpgp/clearsign"
 	"github.com/gorilla/mux"
 )
 
@@ -302,6 +303,21 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 								http.Error(r.W, "Detached Sign failed, , "+err.Error(), http.StatusInternalServerError)
 								return
 							}
+
+							rereadRelease2, err := os.Open(releaseFilename)
+							defer rereadRelease2.Close()
+							inReleaseSignatureWriter, err := os.Create(releaseBase + "/InRelease")
+							if err != nil {
+								http.Error(r.W, "Error creating InRelease file, "+err.Error(), http.StatusInternalServerError)
+								return
+							}
+							inReleaseWriter, err := clearsign.Encode(inReleaseSignatureWriter, a.SignerId.PrivateKey, nil)
+							if err != nil {
+								http.Error(r.W, "Error InRelease clear-signer, "+err.Error(), http.StatusInternalServerError)
+								return
+							}
+							io.Copy(inReleaseWriter, rereadRelease2)
+							inReleaseWriter.Close()
 						}
 
 						// Release file generated
