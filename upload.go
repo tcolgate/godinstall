@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"time"
 
 	"code.google.com/p/go-uuid/uuid"
@@ -35,6 +36,7 @@ type uploadSession struct {
 	keyRing    openpgp.KeyRing
 	requireSig bool
 	changes    *DebChanges
+	postHook   string
 }
 
 func NewUploadSessioner(a *AptServer) UploadSessioner {
@@ -48,6 +50,8 @@ func NewUploadSessioner(a *AptServer) UploadSessioner {
 
 	a.sessMap.Set(s.SessionId, &s)
 	go pathHandle(a.sessMap, s.SessionId, a.TTL)
+
+	s.postHook = a.PostUploadHook
 
 	return &s
 }
@@ -153,6 +157,13 @@ func (s *uploadSession) AddFile(upload *ChangesFile) (err error) {
 		expectedFile.Sha1 != sha1 ||
 		expectedFile.Sha256 != sha256 {
 		return errors.New("Uploaded file hashes do not match")
+	}
+
+	if s.postHook != "" {
+		err = exec.Command(s.postHook, tmpFilename).Run()
+		if !err.(*exec.ExitError).Success() {
+			return errors.New("Post upload hook failed, ")
+		}
 	}
 
 	if err == nil {
