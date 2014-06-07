@@ -55,7 +55,14 @@ deb http://localhost:3000/repo wheezy main
 To start godinstall:
 
 ```
-$ godinstall -pool-base /home/tristan/testrepo/pool/main -repo-base /home/tristan/testrepo -config ~/aftp.conf -tmp-dir ~/tmp
+$ godinstall -pool-base /home/tristan/testrepo/pool/main \
+             -repo-base /home/tristan/testrepo \
+             -config ~/aftp.conf \
+             -tmp-dir ~/tmp \
+             -rel-config ~/release.conf \
+             -gpg-privring ~/.gnupg/secring.gpg \
+             -gpg-pubring ~/.gnupg/pubring.gpg \
+             -signer-id tcolgate@gmail.com
 ```
 
 To upload a package, you upload the changes file, and then upload the individual files. You can upload the content files one at a time, or in batches, or on big batch
