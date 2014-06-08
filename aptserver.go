@@ -24,8 +24,7 @@ import (
 var mimeMemoryBufferSize = int64(64000000)
 
 type AptServer struct {
-	MaxGets         int
-	MaxPuts         int
+	MaxReqs         int
 	RepoBase        string
 	PoolBase        string
 	TmpDir          string
@@ -44,18 +43,14 @@ type AptServer struct {
 	PubRing         openpgp.EntityList
 	PrivRing        openpgp.EntityList
 
-	getLocks        *Governor
-	putLocks        *Governor
-	aptLock         *Governor
+	aptLocks        *Governor
 	uploadHandler   http.HandlerFunc
 	downloadHandler http.HandlerFunc
 	sessMap         *SafeMap
 }
 
 func (a *AptServer) InitAptServer() {
-	a.getLocks, _ = NewGovernor(a.MaxGets)
-	a.putLocks, _ = NewGovernor(a.MaxPuts)
-	a.aptLock, _ = NewGovernor(1)
+	a.aptLocks, _ = NewGovernor(a.MaxReqs)
 
 	a.downloadHandler = makeDownloadHandler(a)
 	a.uploadHandler = makeUploadHandler(a)
@@ -70,8 +65,8 @@ func (a *AptServer) Register(r *mux.Router) {
 
 func makeDownloadHandler(a *AptServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		a.getLocks.ReadLock()
-		defer a.getLocks.ReadUnLock()
+		a.aptLocks.ReadLock()
+		defer a.aptLocks.ReadUnLock()
 
 		file := mux.Vars(r)["rest"]
 		realFile := a.RepoBase + "/" + file
@@ -88,9 +83,6 @@ type uploadSessionReq struct {
 
 func makeUploadHandler(a *AptServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		a.putLocks.ReadLock()
-		defer a.putLocks.ReadUnLock()
-
 		// Did we get a session
 		session, found := mux.Vars(r)["session"]
 
@@ -112,6 +104,9 @@ func makeUploadHandler(a *AptServer) http.HandlerFunc {
 }
 
 func dispatchRequest(a *AptServer, r *uploadSessionReq) {
+	// Lots of this need refactoring into go routines and
+	// response chanels
+
 	if r.create {
 		err := r.R.ParseMultipartForm(mimeMemoryBufferSize)
 		if err != nil {
@@ -220,10 +215,8 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 				}
 
 				if us.IsComplete() {
-					a.getLocks.WriteLock()
-					defer a.getLocks.WriteUnLock()
-					a.aptLock.WriteLock()
-					defer a.aptLock.WriteUnLock()
+					a.aptLocks.WriteLock()
+					defer a.aptLocks.WriteUnLock()
 
 					os.Chdir(us.Dir()) // Chdir may be bad here
 					if a.PreAftpHook != "" {

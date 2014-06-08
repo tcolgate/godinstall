@@ -24,8 +24,7 @@ func main() {
 	listenAddress := flag.String("listen", ":3000", "ip:port to listen on")
 	validate := flag.Bool("validate", true, "Validate signatures on changes and debs")
 	ttl := flag.String("ttl", "60s", "Session life time")
-	maxGets := flag.Int("max-gets", 4, "Maximum concurrent GETs")
-	maxPuts := flag.Int("max-puts", 4, "Maximum concurrent POST/PUTs")
+	maxReqs := flag.Int("max-requests", 4, "Maximum concurrent requests")
 	repoBase := flag.String("repo-base", "/tmp/myrepo", "Location of repository root")
 	poolBase := flag.String("pool-base", "/tmp/myrepo/pool", "Location of the pool base")
 	tmpDir := flag.String("tmp-dir", "/tmp/up", "Location for temporary storage")
@@ -106,8 +105,7 @@ func main() {
 	}
 
 	server := &AptServer{
-		MaxGets:         *maxGets,
-		MaxPuts:         *maxPuts,
+		MaxReqs:         *maxReqs,
 		RepoBase:        *repoBase,
 		PoolBase:        *poolBase,
 		TmpDir:          *tmpDir,
