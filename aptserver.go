@@ -74,6 +74,15 @@ func makeDownloadHandler(a *AptServer) http.HandlerFunc {
 	}
 }
 
+type AptServerResponse struct {
+	Message    string
+	StatusCode int
+}
+
+func (e AptServerResponse) Error() string {
+	return e.Message
+}
+
 type uploadSessionReq struct {
 	SessionId string
 	W         http.ResponseWriter
@@ -95,15 +104,23 @@ func makeUploadHandler(a *AptServer) http.HandlerFunc {
 		}
 
 		// THis all needs rewriting
+		var resp AptServerResponse
 		if session == "" {
-			dispatchRequest(a, &uploadSessionReq{"", w, r, true})
+			resp = dispatchRequest(a, &uploadSessionReq{"", w, r, true})
 		} else {
-			dispatchRequest(a, &uploadSessionReq{session, w, r, false})
+			resp = dispatchRequest(a, &uploadSessionReq{session, w, r, false})
+		}
+
+		if resp.StatusCode == 0 {
+			http.Error(w, "AptServer response statuscode not set", http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(resp.StatusCode)
+			w.Write([]byte(resp.Message))
 		}
 	}
 }
 
-func dispatchRequest(a *AptServer, r *uploadSessionReq) {
+func dispatchRequest(a *AptServer, r *uploadSessionReq) AptServerResponse {
 	// Lots of this need refactoring into go routines and
 	// response chanels
 
@@ -111,7 +128,10 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		err := r.R.ParseMultipartForm(mimeMemoryBufferSize)
 		if err != nil {
 			http.Error(r.W, err.Error(), http.StatusBadRequest)
-			return
+			return AptServerResponse{
+				Message:    err.Error(),
+				StatusCode: http.StatusBadRequest,
+			}
 		}
 
 		form := r.R.MultipartForm
@@ -127,24 +147,32 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		}
 
 		if changesPart == nil {
-			http.Error(r.W, "No debian changes file in request", http.StatusBadRequest)
-			return
+			return AptServerResponse{
+				Message:    "No debian changes file in request",
+				StatusCode: http.StatusBadRequest,
+			}
 		}
 
 		changes, err := ParseDebianChanges(changesPart, a.PubRing)
 		if err != nil {
-			http.Error(r.W, err.Error(), http.StatusBadRequest)
-			return
+			return AptServerResponse{
+				Message:    err.Error(),
+				StatusCode: http.StatusBadRequest,
+			}
 		}
 
 		if a.ValidateChanges && !changes.signed {
-			http.Error(r.W, "Changes file was not signed", http.StatusBadRequest)
-			return
+			return AptServerResponse{
+				Message:    "Changes file was not signed",
+				StatusCode: http.StatusBadRequest,
+			}
 		}
 
 		if a.ValidateChanges && !changes.validated {
-			http.Error(r.W, "Changes file could not be validated", http.StatusBadRequest)
-			return
+			return AptServerResponse{
+				Message:    "Changes file could not be validated",
+				StatusCode: http.StatusBadRequest,
+			}
 		}
 
 		// This should probably move into the upload session constructor
@@ -178,9 +206,10 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		} else {
 			returnCode = http.StatusCreated
 		}
-		r.W.WriteHeader(returnCode)
-		r.W.Write(UploadSessionToJSON(us))
-		return
+		return AptServerResponse{
+			Message:    string(UploadSessionToJSON(us)),
+			StatusCode: returnCode,
+		}
 	} else {
 		var us UploadSessioner
 		c := a.sessMap.Get(r.SessionId)
@@ -190,29 +219,35 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 			case UploadSessioner:
 				us = sess
 			default:
-				http.Error(r.W, "Invalid session map entry", http.StatusInternalServerError)
-				return
+				return AptServerResponse{
+					Message:    "Invalid session map entry",
+					StatusCode: http.StatusInternalServerError,
+				}
 			}
 		} else {
-			log.Println("request for unknown session")
-			http.NotFound(r.W, r.R)
-			return
+			return AptServerResponse{
+				Message:    "request for unknown session",
+				StatusCode: http.StatusNotFound,
+			}
 		}
 
 		switch r.R.Method {
 		case "GET":
 			{
-				j := UploadSessionToJSON(us)
-				r.W.Write(j)
-				return
+				return AptServerResponse{
+					Message:    string(UploadSessionToJSON(us)),
+					StatusCode: http.StatusOK,
+				}
 			}
 		case "PUT", "POST":
 			{
 				//Add any files we have been passed
 				err := r.R.ParseMultipartForm(mimeMemoryBufferSize)
 				if err != nil {
-					http.Error(r.W, err.Error(), http.StatusBadRequest)
-					return
+					return AptServerResponse{
+						Message:    "Couldn't parse mime request, " + err.Error(),
+						StatusCode: http.StatusBadRequest,
+					}
 				}
 				form := r.R.MultipartForm
 				files := form.File["debfiles"]
@@ -220,16 +255,20 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 					log.Println("Trying to upload: " + f.Filename)
 					reader, err := f.Open()
 					if err != nil {
-						http.Error(r.W, "Can't upload "+f.Filename+" - "+err.Error(), http.StatusBadRequest)
-						return
+						return AptServerResponse{
+							Message:    "Can't upload " + f.Filename + " - " + err.Error(),
+							StatusCode: http.StatusBadRequest,
+						}
 					}
 					err = us.AddFile(&ChangesFile{
 						Filename: f.Filename,
 						data:     reader,
 					})
 					if err != nil {
-						http.Error(r.W, "Can't upload "+f.Filename+" - "+err.Error(), http.StatusBadRequest)
-						return
+						return AptServerResponse{
+							Message:    "Can't upload " + f.Filename + " - " + err.Error(),
+							StatusCode: http.StatusBadRequest,
+						}
 					}
 				}
 
@@ -241,8 +280,10 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 					if a.PreAftpHook != "" {
 						err = exec.Command(a.PreAftpHook, us.SessionID()).Run()
 						if !err.(*exec.ExitError).Success() {
-							http.Error(r.W, "Pre apt-ftparchive hook failed, "+err.Error(), http.StatusBadRequest)
-							return
+							return AptServerResponse{
+								Message:    "Pre apt-ftparchive hook failed, " + err.Error(),
+								StatusCode: http.StatusBadRequest,
+							}
 						}
 					}
 
@@ -256,15 +297,20 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 						err := os.Rename(f.Filename, dstdir+f.Filename)
 						if err != nil {
 							http.Error(r.W, "File move failed, "+err.Error(), http.StatusBadRequest)
-							return
+							return AptServerResponse{
+								Message:    "File move failed, " + err.Error(),
+								StatusCode: http.StatusInternalServerError,
+							}
 						}
 					}
 
 					err = a.runAptFtpArchive()
 
 					if err != nil {
-						r.W.WriteHeader(500)
-						r.W.Write([]byte("Apt FTP Archive failed"))
+						return AptServerResponse{
+							Message:    "Apt FTP Archive failed, " + err.Error(),
+							StatusCode: http.StatusInternalServerError,
+						}
 					} else {
 						if a.PostAftpHook != "" {
 							err = exec.Command(a.PostAftpHook, us.SessionID()).Run()
@@ -273,18 +319,24 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 
 						r.W.WriteHeader(200)
 						r.W.Write([]byte("File uploads complete"))
+						return AptServerResponse{
+							Message:    string(UploadSessionToJSON(us)),
+							StatusCode: http.StatusOK,
+						}
 					}
 				} else {
-					r.W.WriteHeader(202)
-					r.W.Write([]byte("Feed me more files please"))
+					return AptServerResponse{
+						Message:    string(UploadSessionToJSON(us)),
+						StatusCode: http.StatusAccepted,
+					}
 				}
-
-				return
 			}
 		default:
 			{
-				http.Error(r.W, "unknown method", http.StatusBadRequest)
-				return
+				return AptServerResponse{
+					Message:    "Bad request method",
+					StatusCode: http.StatusBadRequest,
+				}
 			}
 		}
 	}
