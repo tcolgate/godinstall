@@ -30,7 +30,9 @@ type DebChanges struct {
 	signed    bool
 	validated bool
 	signedBy  *openpgp.Entity
-	Files     map[string]*ChangesFile
+	// This needs to be a safemap really, could be updated
+	// from multiple go routines
+	Files map[string]*ChangesFile
 }
 
 func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *DebChanges, err error) {

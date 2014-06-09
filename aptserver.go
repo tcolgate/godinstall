@@ -117,10 +117,12 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		form := r.R.MultipartForm
 		files := form.File["debfiles"]
 		var changesPart multipart.File
+		var otherParts []*multipart.FileHeader
 		for _, f := range files {
 			if strings.HasSuffix(f.Filename, ".changes") {
-				changesPart, err = f.Open()
-				break
+				changesPart, _ = f.Open()
+			} else {
+				otherParts = append(otherParts, f)
 			}
 		}
 
@@ -158,10 +160,27 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) {
 		http.SetCookie(r.W, &cookie)
 		us.AddChanges(changes)
 
-		r.W.WriteHeader(201)
+		var returnCode int
+
+		if len(otherParts) > 0 {
+			for _, f := range otherParts {
+				reader, _ := f.Open()
+				err = us.AddFile(&ChangesFile{
+					Filename: f.Filename,
+					data:     reader,
+				})
+			}
+			if us.IsComplete() {
+				returnCode = http.StatusOK
+			} else {
+				returnCode = http.StatusAccepted
+			}
+		} else {
+			returnCode = http.StatusCreated
+		}
+		r.W.WriteHeader(returnCode)
 		r.W.Write(UploadSessionToJSON(us))
 		return
-
 	} else {
 		var us UploadSessioner
 		c := a.sessMap.Get(r.SessionId)
