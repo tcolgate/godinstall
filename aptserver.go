@@ -317,8 +317,6 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) AptServerResponse {
 							log.Println("Error executing post-aftp-hook, " + err.Error())
 						}
 
-						r.W.WriteHeader(200)
-						r.W.Write([]byte("File uploads complete"))
 						return AptServerResponse{
 							Message:    string(UploadSessionToJSON(us)),
 							StatusCode: http.StatusOK,
