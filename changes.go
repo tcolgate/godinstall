@@ -16,7 +16,7 @@ import (
 
 // This could be generalized to break out the different hashes
 // more dynamically
-type ChangesFile struct {
+type ChangesItem struct {
 	Filename string
 	Size     string
 	Md5      string
@@ -32,7 +32,7 @@ type DebChanges struct {
 	signedBy  *openpgp.Entity
 	// This needs to be a safemap really, could be updated
 	// from multiple go routines
-	Files map[string]*ChangesFile
+	Files map[string]*ChangesItem
 }
 
 func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *DebChanges, err error) {
@@ -98,12 +98,12 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *DebChanges, err 
 		return nil, errors.New("No Files section in changes")
 	}
 
-	c.Files = make(map[string]*ChangesFile)
+	c.Files = make(map[string]*ChangesItem)
 	files := strings.Split(filesStr, "\n")
 	for _, f := range files {
 		fileDesc := strings.Fields(f)
 		if len(fileDesc) == 5 {
-			cf := ChangesFile{
+			cf := ChangesItem{
 				Filename: fileDesc[4],
 				Size:     fileDesc[1],
 				Md5:      fileDesc[0],

@@ -23,9 +23,9 @@ type UploadSessioner interface {
 	AddChanges(*DebChanges)
 	Changes() *DebChanges
 	IsComplete() bool
-	AddFile(*ChangesFile) error
+	AddFile(*ChangesItem) error
 	Dir() string
-	Files() map[string]*ChangesFile
+	Files() map[string]*ChangesItem
 	Close()
 }
 
@@ -92,7 +92,7 @@ func (s *uploadSession) Changes() *DebChanges {
 	return s.changes
 }
 
-func (s *uploadSession) AddFile(upload *ChangesFile) (err error) {
+func (s *uploadSession) AddFile(upload *ChangesItem) (err error) {
 	// Check that there is an upload slot
 	expectedFile, ok := s.changes.Files[upload.Filename]
 	if !ok {
@@ -154,7 +154,7 @@ func (s *uploadSession) Dir() string {
 	return s.dir
 }
 
-func (s *uploadSession) Files() map[string]*ChangesFile {
+func (s *uploadSession) Files() map[string]*ChangesItem {
 	return s.changes.Files
 }
 

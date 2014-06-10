@@ -193,7 +193,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) AptServerResponse {
 		if len(otherParts) > 0 {
 			for _, f := range otherParts {
 				reader, _ := f.Open()
-				err = us.AddFile(&ChangesFile{
+				err = us.AddFile(&ChangesItem{
 					Filename: f.Filename,
 					data:     reader,
 				})
@@ -260,7 +260,7 @@ func dispatchRequest(a *AptServer, r *uploadSessionReq) AptServerResponse {
 							StatusCode: http.StatusBadRequest,
 						}
 					}
-					err = us.AddFile(&ChangesFile{
+					err = us.AddFile(&ChangesItem{
 						Filename: f.Filename,
 						data:     reader,
 					})
