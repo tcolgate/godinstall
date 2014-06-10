@@ -23,14 +23,12 @@ var testParseDebianChanges = []struct {
 
 func TestParseDebianChanges(t *testing.T) {
 	for i, tt := range testParseDebianChanges {
-		var krp *openpgp.KeyRing
+		var kr openpgp.EntityList
 		if tt.krStr != "" {
 			kreader := strings.NewReader(tt.krStr)
-			el, _ := openpgp.ReadArmoredKeyRing(kreader)
-			kr := openpgp.KeyRing(el)
-			krp = &kr
+			kr, _ = openpgp.ReadArmoredKeyRing(kreader)
 		}
-		c, err := ParseDebianChanges(strings.NewReader(tt.s), krp)
+		c, err := ParseDebianChanges(strings.NewReader(tt.s), kr)
 		if err == nil {
 			if tt.expect != nil {
 				match := true
