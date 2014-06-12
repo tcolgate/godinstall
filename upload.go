@@ -27,14 +27,15 @@ type UploadSessioner interface {
 	Dir() string
 	Files() map[string]*ChangesItem
 	Close()
+	json.Marshaler
 }
 
 type uploadSession struct {
 	SessionId  string // Name of the session
+	changes    *DebChanges
 	dir        string // Temporary directory for storage
 	keyRing    openpgp.KeyRing
 	requireSig bool
-	changes    *DebChanges
 	postHook   string
 }
 
@@ -168,7 +169,8 @@ func (s *uploadSession) IsComplete() bool {
 	return complete
 }
 
-func UploadSessionToJSON(s UploadSessioner) []byte {
+func (s *uploadSession) MarshalJSON() (j []byte, err error) {
+	log.Println("UploadSessioner called")
 	resp := struct {
 		SessionId  string
 		SessionURL string
@@ -178,6 +180,6 @@ func UploadSessionToJSON(s UploadSessioner) []byte {
 		s.SessionURL(),
 		*s.Changes(),
 	}
-	j, _ := json.Marshal(resp)
-	return j
+	j, err = json.Marshal(resp)
+	return
 }
