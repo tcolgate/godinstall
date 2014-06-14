@@ -8,59 +8,20 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"os"
 	"os/exec"
-	"time"
 
 	"code.google.com/p/go-uuid/uuid"
 	"code.google.com/p/go.crypto/openpgp"
 )
 
-// Manage upload sessions
-type UploadSessionManager interface {
-	GetSession(string) (UploadSessioner, bool)
-	NewUploadSession(*DebChanges) (UploadSessioner, error)
-}
-
-type uploadSessionManager struct {
-	sessMap   *SafeMap
-	aptServer AptServer
-	finished  chan UploadSessioner
-}
-
-func NewUploadSessionManager(a AptServer) UploadSessionManager {
-	usm := uploadSessionManager{}
-	usm.sessMap = NewSafeMap()
-	usm.aptServer = a
-
-	return &usm
-}
-
-func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) {
-	val := usm.sessMap.Get(sid)
-	if val == nil {
-		return nil, false
-	}
-
-	switch t := val.(type) {
-	default:
-		{
-			return nil, false
-		}
-	case UploadSessioner:
-		{
-			return t.(UploadSessioner), true
-		}
-	}
-}
-
 type UploadSessioner interface {
 	SessionID() string
 	SessionURL() string
-	AddChanges(*DebChanges)
 	Changes() *DebChanges
 	IsComplete() bool
-	AddFile(*ChangesItem) error
+	AddItem(*ChangesItem) (bool, error)
 	Dir() string
 	Files() map[string]*ChangesItem
 	Close()
@@ -74,39 +35,59 @@ type uploadSession struct {
 	keyRing    openpgp.KeyRing
 	requireSig bool
 	postHook   string
+	incoming   chan addItemMsg
+	close      chan closeMsg
 }
 
-func (usm *uploadSessionManager) NewUploadSession(changes *DebChanges) (UploadSessioner, error) {
+type closeMsg struct{}
+
+func NewUploadSession(
+	changes *DebChanges,
+	keyRing openpgp.EntityList,
+	postUploadHook string,
+	tmpDir string,
+) UploadSessioner {
 	var s uploadSession
 	s.SessionId = uuid.New()
-	s.keyRing = usm.aptServer.PubRing
-	s.dir = usm.aptServer.TmpDir + "/" + s.SessionId
-	s.postHook = usm.aptServer.PostUploadHook
+	s.changes = changes
+	s.keyRing = keyRing
+	s.postHook = postUploadHook
+	s.dir = tmpDir + "/" + s.SessionId
 
-	os.Mkdir(s.dir, os.FileMode(0755))
-	os.Mkdir(s.dir+"/upload", os.FileMode(0755))
+	os.Mkdir(s.Dir(), os.FileMode(0755))
+	os.Mkdir(s.Dir()+"/upload", os.FileMode(0755))
 
-	s.AddChanges(changes)
+	s.incoming = make(chan addItemMsg)
+	s.close = make(chan closeMsg)
 
-	go usm.handler(&s)
+	go s.handler()
 
-	return &s, nil
+	return &s
 }
 
-// Go routine for handling upload sessions
-func (usm *uploadSessionManager) handler(s UploadSessioner) {
-	usm.sessMap.Set(s.SessionID(), s)
+type addItemResp struct {
+	complete bool
+	err      error
+}
 
-	defer func() {
-		usm.sessMap.Set(s.SessionID(), nil)
-		s.Close()
-	}()
+type addItemMsg struct {
+	file *ChangesItem
+	resp chan addItemResp
+}
 
+// All item additions to this session are
+// serialized through this routine
+func (s *uploadSession) handler() {
 	for {
 		select {
-		case <-time.After(usm.aptServer.TTL):
+		case <-s.close:
 			{
-				return
+				os.RemoveAll(s.dir)
+			}
+		case item := <-s.incoming:
+			{
+				err := s.doAddItem(item.file)
+				item.resp <- addItemResp{s.IsComplete(), err}
 			}
 		}
 	}
@@ -121,18 +102,26 @@ func (s *uploadSession) SessionURL() string {
 }
 
 func (s *uploadSession) Close() {
-	os.RemoveAll(s.dir)
-}
-
-func (s *uploadSession) AddChanges(c *DebChanges) {
-	s.changes = c
+	s.close <- closeMsg{}
 }
 
 func (s *uploadSession) Changes() *DebChanges {
 	return s.changes
 }
 
-func (s *uploadSession) AddFile(upload *ChangesItem) (err error) {
+func (s *uploadSession) AddItem(upload *ChangesItem) (bool, error) {
+	done := make(chan addItemResp)
+	go func() {
+		s.incoming <- addItemMsg{
+			file: upload,
+			resp: done,
+		}
+	}()
+	resp := <-done
+	return resp.complete, resp.err
+}
+
+func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 	// Check that there is an upload slot
 	expectedFile, ok := s.changes.Files[upload.Filename]
 	if !ok {
@@ -209,6 +198,7 @@ func (s *uploadSession) IsComplete() bool {
 }
 
 func (s *uploadSession) MarshalJSON() (j []byte, err error) {
+	log.Println(s)
 	resp := struct {
 		SessionId  string
 		SessionURL string

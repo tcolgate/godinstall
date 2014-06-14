@@ -156,7 +156,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 					resp = AptServerStringMessage(http.StatusBadRequest, "")
 				} else {
 					if session == "" {
-						us, err = a.sessionManager.NewUploadSession(changes)
+						us, err = a.sessionManager.AddUploadSession(changes)
 						if err != nil {
 							resp = AptServerStringMessage(http.StatusBadRequest, err.Error())
 						} else {
@@ -177,7 +177,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 					}
 
 					if activeSession {
-						resp = a.dispatchPostRequest(us, otherParts)
+						resp = a.dispatchPOSTRequest(us, otherParts)
 					}
 				}
 			}
@@ -236,64 +236,38 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 	return
 }
 
-func (a *AptServer) dispatchPostRequest(
+func (a *AptServer) dispatchPOSTRequest(
 	session UploadSessioner,
 	otherParts []*multipart.FileHeader) (resp AptServerResponder) {
-	var returnCode int
+
+	resp = AptServerJSONMessage(
+		http.StatusCreated,
+		session,
+	)
 
 	if len(otherParts) > 0 {
 		for _, f := range otherParts {
 			reader, _ := f.Open()
-			session.AddFile(&ChangesItem{
+			complete, _ := session.AddItem(&ChangesItem{
 				Filename: f.Filename,
 				data:     reader,
 			})
-		}
-		if session.IsComplete() {
-			a.aptLocks.WriteLock()
-			defer a.aptLocks.WriteUnLock()
-
-			os.Chdir(session.Dir()) // Chdir may be bad here
-			if a.PreAftpHook != "" {
-				err := exec.Command(a.PreAftpHook, session.SessionID()).Run()
-				if !err.(*exec.ExitError).Success() {
-					return AptServerStringMessage(
-						http.StatusBadRequest,
-						"Pre apt-ftparchive hook failed, "+err.Error())
-				}
-			}
-
-			//Move the files into the pool
-			for _, f := range session.Files() {
-				dstdir := a.PoolBase + "/"
-				matches := a.PoolPattern.FindSubmatch([]byte(f.Filename))
-				if len(matches) > 0 {
-					dstdir = dstdir + string(matches[0]) + "/"
-				}
-				err := os.Rename(f.Filename, dstdir+f.Filename)
-				if err != nil {
-					return AptServerStringMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
-				}
-			}
-
-			err := a.runAptFtpArchive()
-			if err != nil {
-				return AptServerStringMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
+			if !complete {
+				resp = AptServerJSONMessage(
+					http.StatusAccepted,
+					session,
+				)
 			} else {
-				if a.PostAftpHook != "" {
-					err = exec.Command(a.PostAftpHook, session.SessionID()).Run()
-					log.Println("Error executing post-aftp-hook, " + err.Error())
-				}
+				resp = AptServerJSONMessage(
+					http.StatusOK,
+					session,
+				)
+				break
 			}
-
-			returnCode = http.StatusOK
-		} else {
-			returnCode = http.StatusAccepted
 		}
-	} else {
-		returnCode = http.StatusCreated
 	}
-	return AptServerJSONMessage(returnCode, session)
+
+	return
 }
 
 func (a *AptServer) FindReleaseBase() (string, error) {
@@ -387,5 +361,49 @@ func (a *AptServer) runAptFtpArchive() (err error) {
 			}
 		}
 	}
+	return nil
+}
+
+func (a *AptServer) AddFilesFromSession(us UploadSessioner) error {
+	if !us.IsComplete() {
+		return errors.New("Trying to add files from incomplete session")
+	}
+
+	a.aptLocks.WriteLock()
+	defer a.aptLocks.WriteUnLock()
+
+	os.Chdir(us.Dir()) // Chdir may be bad here
+	if a.PreAftpHook != "" {
+		err := exec.Command(a.PreAftpHook, us.SessionID()).Run()
+		if !err.(*exec.ExitError).Success() {
+			return AptServerStringMessage(
+				http.StatusBadRequest,
+				"Pre apt-ftparchive hook failed, "+err.Error())
+		}
+	}
+
+	//Move the files into the pool
+	for _, f := range us.Files() {
+		dstdir := a.PoolBase + "/"
+		matches := a.PoolPattern.FindSubmatch([]byte(f.Filename))
+		if len(matches) > 0 {
+			dstdir = dstdir + string(matches[0]) + "/"
+		}
+		err := os.Rename(f.Filename, dstdir+f.Filename)
+		if err != nil {
+			return AptServerStringMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+		}
+	}
+
+	err := a.runAptFtpArchive()
+	if err != nil {
+		return AptServerStringMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
+	} else {
+		if a.PostAftpHook != "" {
+			err = exec.Command(a.PostAftpHook, us.SessionID()).Run()
+			log.Println("Error executing post-aftp-hook, " + err.Error())
+		}
+	}
+
 	return nil
 }
