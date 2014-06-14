@@ -75,46 +75,48 @@ func makeDownloadHandler(a *AptServer) http.HandlerFunc {
 	}
 }
 
-type AptServerResponser interface {
+// This is used to store any response we want
+// to send back to the caller
+type AptServerResponder interface {
 	GetStatus() int
 	GetJSONMessage() []byte
 	error
 }
 
-type AptServerResponse struct {
+type aptServerResponse struct {
 	statusCode int
 	message    []byte
 }
 
-func (r AptServerResponse) GetStatus() int {
+func (r aptServerResponse) GetStatus() int {
 	return r.statusCode
 }
 
-func (r AptServerResponse) GetJSONMessage() []byte {
+func (r aptServerResponse) GetJSONMessage() []byte {
 	return r.message
 }
 
-func (r AptServerResponse) Error() string {
+func (r aptServerResponse) Error() string {
 	return "ERROR: " + string(r.message)
 }
 
-func AptServerStringMessage(status int, msg string) AptServerResponser {
-	return AptServerResponse{
+func AptServerStringMessage(status int, msg string) AptServerResponder {
+	return aptServerResponse{
 		status,
 		[]byte(msg),
 	}
 }
 
-func AptServerJSONMessage(status int, msg json.Marshaler) AptServerResponse {
+func AptServerJSONMessage(status int, msg json.Marshaler) aptServerResponse {
 	j, err := json.Marshal(msg)
 	if err != nil {
-		return AptServerResponse{
+		return aptServerResponse{
 			status,
 			[]byte("Could not Marshal JSON response, " + err.Error()),
 		}
 	}
 
-	return AptServerResponse{
+	return aptServerResponse{
 		status,
 		j,
 	}
@@ -141,7 +143,7 @@ func makeUploadHandler(a *AptServer) http.HandlerFunc {
 		}
 
 		// THis all needs rewriting
-		var resp AptServerResponser
+		var resp AptServerResponder
 		if session == "" {
 			resp = dispatchRequest(a, &uploadSessionReq{"", w, r, true})
 		} else {
@@ -157,7 +159,7 @@ func makeUploadHandler(a *AptServer) http.HandlerFunc {
 	}
 }
 
-func dispatchRequest(a *AptServer, r *uploadSessionReq) AptServerResponser {
+func dispatchRequest(a *AptServer, r *uploadSessionReq) AptServerResponder {
 	// Lots of this need refactoring into go routines and
 	// response chanels
 
