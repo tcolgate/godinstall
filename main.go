@@ -38,7 +38,7 @@ func main() {
 	poolPattern := flag.String("pool-pattern", "[a-z]|lib[a-z]", "A pattern to match package prefixes to split into directories in the pool")
 	pubringFile := flag.String("gpg-pubring", "", "Public keyring file")
 	privringFile := flag.String("gpg-privring", "", "Private keyring file")
-	signerIdStr := flag.String("signer-id", "", "Key ID to use for signing releases")
+	signerEmail := flag.String("signer-email", "", "Key Email to use for signing releases")
 
 	flag.Parse()
 
@@ -92,7 +92,7 @@ func main() {
 		}
 	}
 
-	signerId := getKeyByEmail(privRing, *signerIdStr)
+	signerId := getKeyByEmail(privRing, *signerEmail)
 	if signerId == nil {
 		log.Println("Can't find signer id in keyring")
 		return
@@ -134,4 +134,16 @@ func main() {
 
 	http.Handle("/", r)
 	http.ListenAndServe(*listenAddress, nil)
+}
+
+func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
+	for _, entity := range keyring {
+		for _, ident := range entity.Identities {
+			if ident.UserId.Email == email {
+				return entity
+			}
+		}
+	}
+
+	return nil
 }

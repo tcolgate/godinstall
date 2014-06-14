@@ -17,6 +17,43 @@ import (
 	"code.google.com/p/go.crypto/openpgp"
 )
 
+// Manage upload sessions
+type UploadSessionManager interface {
+	GetSession(string) (UploadSessioner, bool)
+	NewUploadSession(*DebChanges) (UploadSessioner, error)
+}
+
+type uploadSessionManager struct {
+	sessMap   *SafeMap
+	aptServer AptServer
+}
+
+func NewUploadSessionManager(a AptServer) UploadSessionManager {
+	usm := uploadSessionManager{}
+	usm.sessMap = NewSafeMap()
+	usm.aptServer = a
+
+	return &usm
+}
+
+func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) {
+	val := usm.sessMap.Get(sid)
+	if val == nil {
+		return nil, false
+	}
+
+	switch t := val.(type) {
+	default:
+		{
+			return nil, false
+		}
+	case UploadSessioner:
+		{
+			return t.(UploadSessioner), true
+		}
+	}
+}
+
 type UploadSessioner interface {
 	SessionID() string
 	SessionURL() string
@@ -39,21 +76,21 @@ type uploadSession struct {
 	postHook   string
 }
 
-func NewUploadSessioner(a *AptServer) UploadSessioner {
+func (usm *uploadSessionManager) NewUploadSession(changes *DebChanges) (UploadSessioner, error) {
 	var s uploadSession
 	s.SessionId = uuid.New()
-	s.keyRing = a.PubRing
-	s.dir = a.TmpDir + "/" + s.SessionId
+	s.keyRing = usm.aptServer.PubRing
+	s.dir = usm.aptServer.TmpDir + "/" + s.SessionId
+	s.postHook = usm.aptServer.PostUploadHook
+	s.AddChanges(changes)
 
 	os.Mkdir(s.dir, os.FileMode(0755))
 	os.Mkdir(s.dir+"/upload", os.FileMode(0755))
 
-	a.sessMap.Set(s.SessionId, &s)
-	go pathHandle(a.sessMap, s.SessionId, a.TTL)
+	usm.sessMap.Set(s.SessionId, &s)
+	go pathHandle(usm.sessMap, s.SessionId, usm.aptServer.TTL)
 
-	s.postHook = a.PostUploadHook
-
-	return &s
+	return &s, nil
 }
 
 func (s *uploadSession) SessionID() string {
@@ -170,7 +207,6 @@ func (s *uploadSession) IsComplete() bool {
 }
 
 func (s *uploadSession) MarshalJSON() (j []byte, err error) {
-	log.Println("UploadSessioner called")
 	resp := struct {
 		SessionId  string
 		SessionURL string

@@ -47,15 +47,15 @@ type AptServer struct {
 	aptLocks        *Governor
 	uploadHandler   http.HandlerFunc
 	downloadHandler http.HandlerFunc
-	sessMap         *SafeMap
+	sessionManager  UploadSessionManager
 }
 
 func (a *AptServer) InitAptServer() {
 	a.aptLocks, _ = NewGovernor(a.MaxReqs)
 
-	a.downloadHandler = makeDownloadHandler(a)
-	a.uploadHandler = makeUploadHandler(a)
-	a.sessMap = NewSafeMap()
+	a.downloadHandler = a.makeDownloadHandler()
+	a.uploadHandler = a.makeUploadHandler()
+	a.sessionManager = NewUploadSessionManager(*a)
 }
 
 func (a *AptServer) Register(r *mux.Router) {
@@ -64,7 +64,7 @@ func (a *AptServer) Register(r *mux.Router) {
 	r.HandleFunc("/package/upload/{session}", a.uploadHandler).Methods("GET", "POST", "PUT")
 }
 
-func makeDownloadHandler(a *AptServer) http.HandlerFunc {
+func (a *AptServer) makeDownloadHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		a.aptLocks.ReadLock()
 		defer a.aptLocks.ReadUnLock()
@@ -122,17 +122,11 @@ func AptServerJSONMessage(status int, msg json.Marshaler) aptServerResponse {
 	}
 }
 
-type uploadSessionReq struct {
-	SessionId string
-	W         http.ResponseWriter
-	R         *http.Request
-	create    bool // This is a request to create a new upload session
-}
-
-func makeUploadHandler(a *AptServer) http.HandlerFunc {
+func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Did we get a session
 		session, found := mux.Vars(r)["session"]
+		var resp AptServerResponder
 
 		//maybe in a cookie?
 		if !found {
@@ -142,12 +136,51 @@ func makeUploadHandler(a *AptServer) http.HandlerFunc {
 			}
 		}
 
+		us, activeSession := a.sessionManager.GetSession(session)
+
 		// THis all needs rewriting
-		var resp AptServerResponder
-		if session == "" {
-			resp = dispatchRequest(a, &uploadSessionReq{"", w, r, true})
-		} else {
-			resp = dispatchRequest(a, &uploadSessionReq{session, w, r, false})
+		switch r.Method {
+		case "GET":
+			{
+				if !activeSession {
+					resp = AptServerStringMessage(http.StatusFound, "Unkown sesssion")
+				} else {
+					resp = AptServerJSONMessage(http.StatusOK, us)
+				}
+			}
+		case "PUT", "POST":
+			{
+				changes, otherParts, err := a.changesFromRequest(r)
+
+				if err != nil {
+					resp = AptServerStringMessage(http.StatusBadRequest, "")
+				} else {
+					if session == "" {
+						us, err = a.sessionManager.NewUploadSession(changes)
+						if err != nil {
+							resp = AptServerStringMessage(http.StatusBadRequest, err.Error())
+						} else {
+							cookie := http.Cookie{
+								Name:     a.CookieName,
+								Value:    us.SessionID(),
+								Expires:  time.Now().Add(a.TTL),
+								HttpOnly: false,
+								Path:     "/package/upload",
+							}
+							http.SetCookie(w, &cookie)
+							activeSession = true
+						}
+					} else {
+						if !activeSession {
+							resp = AptServerStringMessage(http.StatusNotFound, "No such session")
+						}
+					}
+
+					if activeSession {
+						resp = a.dispatchPostRequest(us, otherParts)
+					}
+				}
+			}
 		}
 
 		if resp.GetStatus() == 0 {
@@ -159,182 +192,108 @@ func makeUploadHandler(a *AptServer) http.HandlerFunc {
 	}
 }
 
-func dispatchRequest(a *AptServer, r *uploadSessionReq) AptServerResponder {
-	// Lots of this need refactoring into go routines and
-	// response chanels
+func (a *AptServer) changesFromRequest(r *http.Request) (
+	changes *DebChanges,
+	other []*multipart.FileHeader,
+	err error) {
 
-	if r.create {
-		err := r.R.ParseMultipartForm(mimeMemoryBufferSize)
-		if err != nil {
-			http.Error(r.W, err.Error(), http.StatusBadRequest)
-			return AptServerStringMessage(http.StatusBadRequest, err.Error())
-		}
+	err = r.ParseMultipartForm(mimeMemoryBufferSize)
+	if err != nil {
+		return
+	}
 
-		form := r.R.MultipartForm
-		files := form.File["debfiles"]
-		var changesPart multipart.File
-		var otherParts []*multipart.FileHeader
-		for _, f := range files {
-			if strings.HasSuffix(f.Filename, ".changes") {
-				changesPart, _ = f.Open()
-			} else {
-				otherParts = append(otherParts, f)
-			}
-		}
-
-		if changesPart == nil {
-			return AptServerStringMessage(http.StatusBadRequest, "No debian changes file in request")
-		}
-
-		changes, err := ParseDebianChanges(changesPart, a.PubRing)
-		if err != nil {
-			return AptServerStringMessage(http.StatusBadRequest, err.Error())
-		}
-
-		if a.ValidateChanges && !changes.signed {
-			return AptServerStringMessage(http.StatusBadRequest, "Changes file was not signed")
-		}
-
-		if a.ValidateChanges && !changes.validated {
-			return AptServerStringMessage(http.StatusBadRequest, "Changes file could not be validated")
-		}
-
-		// This should probably move into the upload session constructor
-		us := NewUploadSessioner(a)
-		s := us.SessionID()
-		cookie := http.Cookie{
-			Name:     a.CookieName,
-			Value:    s,
-			Expires:  time.Now().Add(a.TTL),
-			HttpOnly: false,
-			Path:     "/package/upload",
-		}
-		http.SetCookie(r.W, &cookie)
-		us.AddChanges(changes)
-
-		var returnCode int
-
-		if len(otherParts) > 0 {
-			for _, f := range otherParts {
-				reader, _ := f.Open()
-				err = us.AddFile(&ChangesItem{
-					Filename: f.Filename,
-					data:     reader,
-				})
-			}
-			if us.IsComplete() {
-				returnCode = http.StatusOK
-			} else {
-				returnCode = http.StatusAccepted
-			}
+	form := r.MultipartForm
+	files := form.File["debfiles"]
+	var changesPart multipart.File
+	for _, f := range files {
+		if strings.HasSuffix(f.Filename, ".changes") {
+			changesPart, _ = f.Open()
 		} else {
-			returnCode = http.StatusCreated
-		}
-		return AptServerJSONMessage(returnCode, us)
-	} else {
-		var us UploadSessioner
-		c := a.sessMap.Get(r.SessionId)
-		if c != nil {
-			// Move this logic elseqhere
-			switch sess := c.(type) {
-			case UploadSessioner:
-				us = sess
-			default:
-				return AptServerStringMessage(http.StatusInternalServerError, "Invalid session map entry")
-			}
-		} else {
-			return AptServerStringMessage(http.StatusNotFound, "request for unknown session")
-		}
-
-		switch r.R.Method {
-		case "GET":
-			{
-				return AptServerJSONMessage(http.StatusOK, us)
-			}
-		case "PUT", "POST":
-			{
-				//Add any files we have been passed
-				err := r.R.ParseMultipartForm(mimeMemoryBufferSize)
-				if err != nil {
-					return AptServerStringMessage(http.StatusBadRequest, "Couldn't parse mime request, "+err.Error())
-				}
-				form := r.R.MultipartForm
-				files := form.File["debfiles"]
-				for _, f := range files {
-					log.Println("Trying to upload: " + f.Filename)
-					reader, err := f.Open()
-					if err != nil {
-						return AptServerStringMessage(http.StatusBadRequest, "Can't upload "+f.Filename+" - "+err.Error())
-					}
-					err = us.AddFile(&ChangesItem{
-						Filename: f.Filename,
-						data:     reader,
-					})
-					if err != nil {
-						return AptServerStringMessage(http.StatusBadRequest, "Can't upload "+f.Filename+" - "+err.Error())
-					}
-				}
-
-				if us.IsComplete() {
-					a.aptLocks.WriteLock()
-					defer a.aptLocks.WriteUnLock()
-
-					os.Chdir(us.Dir()) // Chdir may be bad here
-					if a.PreAftpHook != "" {
-						err = exec.Command(a.PreAftpHook, us.SessionID()).Run()
-						if !err.(*exec.ExitError).Success() {
-							return AptServerStringMessage(http.StatusBadRequest, "Pre apt-ftparchive hook failed, "+err.Error())
-						}
-					}
-
-					//Move the files into the pool
-					for _, f := range us.Files() {
-						dstdir := a.PoolBase + "/"
-						matches := a.PoolPattern.FindSubmatch([]byte(f.Filename))
-						if len(matches) > 0 {
-							dstdir = dstdir + string(matches[0]) + "/"
-						}
-						err := os.Rename(f.Filename, dstdir+f.Filename)
-						if err != nil {
-							http.Error(r.W, "File move failed, "+err.Error(), http.StatusBadRequest)
-							return AptServerStringMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
-						}
-					}
-
-					err = a.runAptFtpArchive()
-
-					if err != nil {
-						return AptServerStringMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
-					} else {
-						if a.PostAftpHook != "" {
-							err = exec.Command(a.PostAftpHook, us.SessionID()).Run()
-							log.Println("Error executing post-aftp-hook, " + err.Error())
-						}
-
-						return AptServerJSONMessage(http.StatusOK, us)
-					}
-				} else {
-					return AptServerJSONMessage(http.StatusAccepted, us)
-				}
-			}
-		default:
-			{
-				return AptServerStringMessage(http.StatusBadRequest, "Bad request method")
-			}
+			other = append(other, f)
 		}
 	}
+
+	if changesPart == nil {
+		err = errors.New("No debian changes file in request")
+		return
+	}
+
+	changes, err = ParseDebianChanges(changesPart, a.PubRing)
+	if err != nil {
+		return
+	}
+
+	if a.ValidateChanges && !changes.signed {
+		err = errors.New("Changes file was not signed")
+		return
+	}
+
+	if a.ValidateChanges && !changes.validated {
+		err = errors.New("Changes file could not be validated")
+		return
+	}
+
+	return
 }
 
-func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
-	for _, entity := range keyring {
-		for _, ident := range entity.Identities {
-			if ident.UserId.Email == email {
-				return entity
-			}
-		}
-	}
+func (a *AptServer) dispatchPostRequest(
+	session UploadSessioner,
+	otherParts []*multipart.FileHeader) (resp AptServerResponder) {
+	var returnCode int
 
-	return nil
+	if len(otherParts) > 0 {
+		for _, f := range otherParts {
+			reader, _ := f.Open()
+			session.AddFile(&ChangesItem{
+				Filename: f.Filename,
+				data:     reader,
+			})
+		}
+		if session.IsComplete() {
+			a.aptLocks.WriteLock()
+			defer a.aptLocks.WriteUnLock()
+
+			os.Chdir(session.Dir()) // Chdir may be bad here
+			if a.PreAftpHook != "" {
+				err := exec.Command(a.PreAftpHook, session.SessionID()).Run()
+				if !err.(*exec.ExitError).Success() {
+					return AptServerStringMessage(
+						http.StatusBadRequest,
+						"Pre apt-ftparchive hook failed, "+err.Error())
+				}
+			}
+
+			//Move the files into the pool
+			for _, f := range session.Files() {
+				dstdir := a.PoolBase + "/"
+				matches := a.PoolPattern.FindSubmatch([]byte(f.Filename))
+				if len(matches) > 0 {
+					dstdir = dstdir + string(matches[0]) + "/"
+				}
+				err := os.Rename(f.Filename, dstdir+f.Filename)
+				if err != nil {
+					return AptServerStringMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+				}
+			}
+
+			err := a.runAptFtpArchive()
+			if err != nil {
+				return AptServerStringMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
+			} else {
+				if a.PostAftpHook != "" {
+					err = exec.Command(a.PostAftpHook, session.SessionID()).Run()
+					log.Println("Error executing post-aftp-hook, " + err.Error())
+				}
+			}
+
+			returnCode = http.StatusOK
+		} else {
+			returnCode = http.StatusAccepted
+		}
+	} else {
+		returnCode = http.StatusCreated
+	}
+	return AptServerJSONMessage(returnCode, session)
 }
 
 func (a *AptServer) FindReleaseBase() (string, error) {
