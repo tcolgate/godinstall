@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"time"
@@ -26,6 +25,7 @@ type UploadSessionManager interface {
 type uploadSessionManager struct {
 	sessMap   *SafeMap
 	aptServer AptServer
+	finished  chan UploadSessioner
 }
 
 func NewUploadSessionManager(a AptServer) UploadSessionManager {
@@ -82,15 +82,34 @@ func (usm *uploadSessionManager) NewUploadSession(changes *DebChanges) (UploadSe
 	s.keyRing = usm.aptServer.PubRing
 	s.dir = usm.aptServer.TmpDir + "/" + s.SessionId
 	s.postHook = usm.aptServer.PostUploadHook
-	s.AddChanges(changes)
 
 	os.Mkdir(s.dir, os.FileMode(0755))
 	os.Mkdir(s.dir+"/upload", os.FileMode(0755))
 
-	usm.sessMap.Set(s.SessionId, &s)
-	go pathHandle(usm.sessMap, s.SessionId, usm.aptServer.TTL)
+	s.AddChanges(changes)
+
+	go usm.handler(&s)
 
 	return &s, nil
+}
+
+// Go routine for handling upload sessions
+func (usm *uploadSessionManager) handler(s UploadSessioner) {
+	usm.sessMap.Set(s.SessionID(), s)
+
+	defer func() {
+		usm.sessMap.Set(s.SessionID(), nil)
+		s.Close()
+	}()
+
+	for {
+		select {
+		case <-time.After(usm.aptServer.TTL):
+			{
+				return
+			}
+		}
+	}
 }
 
 func (s *uploadSession) SessionID() string {
@@ -103,23 +122,6 @@ func (s *uploadSession) SessionURL() string {
 
 func (s *uploadSession) Close() {
 	os.RemoveAll(s.dir)
-}
-
-func pathHandle(sessMap *SafeMap, s string, timeout time.Duration) {
-	time.Sleep(timeout)
-	c := sessMap.Get(s)
-	if c != nil {
-		switch sess := c.(type) {
-		case *uploadSession:
-			log.Println("Close session")
-			sess.Close()
-			sessMap.Delete(s)
-		default:
-			log.Println("Shouldn't get here")
-		}
-	} else {
-		log.Println("Didn't find session")
-	}
 }
 
 func (s *uploadSession) AddChanges(c *DebChanges) {
