@@ -21,6 +21,7 @@ type UploadSessioner interface {
 	SessionID() string
 	AddItem(*ChangesItem) AptServerResponder
 	Close()
+	DoneChan() chan struct{}
 	Status() AptServerResponder
 	json.Marshaler
 }
@@ -38,14 +39,19 @@ type uploadSession struct {
 	incoming  chan addItemMsg
 	close     chan closeMsg // A channel for close messages
 	getstatus chan getStatusMsg
+
+	// output session
+	done chan struct{}
 }
 
 func NewUploadSession(
 	aptServer *AptServer,
 	changes *DebChanges,
+	done chan struct{},
 ) UploadSessioner {
 	var s uploadSession
 	s.aptServer = aptServer
+	s.done = done
 	s.SessionId = uuid.New()
 	s.changes = changes
 	s.keyRing = s.aptServer.PubRing
@@ -78,11 +84,18 @@ type getStatusMsg struct {
 // All item additions to this session are
 // serialized through this routine
 func (s *uploadSession) handler() {
+	defer func() {
+		err := os.RemoveAll(s.dir)
+		msg := new(struct{})
+		s.done <- *msg
+	}()
 	for {
 		select {
 		case <-s.close:
 			{
-				os.RemoveAll(s.dir)
+				msg := new(struct{})
+				s.done <- *msg
+				return
 			}
 		case msg := <-s.getstatus:
 			{
@@ -162,6 +175,10 @@ func (s *uploadSession) SessionID() string {
 
 func (s *uploadSession) Close() {
 	s.close <- closeMsg{}
+}
+
+func (s *uploadSession) DoneChan() chan struct{} {
+	return s.done
 }
 
 func (s *uploadSession) Status() AptServerResponder {

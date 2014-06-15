@@ -46,9 +46,12 @@ func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) 
 }
 
 func (usm *uploadSessionManager) AddUploadSession(changes *DebChanges) (string, error) {
+	done := make(chan struct{})
+
 	s := NewUploadSession(
 		&usm.aptServer,
 		changes,
+		done,
 	)
 
 	usm.sessMap.Set(s.SessionID(), s)
@@ -107,14 +110,17 @@ func (usm *uploadSessionManager) UploadSessionAddItems(
 func (usm *uploadSessionManager) handler(s UploadSessioner) {
 	defer func() {
 		usm.sessMap.Set(s.SessionID(), nil)
-		s.Close()
 	}()
 
 	for {
 		select {
-		case <-time.After(usm.aptServer.TTL):
+		case <-s.DoneChan():
 			{
 				return
+			}
+		case <-time.After(usm.aptServer.TTL):
+			{
+				s.Close()
 			}
 		}
 	}
