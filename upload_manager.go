@@ -1,11 +1,16 @@
 package main
 
-import "time"
+import (
+	"mime/multipart"
+	"net/http"
+	"time"
+)
 
 // Manage upload sessions
 type UploadSessionManager interface {
-	GetSession(string) (UploadSessioner, bool)
-	AddUploadSession(*DebChanges) (UploadSessioner, error)
+	AddUploadSession(*DebChanges) (string, error)
+	UploadSessionStatus(string) AptServerResponder
+	UploadSessionAddItems(string, []*multipart.FileHeader) AptServerResponder
 }
 
 type uploadSessionManager struct {
@@ -40,7 +45,7 @@ func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) 
 	}
 }
 
-func (usm *uploadSessionManager) AddUploadSession(changes *DebChanges) (UploadSessioner, error) {
+func (usm *uploadSessionManager) AddUploadSession(changes *DebChanges) (string, error) {
 	s := NewUploadSession(
 		changes,
 		usm.aptServer.PubRing,
@@ -48,15 +53,75 @@ func (usm *uploadSessionManager) AddUploadSession(changes *DebChanges) (UploadSe
 		usm.aptServer.TmpDir,
 	)
 
+	usm.sessMap.Set(s.SessionID(), s)
 	go usm.handler(s)
 
-	return s, nil
+	return s.SessionID(), nil
+}
+
+func (usm *uploadSessionManager) UploadSessionStatus(s string) (resp AptServerResponder) {
+	session, ok := usm.GetSession(s)
+
+	if !ok {
+		resp = AptServerMessage(
+			http.StatusNotFound,
+			"Unknown Session",
+		)
+	} else {
+		resp = AptServerMessage(
+			http.StatusCreated,
+			session,
+		)
+	}
+
+	return
+}
+
+func (usm *uploadSessionManager) UploadSessionAddItems(
+	s string,
+	otherParts []*multipart.FileHeader) (resp AptServerResponder) {
+
+	session, ok := usm.GetSession(s)
+
+	if !ok {
+		resp = AptServerMessage(
+			http.StatusCreated,
+			"Unknown Session",
+		)
+	}
+
+	resp = AptServerMessage(
+		http.StatusCreated,
+		session,
+	)
+
+	if len(otherParts) > 0 {
+		for _, f := range otherParts {
+			reader, _ := f.Open()
+			complete, _ := session.AddItem(&ChangesItem{
+				Filename: f.Filename,
+				data:     reader,
+			})
+			if !complete {
+				resp = AptServerMessage(
+					http.StatusAccepted,
+					session,
+				)
+			} else {
+				resp = AptServerMessage(
+					http.StatusOK,
+					session,
+				)
+				break
+			}
+		}
+	}
+
+	return
 }
 
 // Go routine for handling upload sessions
 func (usm *uploadSessionManager) handler(s UploadSessioner) {
-	usm.sessMap.Set(s.SessionID(), s)
-
 	defer func() {
 		usm.sessMap.Set(s.SessionID(), nil)
 		s.Close()

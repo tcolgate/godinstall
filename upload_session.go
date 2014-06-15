@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 
@@ -198,7 +197,6 @@ func (s *uploadSession) IsComplete() bool {
 }
 
 func (s *uploadSession) MarshalJSON() (j []byte, err error) {
-	log.Println(s)
 	resp := struct {
 		SessionId  string
 		SessionURL string

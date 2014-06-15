@@ -79,7 +79,7 @@ func (a *AptServer) makeDownloadHandler() http.HandlerFunc {
 // to send back to the caller
 type AptServerResponder interface {
 	GetStatus() int
-	GetJSONMessage() []byte
+	GetMessage() []byte
 	error
 }
 
@@ -92,7 +92,7 @@ func (r aptServerResponse) GetStatus() int {
 	return r.statusCode
 }
 
-func (r aptServerResponse) GetJSONMessage() []byte {
+func (r aptServerResponse) GetMessage() []byte {
 	return r.message
 }
 
@@ -100,26 +100,58 @@ func (r aptServerResponse) Error() string {
 	return "ERROR: " + string(r.message)
 }
 
-func AptServerStringMessage(status int, msg string) AptServerResponder {
-	return aptServerResponse{
-		status,
-		[]byte(msg),
-	}
-}
+func AptServerMessage(status int, msg interface{}) AptServerResponder {
+	var err error
+	var j []byte
 
-func AptServerJSONMessage(status int, msg json.Marshaler) aptServerResponse {
-	j, err := json.Marshal(msg)
-	if err != nil {
-		return aptServerResponse{
-			status,
-			[]byte("Could not Marshal JSON response, " + err.Error()),
+	resp := aptServerResponse{
+		statusCode: status,
+	}
+
+	switch t := msg.(type) {
+	case json.Marshaler:
+		{
+			j, err = json.Marshal(
+				struct {
+					StatusCode int
+					Message    json.Marshaler
+				}{
+					status,
+					t,
+				})
+			resp.message = j
+		}
+	case string:
+		{
+			j, err = json.Marshal(
+				struct {
+					StatusCode int
+					Message    string
+				}{
+					status,
+					t,
+				})
+			resp.message = j
+		}
+	default:
+		{
+			j, err = json.Marshal(
+				struct {
+					StatusCode int
+					Message    string
+				}{
+					status,
+					t.(string),
+				})
+			resp.message = j
 		}
 	}
 
-	return aptServerResponse{
-		status,
-		j,
+	if err != nil {
+		resp.message = []byte("Could not marshal response, " + err.Error())
 	}
+
+	return &resp
 }
 
 func (a *AptServer) makeUploadHandler() http.HandlerFunc {
@@ -136,48 +168,39 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 			}
 		}
 
-		us, activeSession := a.sessionManager.GetSession(session)
-
 		// THis all needs rewriting
 		switch r.Method {
 		case "GET":
 			{
-				if !activeSession {
-					resp = AptServerStringMessage(http.StatusFound, "Unkown sesssion")
-				} else {
-					resp = AptServerJSONMessage(http.StatusOK, us)
-				}
+				resp = a.sessionManager.UploadSessionStatus(session)
 			}
 		case "PUT", "POST":
 			{
 				changes, otherParts, err := a.changesFromRequest(r)
 
 				if err != nil {
-					resp = AptServerStringMessage(http.StatusBadRequest, "")
+					resp = AptServerMessage(http.StatusBadRequest, err.Error())
 				} else {
 					if session == "" {
-						us, err = a.sessionManager.AddUploadSession(changes)
+						session, err = a.sessionManager.AddUploadSession(changes)
 						if err != nil {
-							resp = AptServerStringMessage(http.StatusBadRequest, err.Error())
+							resp = AptServerMessage(http.StatusBadRequest, err.Error())
 						} else {
 							cookie := http.Cookie{
 								Name:     a.CookieName,
-								Value:    us.SessionID(),
+								Value:    session,
 								Expires:  time.Now().Add(a.TTL),
 								HttpOnly: false,
 								Path:     "/package/upload",
 							}
 							http.SetCookie(w, &cookie)
-							activeSession = true
-						}
-					} else {
-						if !activeSession {
-							resp = AptServerStringMessage(http.StatusNotFound, "No such session")
 						}
 					}
 
-					if activeSession {
-						resp = a.dispatchPOSTRequest(us, otherParts)
+					if err != nil {
+						resp = AptServerMessage(http.StatusBadRequest, err.Error())
+					} else {
+						resp = a.sessionManager.UploadSessionAddItems(session, otherParts)
 					}
 				}
 			}
@@ -187,7 +210,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 			http.Error(w, "AptServer response statuscode not set", http.StatusInternalServerError)
 		} else {
 			w.WriteHeader(resp.GetStatus())
-			w.Write(resp.GetJSONMessage())
+			w.Write(resp.GetMessage())
 		}
 	}
 }
@@ -236,41 +259,7 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 	return
 }
 
-func (a *AptServer) dispatchPOSTRequest(
-	session UploadSessioner,
-	otherParts []*multipart.FileHeader) (resp AptServerResponder) {
-
-	resp = AptServerJSONMessage(
-		http.StatusCreated,
-		session,
-	)
-
-	if len(otherParts) > 0 {
-		for _, f := range otherParts {
-			reader, _ := f.Open()
-			complete, _ := session.AddItem(&ChangesItem{
-				Filename: f.Filename,
-				data:     reader,
-			})
-			if !complete {
-				resp = AptServerJSONMessage(
-					http.StatusAccepted,
-					session,
-				)
-			} else {
-				resp = AptServerJSONMessage(
-					http.StatusOK,
-					session,
-				)
-				break
-			}
-		}
-	}
-
-	return
-}
-
-func (a *AptServer) FindReleaseBase() (string, error) {
+func (a *AptServer) findReleaseBase() (string, error) {
 	releasePath := ""
 
 	visit := func(path string, f os.FileInfo, errIn error) (err error) {
@@ -303,7 +292,7 @@ func (a *AptServer) runAptFtpArchive() (err error) {
 
 	if a.ReleaseConfig != "" {
 		// Generate the Releases and InReleases file
-		releaseBase, _ := a.FindReleaseBase()
+		releaseBase, _ := a.findReleaseBase()
 		releaseFilename := releaseBase + "/Release"
 
 		releaseWriter, err := os.Create(releaseFilename)
@@ -376,7 +365,7 @@ func (a *AptServer) AddFilesFromSession(us UploadSessioner) error {
 	if a.PreAftpHook != "" {
 		err := exec.Command(a.PreAftpHook, us.SessionID()).Run()
 		if !err.(*exec.ExitError).Success() {
-			return AptServerStringMessage(
+			return AptServerMessage(
 				http.StatusBadRequest,
 				"Pre apt-ftparchive hook failed, "+err.Error())
 		}
@@ -391,13 +380,13 @@ func (a *AptServer) AddFilesFromSession(us UploadSessioner) error {
 		}
 		err := os.Rename(f.Filename, dstdir+f.Filename)
 		if err != nil {
-			return AptServerStringMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+			return AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
 		}
 	}
 
 	err := a.runAptFtpArchive()
 	if err != nil {
-		return AptServerStringMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
+		return AptServerMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
 	} else {
 		if a.PostAftpHook != "" {
 			err = exec.Command(a.PostAftpHook, us.SessionID()).Run()
