@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
+	"net/http"
 	"os"
 	"os/exec"
 
@@ -17,61 +19,60 @@ import (
 
 type UploadSessioner interface {
 	SessionID() string
-	SessionURL() string
-	Changes() *DebChanges
-	IsComplete() bool
-	AddItem(*ChangesItem) (bool, error)
-	Dir() string
-	Files() map[string]*ChangesItem
+	AddItem(*ChangesItem) AptServerResponder
 	Close()
+	Status() AptServerResponder
 	json.Marshaler
 }
 
 type uploadSession struct {
 	SessionId  string // Name of the session
+	aptServer  *AptServer
 	changes    *DebChanges
 	dir        string // Temporary directory for storage
 	keyRing    openpgp.KeyRing
 	requireSig bool
 	postHook   string
-	incoming   chan addItemMsg
-	close      chan closeMsg
+
+	// Channels for requests
+	incoming  chan addItemMsg
+	close     chan closeMsg // A channel for close messages
+	getstatus chan getStatusMsg
 }
 
-type closeMsg struct{}
-
 func NewUploadSession(
+	aptServer *AptServer,
 	changes *DebChanges,
-	keyRing openpgp.EntityList,
-	postUploadHook string,
-	tmpDir string,
 ) UploadSessioner {
 	var s uploadSession
+	s.aptServer = aptServer
 	s.SessionId = uuid.New()
 	s.changes = changes
-	s.keyRing = keyRing
-	s.postHook = postUploadHook
-	s.dir = tmpDir + "/" + s.SessionId
+	s.keyRing = s.aptServer.PubRing
+	s.postHook = s.aptServer.PostUploadHook
+	s.dir = s.aptServer.TmpDir + "/" + s.SessionId
 
-	os.Mkdir(s.Dir(), os.FileMode(0755))
-	os.Mkdir(s.Dir()+"/upload", os.FileMode(0755))
+	os.Mkdir(s.dir, os.FileMode(0755))
+	os.Mkdir(s.dir+"/upload", os.FileMode(0755))
 
 	s.incoming = make(chan addItemMsg)
 	s.close = make(chan closeMsg)
+	s.getstatus = make(chan getStatusMsg)
 
 	go s.handler()
 
 	return &s
 }
 
-type addItemResp struct {
-	complete bool
-	err      error
-}
+type closeMsg struct{}
 
 type addItemMsg struct {
 	file *ChangesItem
-	resp chan addItemResp
+	resp chan AptServerResponder
+}
+
+type getStatusMsg struct {
+	resp chan AptServerResponder
 }
 
 // All item additions to this session are
@@ -83,10 +84,73 @@ func (s *uploadSession) handler() {
 			{
 				os.RemoveAll(s.dir)
 			}
-		case item := <-s.incoming:
+		case msg := <-s.getstatus:
 			{
-				err := s.doAddItem(item.file)
-				item.resp <- addItemResp{s.IsComplete(), err}
+				msg.resp <- AptServerMessage(http.StatusOK, s)
+			}
+		case msg := <-s.incoming:
+			{
+				err := s.doAddItem(msg.file)
+
+				if err != nil {
+					msg.resp <- AptServerMessage(http.StatusBadRequest, err.Error())
+					break
+				}
+
+				complete := true
+				for _, f := range s.changes.Files {
+					if !f.Uploaded {
+						complete = false
+					}
+				}
+
+				if !complete {
+					msg.resp <- AptServerMessage(http.StatusAccepted, s)
+					break
+				}
+
+				// All files uploaded
+				s.aptServer.aptLocks.WriteLock()
+				defer s.aptServer.aptLocks.WriteUnLock()
+
+				os.Chdir(s.dir) // Chdir may be bad here
+				if s.aptServer.PreAftpHook != "" {
+					err := exec.Command(s.aptServer.PreAftpHook, s.SessionId).Run()
+					if !err.(*exec.ExitError).Success() {
+						msg.resp <- AptServerMessage(
+							http.StatusBadRequest,
+							"Pre apt-ftparchive hook failed, "+err.Error())
+						return
+					}
+				}
+
+				//Move the files into the pool
+				for _, f := range s.changes.Files {
+					dstdir := s.aptServer.PoolBase + "/"
+					matches := s.aptServer.PoolPattern.FindSubmatch([]byte(f.Filename))
+					if len(matches) > 0 {
+						dstdir = dstdir + string(matches[0]) + "/"
+					}
+					err := os.Rename(f.Filename, dstdir+f.Filename)
+					if err != nil {
+						msg.resp <- AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+						return
+					}
+				}
+
+				err = s.aptServer.runAptFtpArchive()
+				if err != nil {
+					msg.resp <- AptServerMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
+					return
+				} else {
+					if s.aptServer.PostAftpHook != "" {
+						err = exec.Command(s.aptServer.PostAftpHook, s.SessionId).Run()
+						log.Println("Error executing post-aftp-hook, " + err.Error())
+					}
+				}
+
+				msg.resp <- AptServerMessage(http.StatusOK, s)
+				return
 			}
 		}
 	}
@@ -96,20 +160,23 @@ func (s *uploadSession) SessionID() string {
 	return s.SessionId
 }
 
-func (s *uploadSession) SessionURL() string {
-	return "/package/upload/" + s.SessionId
-}
-
 func (s *uploadSession) Close() {
 	s.close <- closeMsg{}
 }
 
-func (s *uploadSession) Changes() *DebChanges {
-	return s.changes
+func (s *uploadSession) Status() AptServerResponder {
+	done := make(chan AptServerResponder)
+	go func() {
+		s.getstatus <- getStatusMsg{
+			resp: done,
+		}
+	}()
+	resp := <-done
+	return resp
 }
 
-func (s *uploadSession) AddItem(upload *ChangesItem) (bool, error) {
-	done := make(chan addItemResp)
+func (s *uploadSession) AddItem(upload *ChangesItem) AptServerResponder {
+	done := make(chan AptServerResponder)
 	go func() {
 		s.incoming <- addItemMsg{
 			file: upload,
@@ -117,7 +184,7 @@ func (s *uploadSession) AddItem(upload *ChangesItem) (bool, error) {
 		}
 	}()
 	resp := <-done
-	return resp.complete, resp.err
+	return resp
 }
 
 func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
@@ -178,33 +245,13 @@ func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 	return
 }
 
-func (s *uploadSession) Dir() string {
-	return s.dir
-}
-
-func (s *uploadSession) Files() map[string]*ChangesItem {
-	return s.changes.Files
-}
-
-func (s *uploadSession) IsComplete() bool {
-	complete := true
-	for _, f := range s.Files() {
-		if !f.Uploaded {
-			complete = false
-		}
-	}
-	return complete
-}
-
 func (s *uploadSession) MarshalJSON() (j []byte, err error) {
 	resp := struct {
-		SessionId  string
-		SessionURL string
-		Changes    DebChanges
+		SessionId string
+		Changes   DebChanges
 	}{
-		s.SessionID(),
-		s.SessionURL(),
-		*s.Changes(),
+		s.SessionId,
+		*s.changes,
 	}
 	j, err = json.Marshal(resp)
 	return

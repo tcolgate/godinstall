@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -350,49 +349,5 @@ func (a *AptServer) runAptFtpArchive() (err error) {
 			}
 		}
 	}
-	return nil
-}
-
-func (a *AptServer) AddFilesFromSession(us UploadSessioner) error {
-	if !us.IsComplete() {
-		return errors.New("Trying to add files from incomplete session")
-	}
-
-	a.aptLocks.WriteLock()
-	defer a.aptLocks.WriteUnLock()
-
-	os.Chdir(us.Dir()) // Chdir may be bad here
-	if a.PreAftpHook != "" {
-		err := exec.Command(a.PreAftpHook, us.SessionID()).Run()
-		if !err.(*exec.ExitError).Success() {
-			return AptServerMessage(
-				http.StatusBadRequest,
-				"Pre apt-ftparchive hook failed, "+err.Error())
-		}
-	}
-
-	//Move the files into the pool
-	for _, f := range us.Files() {
-		dstdir := a.PoolBase + "/"
-		matches := a.PoolPattern.FindSubmatch([]byte(f.Filename))
-		if len(matches) > 0 {
-			dstdir = dstdir + string(matches[0]) + "/"
-		}
-		err := os.Rename(f.Filename, dstdir+f.Filename)
-		if err != nil {
-			return AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
-		}
-	}
-
-	err := a.runAptFtpArchive()
-	if err != nil {
-		return AptServerMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
-	} else {
-		if a.PostAftpHook != "" {
-			err = exec.Command(a.PostAftpHook, us.SessionID()).Run()
-			log.Println("Error executing post-aftp-hook, " + err.Error())
-		}
-	}
-
 	return nil
 }

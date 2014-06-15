@@ -47,10 +47,8 @@ func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) 
 
 func (usm *uploadSessionManager) AddUploadSession(changes *DebChanges) (string, error) {
 	s := NewUploadSession(
+		&usm.aptServer,
 		changes,
-		usm.aptServer.PubRing,
-		usm.aptServer.PostUploadHook,
-		usm.aptServer.TmpDir,
 	)
 
 	usm.sessMap.Set(s.SessionID(), s)
@@ -68,10 +66,7 @@ func (usm *uploadSessionManager) UploadSessionStatus(s string) (resp AptServerRe
 			"Unknown Session",
 		)
 	} else {
-		resp = AptServerMessage(
-			http.StatusCreated,
-			session,
-		)
+		resp = session.Status()
 	}
 
 	return
@@ -98,22 +93,10 @@ func (usm *uploadSessionManager) UploadSessionAddItems(
 	if len(otherParts) > 0 {
 		for _, f := range otherParts {
 			reader, _ := f.Open()
-			complete, _ := session.AddItem(&ChangesItem{
+			resp = session.AddItem(&ChangesItem{
 				Filename: f.Filename,
 				data:     reader,
 			})
-			if !complete {
-				resp = AptServerMessage(
-					http.StatusAccepted,
-					session,
-				)
-			} else {
-				resp = AptServerMessage(
-					http.StatusOK,
-					session,
-				)
-				break
-			}
 		}
 	}
 
