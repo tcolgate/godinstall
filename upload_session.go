@@ -86,6 +86,9 @@ type getStatusMsg struct {
 func (s *uploadSession) handler() {
 	defer func() {
 		err := os.RemoveAll(s.dir)
+		if err != nil {
+			log.Println(err)
+		}
 		msg := new(struct{})
 		s.done <- *msg
 	}()
