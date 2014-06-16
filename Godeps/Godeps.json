@@ -24,6 +24,10 @@
 		{
 			"ImportPath": "github.com/gorilla/mux",
 			"Rev": "136d54f81f00414c45c3c68dd47e98cc97519c5e"
+		},
+		{
+			"ImportPath": "github.com/stapelberg/godebiancontrol",
+			"Rev": "288a4c4619106974c40ef5b042270f7f5c2d4aa4"
 		}
 	]
 }

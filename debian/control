@@ -1,0 +1,14 @@
+Source: godinstall
+Section: utils
+Priority: extra
+Maintainer: Tristan Colgate-McFarlane
+Build-Depends: debhelper (>= 7), golang
+Standards-Version: 3.8.3
+
+Package: dgodinstall
+Architecture: amd64
+Depends: debhelper (>= 7), apt-ftparchive
+Description: A HTTP managable apt-server
+  GoDInstall is an APT archive manager which
+  can recieve uploaded files via HTTP
+
