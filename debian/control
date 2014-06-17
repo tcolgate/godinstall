@@ -5,7 +5,7 @@ Maintainer: Tristan Colgate-McFarlane
 Build-Depends: debhelper (>= 7), golang
 Standards-Version: 3.8.3
 
-Package: dgodinstall
+Package: godinstall
 Architecture: amd64
 Depends: debhelper (>= 7), apt-ftparchive
 Description: A HTTP managable apt-server
