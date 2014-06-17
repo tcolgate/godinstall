@@ -1,8 +1,11 @@
 CWD=$(shell pwd)
 
+PREFIX=/usr/bin
+
 export GOPATH=$(CWD)/build
 BINDIR=$(GOPATH)/bin
 SRCDIR=$(GOPATH)/src/github.com/tcolgate/godinstall/
+
 
 all: $(BINDIR)/godinstall
 
@@ -20,7 +23,7 @@ $(BINDIR)/godinstall:  $(BINDIR)/godep
 	cd $(SRCDIR) && $(GOPATH)/bin/godep go install
 
 install: $(BINDIR)/godinstall
-	cd $(BINDIR) && install godinstall /usr/bin/godinstall
+	cd $(BINDIR) && install -D godinstall $(DESTDIR)/$(PREFIX)/godinstall
 
 clean:
 	rm -rf build
