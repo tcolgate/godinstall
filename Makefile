@@ -1,6 +1,8 @@
 PREFIX=/usr/bin
 
 CWD=$(shell pwd)
+BINNAME=$(shell basename $(CWD))
+
 export GOPATH=$(CWD)/build
 BINDIR=$(GOPATH)/bin
 
@@ -16,6 +18,7 @@ $(BINDIR)/godep: $(GOPATH)
 
 godinstall:  $(BINDIR)/godep 
 	$(GOPATH)/bin/godep go build
+	mv $(BINNAME) godinstall
 
 install: godinstall
 	install -D godinstall $(DESTDIR)/$(PREFIX)/godinstall
