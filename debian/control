@@ -2,7 +2,7 @@ Source: godinstall
 Section: utils
 Priority: extra
 Maintainer: Tristan Colgate-McFarlane
-Build-Depends: debhelper (>= 7), go, git
+Build-Depends: debhelper (>= 7), go, git, ca-certificates, mercurial
 Standards-Version: 3.8.3
 
 Package: godinstall
