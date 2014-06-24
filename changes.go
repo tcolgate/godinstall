@@ -72,8 +72,8 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *DebChanges, err 
 			} else {
 				c.validated = false
 			}
-			br = bytes.NewReader(msg.Plaintext)
 		}
+		br = bytes.NewReader(msg.Plaintext)
 	} else {
 		c.validated = false
 	}
