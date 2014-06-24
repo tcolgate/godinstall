@@ -1,14 +1,14 @@
 Source: godinstall
 Section: utils
 Priority: extra
-Maintainer: Tristan Colgate-McFarlane
+Maintainer: Tristan Colgate-McFarlane <tcolgate@gmail.com>
 Build-Depends: debhelper (>= 7), go, git, ca-certificates, mercurial
 Standards-Version: 3.8.3
 
 Package: godinstall
 Architecture: amd64
-Depends: debhelper (>= 7), apt-ftparchive
-Description: A HTTP managable apt-server
-  GoDInstall is an APT archive manager which
-  can recieve uploaded files via HTTP
+Depends: debhelper (>= 7), apt-ftparchive, libc6
+Description: HTTP managable apt-server
+ GoDInstall is an APT archive manager which
+ can receive uploaded files via HTTP
 
