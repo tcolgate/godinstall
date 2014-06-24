@@ -276,3 +276,27 @@ func (s *uploadSession) MarshalJSON() (j []byte, err error) {
 	j, err = json.Marshal(resp)
 	return
 }
+
+// Upload session stores keep the state for an upload
+// session. We need to be able to mock this out to
+// avoid testing disk content
+type UploadSessionStorer interface {
+}
+
+// On disk storage for upload content
+type uploadDiskStorer struct {
+}
+
+func NewUploadDiskStorer() UploadSessionStorer {
+	newstore := uploadDiskStorer{}
+	return newstore
+}
+
+// RAM storage for upload content, used for testing
+type uploadMemStorer struct {
+}
+
+func NewUploadMemStorer() UploadSessionStorer {
+	newstore := uploadMemStorer{}
+	return newstore
+}
