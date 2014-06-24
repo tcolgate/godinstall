@@ -20,5 +20,8 @@ godinstall:  $(BINDIR)/godep
 install: godinstall
 	install -D godinstall $(DESTDIR)/$(PREFIX)/godinstall
 
+check:
+	$(GOPATH)/bin/godep go test
+
 clean:
 	rm -rf build godinstall
