@@ -351,3 +351,25 @@ func (a *AptServer) runAptFtpArchive() (err error) {
 	}
 	return nil
 }
+
+// Interface for any Apt archive generator
+type AptFtpGenerator interface {
+}
+
+// Runs apt-ftparchive
+type aptFtpGeneratorAptArchive struct {
+}
+
+func NewAptFtpGenerator() AptFtpGenerator {
+	newgen := aptFtpGeneratorAptArchive{}
+	return newgen
+}
+
+// Mock for testing the apt generation interface
+type aptFtpGeneratorMock struct {
+}
+
+func NewAptFtpGeneraterMock() AptFtpGenerator {
+	newgen := aptFtpGeneratorMock{}
+	return newgen
+}
