@@ -1,7 +1,11 @@
 package main
 
-//"crypto/md5"
-//"github.com/stapelberg/godebiancontrol"
+// Package GoDInstall implements a web service for serving, and manipulating
+// debian Apt repositories. The original motivation was to provide a synchronous
+// interface for package upload. A package is available for download from the
+// repository at the point when the server confirms the package has been
+// uploaded.
+//   It is primarily aimed at use in continuous delivery processes.
 
 import (
 	"flag"
@@ -21,6 +25,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Setup CLI flags
 	listenAddress := flag.String("listen", ":3000", "ip:port to listen on")
 	validate := flag.Bool("validate", true, "Validate signatures on changes and debs")
 	ttl := flag.String("ttl", "60s", "Session life time")
@@ -105,24 +110,28 @@ func main() {
 	}
 
 	server := &AptServer{
-		MaxReqs:         *maxReqs,
-		RepoBase:        *repoBase,
-		PoolBase:        *poolBase,
-		TmpDir:          *tmpDir,
-		CookieName:      *cookieName,
-		TTL:             expire,
+		MaxReqs:    *maxReqs,
+		CookieName: *cookieName,
+		TTL:        expire,
+
 		ValidateChanges: *validate,
 		ValidateDebs:    *validate,
-		AftpPath:        *aftpPath,
-		AftpConfig:      *aftpConfig,
-		ReleaseConfig:   *releaseConfig,
-		PostUploadHook:  *postUploadHook,
-		PreAftpHook:     *preAftpHook,
-		PostAftpHook:    *postAftpHook,
-		PoolPattern:     poolRegexp,
-		PubRing:         pubRing,
-		PrivRing:        privRing,
-		SignerId:        signerId,
+
+		PostUploadHook: NewScriptHook(postUploadHook),
+		PreAftpHook:    NewScriptHook(preAftpHook),
+		PostAftpHook:   NewScriptHook(postAftpHook),
+
+		AftpPath:      *aftpPath,
+		AftpConfig:    *aftpConfig,
+		ReleaseConfig: *releaseConfig,
+		RepoBase:      *repoBase,
+		PoolBase:      *poolBase,
+		TmpDir:        *tmpDir,
+		PoolPattern:   poolRegexp,
+
+		PubRing:  pubRing,
+		PrivRing: privRing,
+		SignerId: signerId,
 	}
 
 	server.InitAptServer()

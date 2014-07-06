@@ -1,5 +1,7 @@
 package main
 
+import "os/exec"
+
 // This implements an interface to external hooks
 type HookRunner interface {
 	Run(...string) error
@@ -7,16 +9,21 @@ type HookRunner interface {
 
 // This implement hooks as external scripts
 type hookRunnerCmdExec struct {
-	cmd string
+	cmd *string
 }
 
-func NewScriptHook(cmd string) HookRunner {
+func NewScriptHook(cmd *string) HookRunner {
 	newhook := hookRunnerCmdExec{cmd: cmd}
 
 	return newhook
 }
 
-func (hookRunnerCmdExec) Run(args ...string) (err error) {
+func (h hookRunnerCmdExec) Run(args ...string) (err error) {
+	if h.cmd != nil {
+		cmd := exec.Command(*h.cmd)
+		cmd.Args = args
+		err = cmd.Run()
+	}
 	return
 }
 
@@ -26,7 +33,7 @@ type hookRunnerFuncExec struct {
 	f hookFunc
 }
 
-type hookFunc func(...string) error
+type hookFunc func([]string) error
 
 func NewScriptHookr(hook hookFunc) HookRunner {
 	newhook := hookRunnerFuncExec{f: hook}
@@ -34,6 +41,9 @@ func NewScriptHookr(hook hookFunc) HookRunner {
 	return newhook
 }
 
-func (hookRunnerFuncExec) Run(args ...string) (err error) {
+func (h hookRunnerFuncExec) Run(args ...string) (err error) {
+	if h.f != nil {
+		err = h.f(args)
+	}
 	return
 }

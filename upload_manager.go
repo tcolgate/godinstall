@@ -14,14 +14,21 @@ type UploadSessionManager interface {
 }
 
 type uploadSessionManager struct {
-	sessMap   *SafeMap
+	sessMap  *SafeMap
+	ttl      time.Duration
+	finished chan UploadSessioner
+
 	aptServer AptServer
-	finished  chan UploadSessioner
 }
 
-func NewUploadSessionManager(a AptServer) UploadSessionManager {
+func NewUploadSessionManager(
+	a AptServer,
+	TTL time.Duration,
+) UploadSessionManager {
 	usm := uploadSessionManager{}
 	usm.sessMap = NewSafeMap()
+	usm.ttl = TTL
+
 	usm.aptServer = a
 
 	return &usm
@@ -118,7 +125,7 @@ func (usm *uploadSessionManager) handler(s UploadSessioner) {
 			{
 				return
 			}
-		case <-time.After(usm.aptServer.TTL):
+		case <-time.After(usm.ttl):
 			{
 				s.Close()
 			}

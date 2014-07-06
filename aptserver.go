@@ -35,9 +35,9 @@ type AptServer struct {
 	AftpPath        string
 	AftpConfig      string
 	ReleaseConfig   string
-	PreAftpHook     string
-	PostUploadHook  string
-	PostAftpHook    string
+	PreAftpHook     HookRunner
+	PostUploadHook  HookRunner
+	PostAftpHook    HookRunner
 	SignerId        *openpgp.Entity
 	PoolPattern     *regexp.Regexp
 	PubRing         openpgp.EntityList
@@ -354,15 +354,29 @@ func (a *AptServer) runAptFtpArchive() (err error) {
 
 // Interface for any Apt archive generator
 type AptFtpGenerator interface {
+	Regenerate() error // Regenerate the apt archive
 }
 
 // Runs apt-ftparchive
 type aptFtpGeneratorAptArchive struct {
 }
 
-func NewAptFtpGenerator() AptFtpGenerator {
+func NewAptFtpGenerator(
+	aftpPath *string,
+	aftpConfig *string,
+	releaseConfig *string,
+	repoBase *string,
+	poolBase *string,
+	tmpDir *string,
+	poolPattern string,
+) AptFtpGenerator {
 	newgen := aptFtpGeneratorAptArchive{}
+
 	return newgen
+}
+
+func (aptFtpGeneratorAptArchive) Regenerate() (err error) {
+	return
 }
 
 // Mock for testing the apt generation interface
@@ -372,4 +386,8 @@ type aptFtpGeneratorMock struct {
 func NewAptFtpGeneraterMock() AptFtpGenerator {
 	newgen := aptFtpGeneratorMock{}
 	return newgen
+}
+
+func (aptFtpGeneratorMock) Regenerate() (err error) {
+	return
 }

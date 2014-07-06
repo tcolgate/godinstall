@@ -33,7 +33,7 @@ type uploadSession struct {
 	dir        string // Temporary directory for storage
 	keyRing    openpgp.KeyRing
 	requireSig bool
-	postHook   string
+	postHook   HookRunner
 
 	// Channels for requests
 	incoming  chan addItemMsg
@@ -130,14 +130,13 @@ func (s *uploadSession) handler() {
 				defer s.aptServer.aptLocks.WriteUnLock()
 
 				os.Chdir(s.dir) // Chdir may be bad here
-				if s.aptServer.PreAftpHook != "" {
-					err := exec.Command(s.aptServer.PreAftpHook, s.SessionId).Run()
-					if !err.(*exec.ExitError).Success() {
-						msg.resp <- AptServerMessage(
-							http.StatusBadRequest,
-							"Pre apt-ftparchive hook failed, "+err.Error())
-						return
-					}
+
+				err = s.aptServer.PreAftpHook.Run(s.SessionId)
+				if !err.(*exec.ExitError).Success() {
+					msg.resp <- AptServerMessage(
+						http.StatusBadRequest,
+						"Pre apt-ftparchive hook failed, "+err.Error())
+					return
 				}
 
 				//Move the files into the pool
@@ -159,10 +158,8 @@ func (s *uploadSession) handler() {
 					msg.resp <- AptServerMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
 					return
 				} else {
-					if s.aptServer.PostAftpHook != "" {
-						err = exec.Command(s.aptServer.PostAftpHook, s.SessionId).Run()
-						log.Println("Error executing post-aftp-hook, " + err.Error())
-					}
+					err = s.aptServer.PostAftpHook.Run(s.SessionId)
+					log.Println("Error executing post-aftp-hook, " + err.Error())
 				}
 
 				msg.resp <- AptServerMessage(http.StatusOK, s)
@@ -250,11 +247,9 @@ func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 		return errors.New("Uploaded file hashes do not match")
 	}
 
-	if s.postHook != "" {
-		err = exec.Command(s.postHook, tmpFilename).Run()
-		if !err.(*exec.ExitError).Success() {
-			return errors.New("Post upload hook failed, ")
-		}
+	err = s.postHook.Run(tmpFilename)
+	if !err.(*exec.ExitError).Success() {
+		return errors.New("Post upload hook failed, ")
 	}
 
 	if err == nil {
