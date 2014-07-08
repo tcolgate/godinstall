@@ -1,47 +1,46 @@
 package main
 
-//"crypto/md5"
-//"github.com/stapelberg/godebiancontrol"
-
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
-	"os/exec"
-	"path/filepath"
+
 	"regexp"
 	"strings"
 	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
-	"code.google.com/p/go.crypto/openpgp/clearsign"
 	"github.com/gorilla/mux"
 )
 
+// The maximum amount of RAM to use when parsing
+// mime object in requests.
 var mimeMemoryBufferSize = int64(64000000)
 
 type AptServer struct {
-	MaxReqs         int
-	RepoBase        string
-	PoolBase        string
-	TmpDir          string
-	CookieName      string
-	TTL             time.Duration
+	MaxReqs    int
+	CookieName string
+	TTL        time.Duration
+
 	ValidateChanges bool
 	ValidateDebs    bool
-	AftpPath        string
-	AftpConfig      string
-	ReleaseConfig   string
-	PreAftpHook     HookRunner
-	PostUploadHook  HookRunner
-	PostAftpHook    HookRunner
-	SignerId        *openpgp.Entity
-	PoolPattern     *regexp.Regexp
-	PubRing         openpgp.EntityList
-	PrivRing        openpgp.EntityList
+
+	PostUploadHook HookRunner
+	PreAftpHook    HookRunner
+	PostAftpHook   HookRunner
+
+	AftpPath      string
+	AftpConfig    string
+	ReleaseConfig string
+	RepoBase      string
+	PoolBase      string
+	TmpDir        string
+	PoolPattern   *regexp.Regexp
+
+	PubRing  openpgp.EntityList
+	PrivRing openpgp.EntityList
+	SignerId *openpgp.Entity
 
 	aptLocks        *Governor
 	uploadHandler   http.HandlerFunc
@@ -54,7 +53,7 @@ func (a *AptServer) InitAptServer() {
 
 	a.downloadHandler = a.makeDownloadHandler()
 	a.uploadHandler = a.makeUploadHandler()
-	a.sessionManager = NewUploadSessionManager(*a)
+	a.sessionManager = NewUploadSessionManager(*a, a.TTL)
 }
 
 func (a *AptServer) Register(r *mux.Router) {
@@ -255,139 +254,5 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 		return
 	}
 
-	return
-}
-
-func (a *AptServer) findReleaseBase() (string, error) {
-	releasePath := ""
-
-	visit := func(path string, f os.FileInfo, errIn error) (err error) {
-		switch {
-		case f.Name() == "Contents-all":
-			releasePath = filepath.Dir(path)
-			err = errors.New("Found file")
-		case f.Name() == "pool":
-			err = filepath.SkipDir
-		}
-		return err
-	}
-
-	filepath.Walk(a.RepoBase, visit)
-
-	if releasePath == "" {
-		return releasePath, errors.New("Can't locate release base dir")
-	}
-
-	return releasePath, nil
-}
-
-func (a *AptServer) runAptFtpArchive() (err error) {
-	err = exec.Command(a.AftpPath, "generate", a.AftpConfig).Run()
-	if err != nil {
-		if !err.(*exec.ExitError).Success() {
-			return errors.New("Pre apt-ftparchive failed, " + err.Error())
-		}
-	}
-
-	if a.ReleaseConfig != "" {
-		// Generate the Releases and InReleases file
-		releaseBase, _ := a.findReleaseBase()
-		releaseFilename := releaseBase + "/Release"
-
-		releaseWriter, err := os.Create(releaseFilename)
-		defer releaseWriter.Close()
-
-		if err != nil {
-			return errors.New("Error creating release file, " + err.Error())
-		}
-
-		cmd := exec.Command(a.AftpPath, "-c", a.ReleaseConfig, "release", releaseBase)
-		releaseReader, _ := cmd.StdoutPipe()
-		cmd.Start()
-		io.Copy(releaseWriter, releaseReader)
-
-		err = cmd.Wait()
-		if err != nil {
-			if !err.(*exec.ExitError).Success() {
-				return errors.New("apt-ftparchive release generation failed, " + err.Error())
-			}
-		}
-
-		if a.SignerId != nil {
-			rereadRelease, err := os.Open(releaseFilename)
-			defer rereadRelease.Close()
-			releaseSignatureWriter, err := os.Create(releaseBase + "/Release.gpg")
-			if err != nil {
-				return errors.New("Error creating release signature file, " + err.Error())
-			}
-			defer releaseSignatureWriter.Close()
-
-			err = openpgp.ArmoredDetachSign(releaseSignatureWriter, a.SignerId, rereadRelease, nil)
-			if err != nil {
-				return errors.New("Detached Sign failed, , " + err.Error())
-			}
-
-			rereadRelease2, err := os.Open(releaseFilename)
-			defer rereadRelease2.Close()
-			inReleaseSignatureWriter, err := os.Create(releaseBase + "/InRelease")
-			if err != nil {
-				return errors.New("Error creating InRelease file, " + err.Error())
-			}
-			inReleaseWriter, err := clearsign.Encode(inReleaseSignatureWriter, a.SignerId.PrivateKey, nil)
-			if err != nil {
-				return errors.New("Error InRelease clear-signer, " + err.Error())
-			}
-			io.Copy(inReleaseWriter, rereadRelease2)
-			inReleaseWriter.Close()
-		}
-
-		// Release file generated
-
-		if err != nil {
-			if !err.(*exec.ExitError).Success() {
-				return errors.New("Pre apt-ftparchive failed, " + err.Error())
-			}
-		}
-	}
-	return nil
-}
-
-// Interface for any Apt archive generator
-type AptFtpGenerator interface {
-	Regenerate() error // Regenerate the apt archive
-}
-
-// Runs apt-ftparchive
-type aptFtpGeneratorAptArchive struct {
-}
-
-func NewAptFtpGenerator(
-	aftpPath *string,
-	aftpConfig *string,
-	releaseConfig *string,
-	repoBase *string,
-	poolBase *string,
-	tmpDir *string,
-	poolPattern string,
-) AptFtpGenerator {
-	newgen := aptFtpGeneratorAptArchive{}
-
-	return newgen
-}
-
-func (aptFtpGeneratorAptArchive) Regenerate() (err error) {
-	return
-}
-
-// Mock for testing the apt generation interface
-type aptFtpGeneratorMock struct {
-}
-
-func NewAptFtpGeneraterMock() AptFtpGenerator {
-	newgen := aptFtpGeneratorMock{}
-	return newgen
-}
-
-func (aptFtpGeneratorMock) Regenerate() (err error) {
 	return
 }

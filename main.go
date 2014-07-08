@@ -24,6 +24,17 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Nothing to see here"))
 }
 
+func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
+	for _, entity := range keyring {
+		for _, ident := range entity.Identities {
+			if ident.UserId.Email == email {
+				return entity
+			}
+		}
+	}
+
+	return nil
+}
 func main() {
 	// Setup CLI flags
 	listenAddress := flag.String("listen", ":3000", "ip:port to listen on")
@@ -109,29 +120,35 @@ func main() {
 		return
 	}
 
+	aptRepo := aptRepo{
+		repoBase,
+		poolBase,
+		poolRegexp,
+	}
+
+	aptGenerator := NewAptFtpArchiveGenerator(
+		&aptRepo,
+		aftpPath,
+		aftpConfig,
+		releaseConfig,
+		privRing,
+		signerId,
+	)
+
+	uploadSessionManager := NewUploadSessionManager(
+		expire,
+		tmpDir,
+		NewScriptHook(postUploadHook),
+		ValidateChanges: *validate,
+		ValidateDebs:    *validate,
+		pubRing,
+	)
+
 	server := &AptServer{
 		MaxReqs:    *maxReqs,
 		CookieName: *cookieName,
-		TTL:        expire,
-
-		ValidateChanges: *validate,
-		ValidateDebs:    *validate,
-
-		PostUploadHook: NewScriptHook(postUploadHook),
 		PreAftpHook:    NewScriptHook(preAftpHook),
 		PostAftpHook:   NewScriptHook(postAftpHook),
-
-		AftpPath:      *aftpPath,
-		AftpConfig:    *aftpConfig,
-		ReleaseConfig: *releaseConfig,
-		RepoBase:      *repoBase,
-		PoolBase:      *poolBase,
-		TmpDir:        *tmpDir,
-		PoolPattern:   poolRegexp,
-
-		PubRing:  pubRing,
-		PrivRing: privRing,
-		SignerId: signerId,
 	}
 
 	server.InitAptServer()
@@ -143,16 +160,4 @@ func main() {
 
 	http.Handle("/", r)
 	http.ListenAndServe(*listenAddress, nil)
-}
-
-func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
-	for _, entity := range keyring {
-		for _, ident := range entity.Identities {
-			if ident.UserId.Email == email {
-				return entity
-			}
-		}
-	}
-
-	return nil
 }
