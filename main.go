@@ -139,16 +139,20 @@ func main() {
 		expire,
 		tmpDir,
 		NewScriptHook(postUploadHook),
-		ValidateChanges: *validate,
-		ValidateDebs:    *validate,
+		*validate,
+		*validate,
 		pubRing,
 	)
 
 	server := &AptServer{
-		MaxReqs:    *maxReqs,
-		CookieName: *cookieName,
-		PreAftpHook:    NewScriptHook(preAftpHook),
-		PostAftpHook:   NewScriptHook(postAftpHook),
+		MaxReqs:      *maxReqs,
+		CookieName:   *cookieName,
+		PreAftpHook:  NewScriptHook(preAftpHook),
+		PostAftpHook: NewScriptHook(postAftpHook),
+
+		Repo:           &aptRepo,
+		AptGenerator:   &aptGenerator,
+		SessionManager: &uploadSessionManager,
 	}
 
 	server.InitAptServer()

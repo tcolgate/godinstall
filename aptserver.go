@@ -23,29 +23,16 @@ type AptServer struct {
 	CookieName string
 	TTL        time.Duration
 
-	ValidateChanges bool
-	ValidateDebs    bool
+	Repo           AptRepo,
+	AptGenerator   AptGenerator,
+	SessionManager UploadSessionManager,
 
-	PostUploadHook HookRunner
 	PreAftpHook    HookRunner
 	PostAftpHook   HookRunner
-
-	AftpPath      string
-	AftpConfig    string
-	ReleaseConfig string
-	RepoBase      string
-	PoolBase      string
-	TmpDir        string
-	PoolPattern   *regexp.Regexp
-
-	PubRing  openpgp.EntityList
-	PrivRing openpgp.EntityList
-	SignerId *openpgp.Entity
 
 	aptLocks        *Governor
 	uploadHandler   http.HandlerFunc
 	downloadHandler http.HandlerFunc
-	sessionManager  UploadSessionManager
 }
 
 func (a *AptServer) InitAptServer() {

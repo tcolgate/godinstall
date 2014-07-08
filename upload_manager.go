@@ -14,9 +14,11 @@ type UploadSessionManager interface {
 }
 
 type uploadSessionManager struct {
-	sessMap  *SafeMap
-	ttl      time.Duration
-	finished chan UploadSessioner
+	sessMap         *SafeMap
+	ttl             time.Duration
+	finished        chan UploadSessioner
+	validateChanges bool
+	validateDebs    bool
 
 	aptServer AptServer
 }
@@ -24,10 +26,14 @@ type uploadSessionManager struct {
 func NewUploadSessionManager(
 	a AptServer,
 	TTL time.Duration,
+	validateChanges bool,
+	validateDebs bool,
 ) UploadSessionManager {
 	usm := uploadSessionManager{}
 	usm.sessMap = NewSafeMap()
 	usm.ttl = TTL
+	usm.validateChanges = validateChanges
+	usm.validateDebs = validateDebs
 
 	usm.aptServer = a
 
