@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"mime/multipart"
 	"net/http"
 
@@ -157,13 +158,13 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 			}
 		case "PUT", "POST":
 			{
-				changes, otherParts, err := a.changesFromRequest(r)
+				changesReader, otherParts, err := a.changesFromRequest(r)
 
 				if err != nil {
 					resp = AptServerMessage(http.StatusBadRequest, err.Error())
 				} else {
 					if session == "" {
-						session, err = a.SessionManager.AddUploadSession(changes)
+						session, err = a.SessionManager.AddUploadSession(changesReader)
 						if err != nil {
 							resp = AptServerMessage(http.StatusBadRequest, err.Error())
 						} else {
@@ -197,7 +198,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 }
 
 func (a *AptServer) changesFromRequest(r *http.Request) (
-	changes *DebChanges,
+	changesReader io.Reader,
 	other []*multipart.FileHeader,
 	err error) {
 
@@ -208,32 +209,16 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 
 	form := r.MultipartForm
 	files := form.File["debfiles"]
-	var changesPart multipart.File
 	for _, f := range files {
 		if strings.HasSuffix(f.Filename, ".changes") {
-			changesPart, _ = f.Open()
+			changesReader, _ = f.Open()
 		} else {
 			other = append(other, f)
 		}
 	}
 
-	if changesPart == nil {
+	if changesReader == nil {
 		err = errors.New("No debian changes file in request")
-		return
-	}
-
-	changes, err = ParseDebianChanges(changesPart, a.PubRing)
-	if err != nil {
-		return
-	}
-
-	if a.SessionManager.ValidateChanges && !changes.signed {
-		err = errors.New("Changes file was not signed")
-		return
-	}
-
-	if a.ValidateChanges && !changes.validated {
-		err = errors.New("Changes file could not be validated")
 		return
 	}
 

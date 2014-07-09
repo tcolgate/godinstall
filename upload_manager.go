@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"time"
@@ -10,7 +12,7 @@ import (
 
 // Manage upload sessions
 type UploadSessionManager interface {
-	AddUploadSession(*DebChanges) (string, error)
+	AddUploadSession(io.Reader) (string, error)
 	UploadSessionStatus(string) AptServerResponder
 	UploadSessionAddItems(string, []*multipart.FileHeader) AptServerResponder
 }
@@ -21,7 +23,7 @@ type uploadSessionManager struct {
 	UploadHook      HookRunner
 	ValidateChanges bool
 	ValidateDebs    bool
-	PubRing         openpgp.KeyRing
+	PubRing         openpgp.EntityList
 
 	finished chan UploadSessioner
 	sessMap  *SafeMap
@@ -33,7 +35,7 @@ func NewUploadSessionManager(
 	uploadHook HookRunner,
 	validateChanges bool,
 	validateDebs bool,
-	pubRing openpgp.KeyRing,
+	pubRing openpgp.EntityList,
 ) UploadSessionManager {
 	return &uploadSessionManager{
 		TTL:             TTL,
@@ -65,12 +67,27 @@ func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) 
 	}
 }
 
-func (usm *uploadSessionManager) AddUploadSession(changes *DebChanges) (string, error) {
-	done := make(chan struct{})
+func (usm *uploadSessionManager) AddUploadSession(changesReader io.Reader) (string, error) {
+	var err error
+
+	changes, err := ParseDebianChanges(changesReader, usm.PubRing)
+	if err != nil {
+		return "", err
+	}
+
+	if usm.ValidateChanges && !changes.signed {
+		err = errors.New("Changes file was not signed")
+		return "", err
+	}
+
+	if usm.ValidateChanges && !changes.validated {
+		err = errors.New("Changes file could not be validated")
+		return "", err
+	}
 
 	s := NewUploadSession(
 		changes,
-		done,
+		make(chan struct{}),
 	)
 
 	usm.sessMap.Set(s.SessionID(), s)
