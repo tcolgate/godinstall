@@ -87,6 +87,8 @@ func (usm *uploadSessionManager) AddUploadSession(changesReader io.Reader) (stri
 
 	s := NewUploadSession(
 		changes,
+		usm.TmpDir,
+		usm.UploadHook,
 		make(chan struct{}),
 	)
 

@@ -14,7 +14,6 @@ import (
 	"os/exec"
 
 	"code.google.com/p/go-uuid/uuid"
-	"code.google.com/p/go.crypto/openpgp"
 )
 
 type UploadSessioner interface {
@@ -28,12 +27,10 @@ type UploadSessioner interface {
 
 type uploadSession struct {
 	SessionId  string // Name of the session
-	aptServer  *AptServer
 	changes    *DebChanges
 	dir        string // Temporary directory for storage
-	keyRing    openpgp.KeyRing
 	requireSig bool
-	postHook   HookRunner
+	uploadHook HookRunner
 
 	// Channels for requests
 	incoming  chan addItemMsg
@@ -45,18 +42,17 @@ type uploadSession struct {
 }
 
 func NewUploadSession(
-	aptServer *AptServer,
 	changes *DebChanges,
+	tmpDirBase *string,
+	uploadHook HookRunner,
 	done chan struct{},
 ) UploadSessioner {
 	var s uploadSession
-	s.aptServer = aptServer
 	s.done = done
 	s.SessionId = uuid.New()
 	s.changes = changes
-	s.keyRing = s.aptServer.PubRing
-	s.postHook = s.aptServer.PostUploadHook
-	s.dir = s.aptServer.TmpDir + "/" + s.SessionId
+	s.uploadHook = uploadHook
+	s.dir = *tmpDirBase + "/" + s.SessionId
 
 	os.Mkdir(s.dir, os.FileMode(0755))
 	os.Mkdir(s.dir+"/upload", os.FileMode(0755))
@@ -247,7 +243,7 @@ func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 		return errors.New("Uploaded file hashes do not match")
 	}
 
-	err = s.postHook.Run(tmpFilename)
+	err = s.uploadHook.Run(tmpFilename)
 	if !err.(*exec.ExitError).Success() {
 		return errors.New("Post upload hook failed, ")
 	}
