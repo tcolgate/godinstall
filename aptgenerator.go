@@ -7,20 +7,22 @@ import (
 	"os/exec"
 
 	"code.google.com/p/go.crypto/openpgp"
+	"code.google.com/p/go.crypto/openpgp/clearsign"
 )
 
-// Interface for any Apt archive generator
+// Interface for any Apt repository generator
 type AptGenerator interface {
 	Regenerate() error // Regenerate the apt archive
 }
 
-// Runs apt-ftparchive
+// An AptGenerator that uses the  apt-ftparchive from apt-utils
 type aptFtpArchiveGenerator struct {
 	Repo          *aptRepo
 	AftpPath      *string
 	AftpConfig    *string
 	ReleaseConfig *string
-	TmpDir        *string
+	PrivRing      openpgp.KeyRing
+	SignerId      *openpgp.Entity
 }
 
 func NewAptFtpArchiveGenerator(
@@ -28,17 +30,21 @@ func NewAptFtpArchiveGenerator(
 	aftpPath *string,
 	aftpConfig *string,
 	releaseConfig *string,
-	tmpDir *string,
+	privRing openpgp.KeyRing,
+	signerId *openpgp.Entity,
 ) AptGenerator {
 	return &aptFtpArchiveGenerator{
 		repo,
 		aftpPath,
 		aftpConfig,
 		releaseConfig,
-		tmpDir,
+		privRing,
+		signerId,
 	}
 }
 
+// Run apt-ftparchive with the user provided configs to regenerate
+// the archive stored int the provided AptRepo.
 func (a *aptFtpArchiveGenerator) Regenerate() (err error) {
 	err = exec.Command(*a.AftpPath, "generate", *a.AftpConfig).Run()
 	if err != nil {
@@ -69,11 +75,13 @@ func (a *aptFtpArchiveGenerator) Regenerate() (err error) {
 			if !err.(*exec.ExitError).Success() {
 				return errors.New("apt-ftparchive release generation failed, " + err.Error())
 			}
+			return err
 		}
 
 		if a.SignerId != nil {
 			rereadRelease, err := os.Open(releaseFilename)
 			defer rereadRelease.Close()
+
 			releaseSignatureWriter, err := os.Create(releaseBase + "/Release.gpg")
 			if err != nil {
 				return errors.New("Error creating release signature file, " + err.Error())
@@ -87,12 +95,20 @@ func (a *aptFtpArchiveGenerator) Regenerate() (err error) {
 
 			rereadRelease2, err := os.Open(releaseFilename)
 			defer rereadRelease2.Close()
+
 			inReleaseSignatureWriter, err := os.Create(releaseBase + "/InRelease")
 			if err != nil {
-				return
+				return errors.New("Error creating InRelease file, " + err.Error())
 			}
+			inReleaseWriter, err := clearsign.Encode(inReleaseSignatureWriter, a.SignerId.PrivateKey, nil)
+			if err != nil {
+				return errors.New("Error InRelease clear-signer, " + err.Error())
+			}
+			io.Copy(inReleaseWriter, rereadRelease2)
+			inReleaseWriter.Close()
 		}
 	}
+	return err
 }
 
 // Mock for testing the apt generation interface

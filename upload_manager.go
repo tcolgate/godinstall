@@ -4,6 +4,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"time"
+
+	"code.google.com/p/go.crypto/openpgp"
 )
 
 // Manage upload sessions
@@ -14,30 +16,35 @@ type UploadSessionManager interface {
 }
 
 type uploadSessionManager struct {
-	sessMap         *SafeMap
-	ttl             time.Duration
-	finished        chan UploadSessioner
-	validateChanges bool
-	validateDebs    bool
+	TTL             time.Duration
+	TmpDir          *string
+	UploadHook      HookRunner
+	ValidateChanges bool
+	ValidateDebs    bool
+	PubRing         openpgp.KeyRing
 
-	aptServer AptServer
+	finished chan UploadSessioner
+	sessMap  *SafeMap
 }
 
 func NewUploadSessionManager(
-	a AptServer,
 	TTL time.Duration,
+	tmpDir *string,
+	uploadHook HookRunner,
 	validateChanges bool,
 	validateDebs bool,
+	pubRing openpgp.KeyRing,
 ) UploadSessionManager {
-	usm := uploadSessionManager{}
-	usm.sessMap = NewSafeMap()
-	usm.ttl = TTL
-	usm.validateChanges = validateChanges
-	usm.validateDebs = validateDebs
+	return &uploadSessionManager{
+		TTL:             TTL,
+		TmpDir:          tmpDir,
+		UploadHook:      uploadHook,
+		ValidateChanges: validateChanges,
+		ValidateDebs:    validateDebs,
+		PubRing:         pubRing,
 
-	usm.aptServer = a
-
-	return &usm
+		sessMap: NewSafeMap(),
+	}
 }
 
 func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) {
@@ -62,7 +69,6 @@ func (usm *uploadSessionManager) AddUploadSession(changes *DebChanges) (string, 
 	done := make(chan struct{})
 
 	s := NewUploadSession(
-		&usm.aptServer,
 		changes,
 		done,
 	)
@@ -131,7 +137,7 @@ func (usm *uploadSessionManager) handler(s UploadSessioner) {
 			{
 				return
 			}
-		case <-time.After(usm.ttl):
+		case <-time.After(usm.TTL):
 			{
 				s.Close()
 			}

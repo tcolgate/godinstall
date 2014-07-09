@@ -6,11 +6,9 @@ import (
 	"mime/multipart"
 	"net/http"
 
-	"regexp"
 	"strings"
 	"time"
 
-	"code.google.com/p/go.crypto/openpgp"
 	"github.com/gorilla/mux"
 )
 
@@ -23,12 +21,12 @@ type AptServer struct {
 	CookieName string
 	TTL        time.Duration
 
-	Repo           AptRepo,
-	AptGenerator   AptGenerator,
-	SessionManager UploadSessionManager,
+	Repo           AptRepo
+	AptGenerator   AptGenerator
+	SessionManager UploadSessionManager
 
-	PreAftpHook    HookRunner
-	PostAftpHook   HookRunner
+	PreAftpHook  HookRunner
+	PostAftpHook HookRunner
 
 	aptLocks        *Governor
 	uploadHandler   http.HandlerFunc
@@ -37,10 +35,8 @@ type AptServer struct {
 
 func (a *AptServer) InitAptServer() {
 	a.aptLocks, _ = NewGovernor(a.MaxReqs)
-
 	a.downloadHandler = a.makeDownloadHandler()
 	a.uploadHandler = a.makeUploadHandler()
-	a.sessionManager = NewUploadSessionManager(*a, a.TTL)
 }
 
 func (a *AptServer) Register(r *mux.Router) {
@@ -55,7 +51,7 @@ func (a *AptServer) makeDownloadHandler() http.HandlerFunc {
 		defer a.aptLocks.ReadUnLock()
 
 		file := mux.Vars(r)["rest"]
-		realFile := a.RepoBase + "/" + file
+		realFile := a.Repo.Base() + "/" + file
 		http.ServeFile(w, r, realFile)
 	}
 }
@@ -157,7 +153,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 		switch r.Method {
 		case "GET":
 			{
-				resp = a.sessionManager.UploadSessionStatus(session)
+				resp = a.SessionManager.UploadSessionStatus(session)
 			}
 		case "PUT", "POST":
 			{
@@ -167,7 +163,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 					resp = AptServerMessage(http.StatusBadRequest, err.Error())
 				} else {
 					if session == "" {
-						session, err = a.sessionManager.AddUploadSession(changes)
+						session, err = a.SessionManager.AddUploadSession(changes)
 						if err != nil {
 							resp = AptServerMessage(http.StatusBadRequest, err.Error())
 						} else {
@@ -185,7 +181,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 					if err != nil {
 						resp = AptServerMessage(http.StatusBadRequest, err.Error())
 					} else {
-						resp = a.sessionManager.UploadSessionAddItems(session, otherParts)
+						resp = a.SessionManager.UploadSessionAddItems(session, otherParts)
 					}
 				}
 			}
@@ -231,7 +227,7 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 		return
 	}
 
-	if a.ValidateChanges && !changes.signed {
+	if a.SessionManager.ValidateChanges && !changes.signed {
 		err = errors.New("Changes file was not signed")
 		return
 	}

@@ -8,6 +8,7 @@ import (
 )
 
 type AptRepo interface {
+	Base() string
 	PoolFilePath(string) string
 	FindReleaseBase() (string, error)
 }
@@ -16,6 +17,12 @@ type aptRepo struct {
 	RepoBase    *string
 	PoolBase    *string
 	PoolPattern *regexp.Regexp
+}
+
+// Return the raw path to the base directory, used for directly
+// serving content
+func (a *aptRepo) Base() string {
+	return *a.RepoBase
 }
 
 // Given a file name, provide the full path to the location

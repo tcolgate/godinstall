@@ -151,8 +151,8 @@ func main() {
 		PostAftpHook: NewScriptHook(postAftpHook),
 
 		Repo:           &aptRepo,
-		AptGenerator:   &aptGenerator,
-		SessionManager: &uploadSessionManager,
+		AptGenerator:   aptGenerator,
+		SessionManager: uploadSessionManager,
 	}
 
 	server.InitAptServer()
