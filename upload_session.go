@@ -121,44 +121,7 @@ func (s *uploadSession) handler() {
 					break
 				}
 
-				// All files uploaded
-				s.aptServer.aptLocks.WriteLock()
-				defer s.aptServer.aptLocks.WriteUnLock()
-
-				os.Chdir(s.dir) // Chdir may be bad here
-
-				err = s.aptServer.PreAftpHook.Run(s.SessionId)
-				if !err.(*exec.ExitError).Success() {
-					msg.resp <- AptServerMessage(
-						http.StatusBadRequest,
-						"Pre apt-ftparchive hook failed, "+err.Error())
-					return
-				}
-
-				//Move the files into the pool
-				for _, f := range s.changes.Files {
-					dstdir := s.aptServer.PoolBase + "/"
-					matches := s.aptServer.PoolPattern.FindSubmatch([]byte(f.Filename))
-					if len(matches) > 0 {
-						dstdir = dstdir + string(matches[0]) + "/"
-					}
-					err := os.Rename(f.Filename, dstdir+f.Filename)
-					if err != nil {
-						msg.resp <- AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
-						return
-					}
-				}
-
-				err = s.aptServer.runAptFtpArchive()
-				if err != nil {
-					msg.resp <- AptServerMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
-					return
-				} else {
-					err = s.aptServer.PostAftpHook.Run(s.SessionId)
-					log.Println("Error executing post-aftp-hook, " + err.Error())
-				}
-
-				msg.resp <- AptServerMessage(http.StatusOK, s)
+				// Need to do the update and return the response
 				return
 			}
 		}

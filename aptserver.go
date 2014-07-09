@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"os/exec"
 
 	"strings"
 	"time"
@@ -223,4 +226,45 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 	}
 
 	return
+}
+
+// Can't work out where this should live.
+func OnCompletedUpload(
+	a *AptServer,
+	s *uploadSession) AptServerResponder {
+	var err error
+
+	// All files uploaded
+	a.aptLocks.WriteLock()
+	defer a.aptLocks.WriteUnLock()
+
+	os.Chdir(s.dir) // Chdir may be bad here
+
+	err = a.PreAftpHook.Run(s.SessionId)
+	if !err.(*exec.ExitError).Success() {
+		return AptServerMessage(
+			http.StatusBadRequest,
+			"Pre apt-ftparchive hook failed, "+err.Error())
+	}
+
+	//Move the files into the pool
+	for _, f := range s.changes.Files {
+		dstdir := a.Repo.PoolFilePath(f.Filename)
+		err = os.Rename(f.Filename, dstdir+f.Filename)
+		if err != nil {
+			return AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+		}
+	}
+
+	err = a.AptGenerator.Regenerate()
+	if err != nil {
+		return AptServerMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
+	} else {
+		err = a.PostAftpHook.Run(s.SessionId)
+		if err != nil {
+			log.Println("Error executing post-aftp-hook, " + err.Error())
+		}
+	}
+
+	return AptServerMessage(http.StatusOK, s)
 }
