@@ -166,7 +166,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 		switch r.Method {
 		case "GET":
 			{
-				resp = a.SessionManager.UploadSessionStatus(session)
+				resp = a.SessionManager.Status(session)
 			}
 		case "PUT", "POST":
 			{
@@ -194,7 +194,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 					if err != nil {
 						resp = AptServerMessage(http.StatusBadRequest, err.Error())
 					} else {
-						resp = a.SessionManager.UploadSessionAddItems(session, otherParts)
+						resp = a.SessionManager.AddItems(session, otherParts)
 					}
 				}
 			}

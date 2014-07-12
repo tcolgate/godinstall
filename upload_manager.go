@@ -13,8 +13,8 @@ import (
 // Manage upload sessions
 type UploadSessionManager interface {
 	AddUploadSession(io.Reader) (string, error)
-	UploadSessionStatus(string) AptServerResponder
-	UploadSessionAddItems(string, []*multipart.FileHeader) AptServerResponder
+	Status(string) AptServerResponder
+	AddItems(string, []*multipart.FileHeader) AptServerResponder
 }
 
 type uploadSessionManager struct {
@@ -98,7 +98,7 @@ func (usm *uploadSessionManager) AddUploadSession(changesReader io.Reader) (stri
 	return s.SessionID(), nil
 }
 
-func (usm *uploadSessionManager) UploadSessionStatus(s string) (resp AptServerResponder) {
+func (usm *uploadSessionManager) Status(s string) (resp AptServerResponder) {
 	session, ok := usm.GetSession(s)
 
 	if !ok {
@@ -113,7 +113,7 @@ func (usm *uploadSessionManager) UploadSessionStatus(s string) (resp AptServerRe
 	return
 }
 
-func (usm *uploadSessionManager) UploadSessionAddItems(
+func (usm *uploadSessionManager) AddItems(
 	s string,
 	otherParts []*multipart.FileHeader) (resp AptServerResponder) {
 
