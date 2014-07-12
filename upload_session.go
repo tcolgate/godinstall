@@ -18,6 +18,8 @@ import (
 
 type UploadSessioner interface {
 	SessionID() string
+	Directory() string
+	Changes() *DebChanges
 	AddItem(*ChangesItem) AptServerResponder
 	Close()
 	DoneChan() chan struct{}
@@ -130,6 +132,14 @@ func (s *uploadSession) handler() {
 
 func (s *uploadSession) SessionID() string {
 	return s.SessionId
+}
+
+func (s *uploadSession) Directory() string {
+	return s.dir
+}
+
+func (s *uploadSession) Changes() *DebChanges {
+	return s.changes
 }
 
 func (s *uploadSession) Close() {

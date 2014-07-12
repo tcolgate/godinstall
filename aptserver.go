@@ -20,6 +20,11 @@ import (
 // mime object in requests.
 var mimeMemoryBufferSize = int64(64000000)
 
+type UpdateRequest struct {
+	resp    chan AptServerResponder
+	session UploadSessioner
+}
+
 type AptServer struct {
 	MaxReqs    int
 	CookieName string
@@ -28,6 +33,7 @@ type AptServer struct {
 	Repo           AptRepo
 	AptGenerator   AptGenerator
 	SessionManager UploadSessionManager
+	UpdateChannel  chan UpdateRequest
 
 	PreAftpHook  HookRunner
 	PostAftpHook HookRunner
@@ -41,6 +47,9 @@ func (a *AptServer) InitAptServer() {
 	a.aptLocks, _ = NewGovernor(a.MaxReqs)
 	a.downloadHandler = a.makeDownloadHandler()
 	a.uploadHandler = a.makeUploadHandler()
+	a.UpdateChannel = make(chan UpdateRequest)
+
+	go a.Updater()
 }
 
 func (a *AptServer) Register(r *mux.Router) {
@@ -229,42 +238,53 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 }
 
 // Can't work out where this should live.
-func OnCompletedUpload(
-	a *AptServer,
-	s *uploadSession) AptServerResponder {
-	var err error
+func (a *AptServer) Updater() {
 
-	// All files uploaded
-	a.aptLocks.WriteLock()
-	defer a.aptLocks.WriteUnLock()
+	for {
+		select {
+		case msg := <-a.UpdateChannel:
+			{
+				var err error
+				var resp AptServerResponder
 
-	os.Chdir(s.dir) // Chdir may be bad here
+				session := msg.session
 
-	err = a.PreAftpHook.Run(s.SessionId)
-	if !err.(*exec.ExitError).Success() {
-		return AptServerMessage(
-			http.StatusBadRequest,
-			"Pre apt-ftparchive hook failed, "+err.Error())
-	}
+				os.Chdir(session.Directory()) // Chdir may be bad here
 
-	//Move the files into the pool
-	for _, f := range s.changes.Files {
-		dstdir := a.Repo.PoolFilePath(f.Filename)
-		err = os.Rename(f.Filename, dstdir+f.Filename)
-		if err != nil {
-			return AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+				resp = AptServerMessage(http.StatusOK, session)
+
+				a.aptLocks.WriteLock()
+
+				err = a.PreAftpHook.Run(session.SessionID())
+				if !err.(*exec.ExitError).Success() {
+					resp = AptServerMessage(
+						http.StatusBadRequest,
+						"Pre apt-ftparchive hook failed, "+err.Error())
+				}
+
+				//Move the files into the pool
+				for _, f := range session.Changes().Files {
+					dstdir := a.Repo.PoolFilePath(f.Filename)
+					err = os.Rename(f.Filename, dstdir+f.Filename)
+					if err != nil {
+						resp = AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+					}
+				}
+
+				err = a.AptGenerator.Regenerate()
+				if err != nil {
+					resp = AptServerMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
+				} else {
+					err = a.PostAftpHook.Run(session.SessionID())
+					if err != nil {
+						log.Println("Error executing post-aftp-hook, " + err.Error())
+					}
+				}
+
+				a.aptLocks.WriteUnLock()
+
+				msg.resp <- resp
+			}
 		}
 	}
-
-	err = a.AptGenerator.Regenerate()
-	if err != nil {
-		return AptServerMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
-	} else {
-		err = a.PostAftpHook.Run(s.SessionId)
-		if err != nil {
-			log.Println("Error executing post-aftp-hook, " + err.Error())
-		}
-	}
-
-	return AptServerMessage(http.StatusOK, s)
 }
