@@ -174,18 +174,22 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 					resp = AptServerMessage(http.StatusBadRequest, err.Error())
 				} else {
 					if session == "" {
-						session, err = a.SessionManager.AddUploadSession(changesReader)
-						if err != nil {
-							resp = AptServerMessage(http.StatusBadRequest, err.Error())
+						if changesReader == nil {
+							err = errors.New("No debian changes file in request")
 						} else {
-							cookie := http.Cookie{
-								Name:     a.CookieName,
-								Value:    session,
-								Expires:  time.Now().Add(a.TTL),
-								HttpOnly: false,
-								Path:     "/package/upload",
+							session, err = a.SessionManager.AddUploadSession(changesReader)
+							if err != nil {
+								resp = AptServerMessage(http.StatusBadRequest, err.Error())
+							} else {
+								cookie := http.Cookie{
+									Name:     a.CookieName,
+									Value:    session,
+									Expires:  time.Now().Add(a.TTL),
+									HttpOnly: false,
+									Path:     "/package/upload",
+								}
+								http.SetCookie(w, &cookie)
 							}
-							http.SetCookie(w, &cookie)
 						}
 					}
 
@@ -225,11 +229,6 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 		} else {
 			other = append(other, f)
 		}
-	}
-
-	if changesReader == nil {
-		err = errors.New("No debian changes file in request")
-		return
 	}
 
 	return
