@@ -32,7 +32,7 @@ func (a *aptRepo) PoolFilePath(filename string) (poolpath string) {
 
 	matches := a.PoolPattern.FindSubmatch([]byte(filename))
 	if len(matches) > 0 {
-		poolpath = poolpath + string(matches[0]) + "/"
+		poolpath = poolpath + "/" + string(matches[0]) + "/"
 	}
 
 	return
