@@ -47,7 +47,6 @@ func (a *AptServer) InitAptServer() {
 	a.aptLocks, _ = NewGovernor(a.MaxReqs)
 	a.downloadHandler = a.makeDownloadHandler()
 	a.uploadHandler = a.makeUploadHandler()
-	a.UpdateChannel = make(chan UpdateRequest)
 
 	go a.Updater()
 }

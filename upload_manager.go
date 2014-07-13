@@ -25,7 +25,7 @@ type uploadSessionManager struct {
 	ValidateDebs    bool
 	PubRing         openpgp.EntityList
 
-	finished chan UploadSessioner
+	finished chan UpdateRequest
 	sessMap  *SafeMap
 }
 
@@ -36,6 +36,7 @@ func NewUploadSessionManager(
 	validateChanges bool,
 	validateDebs bool,
 	pubRing openpgp.EntityList,
+	finished chan UpdateRequest,
 ) UploadSessionManager {
 	return &uploadSessionManager{
 		TTL:             TTL,
@@ -45,7 +46,8 @@ func NewUploadSessionManager(
 		ValidateDebs:    validateDebs,
 		PubRing:         pubRing,
 
-		sessMap: NewSafeMap(),
+		finished: finished,
+		sessMap:  NewSafeMap(),
 	}
 }
 
@@ -90,6 +92,7 @@ func (usm *uploadSessionManager) AddUploadSession(changesReader io.Reader) (stri
 		usm.TmpDir,
 		usm.UploadHook,
 		make(chan struct{}),
+		usm.finished,
 	)
 
 	usm.sessMap.Set(s.SessionID(), s)

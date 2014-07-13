@@ -120,6 +120,8 @@ func main() {
 		return
 	}
 
+	updateChan := make(chan UpdateRequest)
+
 	aptRepo := aptRepo{
 		repoBase,
 		poolBase,
@@ -142,6 +144,7 @@ func main() {
 		*validate,
 		*validate,
 		pubRing,
+		updateChan,
 	)
 
 	server := &AptServer{
@@ -153,6 +156,7 @@ func main() {
 		Repo:           &aptRepo,
 		AptGenerator:   aptGenerator,
 		SessionManager: uploadSessionManager,
+		UpdateChannel:  updateChan,
 	}
 
 	server.InitAptServer()

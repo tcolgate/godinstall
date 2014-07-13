@@ -40,7 +40,8 @@ type uploadSession struct {
 	getstatus chan getStatusMsg
 
 	// output session
-	done chan struct{}
+	done     chan struct{}
+	finished chan UpdateRequest
 }
 
 func NewUploadSession(
@@ -48,9 +49,11 @@ func NewUploadSession(
 	tmpDirBase *string,
 	uploadHook HookRunner,
 	done chan struct{},
+	finished chan UpdateRequest,
 ) UploadSessioner {
 	var s uploadSession
 	s.done = done
+	s.finished = finished
 	s.SessionId = uuid.New()
 	s.changes = changes
 	s.uploadHook = uploadHook
@@ -122,6 +125,18 @@ func (s *uploadSession) handler() {
 					msg.resp <- AptServerMessage(http.StatusAccepted, s)
 					break
 				}
+
+				// We're done, lets call out to the server to update
+				// with the contents of this session
+
+				updater := make(chan AptServerResponder)
+				s.finished <- UpdateRequest{
+					session: s,
+					resp:    updater,
+				}
+
+				updateresp := <-updater
+				msg.resp <- updateresp
 
 				// Need to do the update and return the response
 				return
