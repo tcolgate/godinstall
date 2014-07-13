@@ -20,10 +20,12 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// HTTP handler for the server /
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Nothing to see here"))
 }
 
+// Looks an email address up in a pgp keyring
 func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
 	for _, entity := range keyring {
 		for _, ident := range entity.Identities {
@@ -35,6 +37,7 @@ func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
 
 	return nil
 }
+
 func main() {
 	// Setup CLI flags
 	listenAddress := flag.String("listen", ":3000", "ip:port to listen on")

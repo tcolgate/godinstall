@@ -14,8 +14,17 @@ import (
 	"github.com/stapelberg/godebiancontrol"
 )
 
-// This could be generalized to break out the different hashes
-// more dynamically
+// DebChanges represents a debian changes file. A changes file
+// describes a set of files for upload to a repositry
+type DebChanges struct {
+	signed    bool                    // Whether this changes file signed
+	validated bool                    //  Whether the signature is valid
+	signedBy  *openpgp.Entity         // The pgp entity that signed the file
+	Files     map[string]*ChangesItem // Descriptions of files to be included in this upload
+}
+
+// ChangesItem describes a specific item to be uploaded along
+// with the changes file
 type ChangesItem struct {
 	Filename string
 	Size     string
@@ -26,15 +35,11 @@ type ChangesItem struct {
 	data     io.Reader
 }
 
-type DebChanges struct {
-	signed    bool
-	validated bool
-	signedBy  *openpgp.Entity
-	// This needs to be a safemap really, could be updated
-	// from multiple go routines
-	Files map[string]*ChangesItem
-}
-
+// Parse a debian chnages file into a DebChanges object and verify any signature
+// against keys in PHP keyring kr.
+//
+// TODO This fails DRY badlt as we repeat the process for each signature type
+// rewrite this to be more generic
 func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *DebChanges, err error) {
 	var c DebChanges
 

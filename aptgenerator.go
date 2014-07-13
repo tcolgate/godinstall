@@ -17,14 +17,15 @@ type AptGenerator interface {
 
 // An AptGenerator that uses the  apt-ftparchive from apt-utils
 type aptFtpArchiveGenerator struct {
-	Repo          *aptRepo
-	AftpPath      *string
-	AftpConfig    *string
-	ReleaseConfig *string
-	PrivRing      openpgp.KeyRing
-	SignerId      *openpgp.Entity
+	Repo          *aptRepo        // The repo to update
+	AftpPath      *string         // Path to the apt-ftp-archive binary
+	AftpConfig    *string         // Path to the config for apt-ftp-archive
+	ReleaseConfig *string         // Path to the release generation config file
+	PrivRing      openpgp.KeyRing // Private keyring cotaining singing key
+	SignerId      *openpgp.Entity // The key to sign release file with
 }
 
+// Create a new AptGenerator that uses apt-ftparchive
 func NewAptFtpArchiveGenerator(
 	repo *aptRepo,
 	aftpPath *string,

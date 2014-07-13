@@ -10,13 +10,16 @@ import (
 	"code.google.com/p/go.crypto/openpgp"
 )
 
-// Manage upload sessions
+// UploadSessionManager is responsible for maintaing a set of upload
+// session  It creates sessions, times them out, amd acts as a request
+// muxer to pass requests on to invidiuvidual managers
 type UploadSessionManager interface {
 	AddUploadSession(io.Reader) (string, error)
 	Status(string) AptServerResponder
 	AddItems(string, []*multipart.FileHeader) AptServerResponder
 }
 
+// uploadSessionManager is a concreate implmentation of the UploadSessionManager
 type uploadSessionManager struct {
 	TTL             time.Duration
 	TmpDir          *string
@@ -51,6 +54,7 @@ func NewUploadSessionManager(
 	}
 }
 
+// This retrieves a given upload session by the session's id
 func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) {
 	val := usm.sessMap.Get(sid)
 	if val == nil {
@@ -69,6 +73,8 @@ func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) 
 	}
 }
 
+// Add a new upload session based on the details from the passed
+// debian changes file.
 func (usm *uploadSessionManager) AddUploadSession(changesReader io.Reader) (string, error) {
 	var err error
 
@@ -101,6 +107,10 @@ func (usm *uploadSessionManager) AddUploadSession(changesReader io.Reader) (stri
 	return s.SessionID(), nil
 }
 
+// This retrieves the status of a given session as a
+// HTTP response.
+// TODO Should probably refactor this to just return the
+// status and and error and consutrct the response elswhere
 func (usm *uploadSessionManager) Status(s string) (resp AptServerResponder) {
 	session, ok := usm.GetSession(s)
 
@@ -116,6 +126,8 @@ func (usm *uploadSessionManager) Status(s string) (resp AptServerResponder) {
 	return
 }
 
+// This add am uploaded file containued in the mime section,
+// to the session identified by the string
 func (usm *uploadSessionManager) AddItems(
 	s string,
 	otherParts []*multipart.FileHeader) (resp AptServerResponder) {
@@ -147,7 +159,9 @@ func (usm *uploadSessionManager) AddItems(
 	return
 }
 
-// Go routine for handling upload sessions
+// This is used as a go routine manages the upload session and is used
+// to serialize all actions on the given session.
+// TODO need to revisit this
 func (usm *uploadSessionManager) handler(s UploadSessioner) {
 	defer func() {
 		usm.sessMap.Set(s.SessionID(), nil)
@@ -157,10 +171,13 @@ func (usm *uploadSessionManager) handler(s UploadSessioner) {
 		select {
 		case <-s.DoneChan():
 			{
+				// The sesession has completed
 				return
 			}
 		case <-time.After(usm.TTL):
 			{
+				// The sesession has timeout out,
+				// tell it to close down
 				s.Close()
 			}
 		}

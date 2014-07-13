@@ -7,7 +7,7 @@ type HookRunner interface {
 	Run(...string) error
 }
 
-// This implement hooks as external scripts
+// Hooks to external scripts
 type hookRunnerCmdExec struct {
 	cmd *string
 }
@@ -27,7 +27,7 @@ func (h hookRunnerCmdExec) Run(args ...string) (err error) {
 	return
 }
 
-// This accepts hooks that are internal functions
+// Hooks that are internal functions
 //, primarily intended for testing
 type hookRunnerFuncExec struct {
 	f hookFunc

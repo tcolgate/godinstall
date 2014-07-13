@@ -4,6 +4,7 @@ import (
 	"sync"
 )
 
+// This is a thread safe map stolen from somwhere else
 type SafeMap struct {
 	lock *sync.RWMutex
 	bm   map[interface{}]interface{}

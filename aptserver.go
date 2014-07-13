@@ -19,29 +19,27 @@ import (
 // mime object in requests.
 var mimeMemoryBufferSize = int64(64000000)
 
-type UpdateRequest struct {
-	resp    chan AptServerResponder
-	session UploadSessioner
-}
-
+// AptServer describes a web server
 type AptServer struct {
-	MaxReqs    int
-	CookieName string
-	TTL        time.Duration
+	MaxReqs    int           // The maximum nuber of concurrent requests we'll handle
+	CookieName string        // The session cookie name for uploads
+	TTL        time.Duration // How long to keep session alive
 
-	Repo           AptRepo
-	AptGenerator   AptGenerator
-	SessionManager UploadSessionManager
-	UpdateChannel  chan UpdateRequest
+	Repo           AptRepo              // The repository to populate
+	AptGenerator   AptGenerator         // The generator for updating the repo
+	SessionManager UploadSessionManager // The session manager
+	UpdateChannel  chan UpdateRequest   // A channel to recieve update requests
 
-	PreAftpHook  HookRunner
-	PostAftpHook HookRunner
+	PreAftpHook  HookRunner // A hook to run before we run the genrator
+	PostAftpHook HookRunner // A hooke to run after successful regeneration
 
-	aptLocks        *Governor
-	uploadHandler   http.HandlerFunc
-	downloadHandler http.HandlerFunc
+	aptLocks *Governor // Locks to ensure the repo update is atomic
+
+	uploadHandler   http.HandlerFunc // HTTP handler for upload requests
+	downloadHandler http.HandlerFunc // HTTP handler for apt client downloads
 }
 
+// Setup the server, start related go routines
 func (a *AptServer) InitAptServer() {
 	a.aptLocks, _ = NewGovernor(a.MaxReqs)
 	a.downloadHandler = a.makeDownloadHandler()
@@ -50,12 +48,14 @@ func (a *AptServer) InitAptServer() {
 	go a.Updater()
 }
 
+// Register this server with a HTTP server
 func (a *AptServer) Register(r *mux.Router) {
 	r.HandleFunc("/repo/{rest:.*}", a.downloadHandler).Methods("GET")
 	r.HandleFunc("/package/upload", a.uploadHandler).Methods("POST", "PUT")
 	r.HandleFunc("/package/upload/{session}", a.uploadHandler).Methods("GET", "POST", "PUT")
 }
 
+// Construct the download handler for normal client downloads
 func (a *AptServer) makeDownloadHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		a.aptLocks.ReadLock()
@@ -67,8 +67,9 @@ func (a *AptServer) makeDownloadHandler() http.HandlerFunc {
 	}
 }
 
-// This is used to store any response we want
-// to send back to the caller
+// AptServerResponder is a custom error type to
+// encode the HTTP status and meesage we will
+// send back to a client
 type AptServerResponder interface {
 	GetStatus() int
 	GetMessage() []byte
@@ -92,6 +93,8 @@ func (r aptServerResponse) Error() string {
 	return "ERROR: " + string(r.message)
 }
 
+// This contructs a new repsonse to a client and can take
+// a string of JSON'able object
 func AptServerMessage(status int, msg interface{}) AptServerResponder {
 	var err error
 	var j []byte
@@ -146,6 +149,7 @@ func AptServerMessage(status int, msg interface{}) AptServerResponder {
 	return &resp
 }
 
+// This build a function to despatch upload requests
 func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Did we get a session
@@ -211,6 +215,8 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 	}
 }
 
+// Seperate the changes file from any other files in a http
+// request
 func (a *AptServer) changesFromRequest(r *http.Request) (
 	changesReader io.Reader,
 	other []*multipart.FileHeader,
@@ -234,9 +240,9 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 	return
 }
 
-// Can't work out where this should live.
+// Updater is a go rourtine that repond to request to run
+// the apt regeneration
 func (a *AptServer) Updater() {
-
 	for {
 		select {
 		case msg := <-a.UpdateChannel:
@@ -284,4 +290,12 @@ func (a *AptServer) Updater() {
 			}
 		}
 	}
+}
+
+// UpdateRequest contains the information needed to
+// request an update, only regeneration is supported
+// at present
+type UpdateRequest struct {
+	resp    chan AptServerResponder
+	session UploadSessioner
 }

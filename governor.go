@@ -11,9 +11,9 @@ type req struct{}
 // the repository from new requests when an apt-ftparchive run is
 // occuring
 type Governor struct {
-	Max    int
-	reqs   chan req
-	rwLock sync.RWMutex
+	Max    int          // Maximum number of concurrent requests
+	reqs   chan req     // Channel for tracking in-flight requests
+	rwLock sync.RWMutex // A RW mutex for locking out reads during  an update
 }
 
 func NewGovernor(max int) (*Governor, error) {
@@ -30,9 +30,7 @@ func NewGovernor(max int) (*Governor, error) {
 	return &g, nil
 }
 
-// These are almost certainly wrong and need
-// to deal witht he two locks seperatley
-
+// Take a read lock on this governor
 func (g *Governor) ReadLock() {
 	if g.Max != 0 {
 		_ = <-g.reqs
@@ -40,6 +38,7 @@ func (g *Governor) ReadLock() {
 	g.rwLock.RLock()
 }
 
+// Release a read lock
 func (g *Governor) ReadUnLock() {
 	g.rwLock.RUnlock()
 	if g.Max != 0 {
@@ -47,6 +46,8 @@ func (g *Governor) ReadUnLock() {
 	}
 }
 
+// Take a write lock. THis shoudl block  until all readers
+// are complete
 func (g *Governor) WriteLock() {
 	if g.Max != 0 {
 		for i := 0; i < g.Max; i++ {
@@ -56,6 +57,7 @@ func (g *Governor) WriteLock() {
 	g.rwLock.Lock()
 }
 
+// Release the write lock
 func (g *Governor) WriteUnLock() (err error) {
 	g.rwLock.Unlock()
 	if g.Max != 0 {

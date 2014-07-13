@@ -7,16 +7,19 @@ import (
 	"regexp"
 )
 
+// AptRepo is an interface for desribing the disk layout
+// of a repository
 type AptRepo interface {
 	Base() string
 	PoolFilePath(string) string
 	FindReleaseBase() (string, error)
 }
 
+// Simple AptRepo implementation
 type aptRepo struct {
-	RepoBase    *string
-	PoolBase    *string
-	PoolPattern *regexp.Regexp
+	RepoBase    *string        // The base directory of the repository
+	PoolBase    *string        // The pool directory where debs are stored
+	PoolPattern *regexp.Regexp // A regex for deciding which pool directory to store a file in
 }
 
 // Return the raw path to the base directory, used for directly

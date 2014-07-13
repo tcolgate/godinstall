@@ -15,32 +15,36 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 )
 
+// This defines an interface to an individual upload session for a changes
 type UploadSessioner interface {
-	SessionID() string
-	Directory() string
-	Changes() *DebChanges
-	AddItem(*ChangesItem) AptServerResponder
-	Close()
-	DoneChan() chan struct{}
-	Status() AptServerResponder
-	json.Marshaler
+	SessionID() string                       // return the UUID for this session
+	Directory() string                       // returnt he base directory for the verified uploaded files
+	Changes() *DebChanges                    // return the changes file for this session
+	AddItem(*ChangesItem) AptServerResponder // Add the given item to this session
+	Close()                                  // Close, and clear up, any remaining files
+	DoneChan() chan struct{}                 // This returns a channel that anounces copletion
+	Status() AptServerResponder              // Return the status of this session
+	json.Marshaler                           // All session implementations should serialize to JSON
 }
 
+// Concreate implementation of an upload session
 type uploadSession struct {
-	SessionId  string // Name of the session
-	changes    *DebChanges
-	dir        string // Temporary directory for storage
-	requireSig bool
-	uploadHook HookRunner
+	SessionId  string      // Name of the session
+	changes    *DebChanges // The changes file for this session
+	dir        string      // Temporary directory for storage
+	requireSig bool        // Check debian package signatures
+	uploadHook HookRunner  // A hook to run after a successful upload
 
 	// Channels for requests
-	incoming  chan addItemMsg
-	close     chan closeMsg // A channel for close messages
-	getstatus chan getStatusMsg
+	// TODO revisit this
+	incoming  chan addItemMsg   // New item upload requests
+	close     chan closeMsg     // A channel for close messages
+	getstatus chan getStatusMsg // A channel for responding to status requests
 
 	// output session
-	done     chan struct{}
-	finished chan UpdateRequest
+	// TODO revisit this
+	done     chan struct{}      // A channel to be informed of closure on
+	finished chan UpdateRequest // A channel to anounce completion and trigger a repo update
 }
 
 func NewUploadSession(
