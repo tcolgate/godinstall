@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 
 	"code.google.com/p/go-uuid/uuid"
 )
@@ -232,7 +231,7 @@ func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 	}
 
 	err = s.uploadHook.Run(tmpFilename)
-	if !err.(*exec.ExitError).Success() {
+	if err != nil {
 		return errors.New("Post upload hook failed, ")
 	}
 

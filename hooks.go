@@ -19,7 +19,7 @@ func NewScriptHook(cmd *string) HookRunner {
 }
 
 func (h hookRunnerCmdExec) Run(args ...string) (err error) {
-	if h.cmd != nil {
+	if h.cmd != nil && *h.cmd != "" {
 		cmd := exec.Command(*h.cmd)
 		cmd.Args = args
 		err = cmd.Run()

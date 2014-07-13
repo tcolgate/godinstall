@@ -8,7 +8,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"os/exec"
 
 	"strings"
 	"time"
@@ -255,7 +254,7 @@ func (a *AptServer) Updater() {
 				a.aptLocks.WriteLock()
 
 				err = a.PreAftpHook.Run(session.SessionID())
-				if !err.(*exec.ExitError).Success() {
+				if err != nil {
 					resp = AptServerMessage(
 						http.StatusBadRequest,
 						"Pre apt-ftparchive hook failed, "+err.Error())
