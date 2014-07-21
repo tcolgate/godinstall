@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"code.google.com/p/go-uuid/uuid"
 )
@@ -232,6 +233,12 @@ func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 		expectedFile.Sha1 != sha1 ||
 		expectedFile.Sha256 != sha256 {
 		return errors.New("Uploaded file hashes do not match")
+	}
+
+	if strings.HasSuffix(tmpFilename, ".deb") {
+		// We should verify the signature
+		f, _ := os.Open(tmpFilename)
+		ParseDebPackage(f, nil)
 	}
 
 	err = s.uploadHook.Run(tmpFilename)
