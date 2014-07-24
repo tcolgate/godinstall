@@ -41,7 +41,8 @@ func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
 func main() {
 	// Setup CLI flags
 	listenAddress := flag.String("listen", ":3000", "ip:port to listen on")
-	validate := flag.Bool("validate", true, "Validate signatures on changes and debs")
+	validateChanges := flag.Bool("validateChanges", true, "Validate signatures on changes files")
+	validateDebs := flag.Bool("validateDebs", false, "Validate signatures on deb files")
 	ttl := flag.String("ttl", "60s", "Session life time")
 	maxReqs := flag.Int("max-requests", 4, "Maximum concurrent requests")
 	repoBase := flag.String("repo-base", "/tmp/myrepo", "Location of repository root")
@@ -104,7 +105,7 @@ func main() {
 		}
 	}
 
-	if *validate {
+	if *validateChanges || *validateDebs {
 		if privRing == nil || pubRing == nil {
 			log.Println("Validation requested, but keyrings not loaded")
 			return
@@ -144,8 +145,8 @@ func main() {
 		expire,
 		tmpDir,
 		NewScriptHook(postUploadHook),
-		*validate,
-		*validate,
+		*validateChanges,
+		*validateDebs,
 		pubRing,
 		updateChan,
 	)

@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"code.google.com/p/go-uuid/uuid"
+	"code.google.com/p/go.crypto/openpgp"
 )
 
 // This defines an interface to an individual upload session for a changes
@@ -30,11 +31,13 @@ type UploadSessioner interface {
 
 // Concreate implementation of an upload session
 type uploadSession struct {
-	SessionId  string      // Name of the session
-	changes    *DebChanges // The changes file for this session
-	dir        string      // Temporary directory for storage
-	requireSig bool        // Check debian package signatures
-	uploadHook HookRunner  // A hook to run after a successful upload
+	SessionId    string             // Name of the session
+	changes      *DebChanges        // The changes file for this session
+	validateDebs bool               // Validate uploaded. deb files
+	keyRing      openpgp.EntityList // Keyring for validation
+	dir          string             // Temporary directory for storage
+	requireSig   bool               // Check debian package signatures
+	uploadHook   HookRunner         // A hook to run after a successful upload
 
 	// Channels for requests
 	// TODO revisit this
@@ -50,12 +53,16 @@ type uploadSession struct {
 
 func NewUploadSession(
 	changes *DebChanges,
+	validateDebs bool,
+	keyRing openpgp.EntityList,
 	tmpDirBase *string,
 	uploadHook HookRunner,
 	done chan struct{},
 	finished chan UpdateRequest,
 ) UploadSessioner {
 	var s uploadSession
+	s.validateDebs = validateDebs
+	s.keyRing = keyRing
 	s.done = done
 	s.finished = finished
 	s.SessionId = uuid.New()
@@ -238,7 +245,14 @@ func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 	if strings.HasSuffix(tmpFilename, ".deb") {
 		// We should verify the signature
 		f, _ := os.Open(tmpFilename)
-		ParseDebPackage(f, nil)
+		pkg := NewDebPackage(f, nil)
+		pkg.SignedBy()
+
+		log.Println(pkg.Name())
+		log.Println(pkg.Version())
+		log.Println(pkg.Maintainer())
+		log.Println(pkg.Description())
+
 	}
 
 	err = s.uploadHook.Run(tmpFilename)

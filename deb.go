@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -16,25 +17,151 @@ import (
 	"github.com/stapelberg/godebiancontrol"
 )
 
-type DebPackage struct {
-	signed    bool            // Whether this changes file signed
-	validated bool            //  Whether the signature is valid
-	signedBy  *openpgp.Entity // The pgp entity that signed the file
+type DebPackageInfoer interface {
+	Signed() (bool, error)
+	Validated() (bool, error)
+	SignedBy() ([]*openpgp.Entity, error)
+
+	Name() (string, error)
+	Version() (string, error)
+	Description() (string, error)
+	Maintainer() (string, error)
+	MetaData() (map[string]string, error)
 }
 
-func ParseDebPackage(r io.Reader, kr openpgp.EntityList) (p *DebPackage, err error) {
-	arReader := ar.NewReader(r)
-	var signature bytes.Buffer
-	var control bytes.Buffer
+type debPackage struct {
+	reader  io.Reader          // the reader pointing to the file
+	keyRing openpgp.EntityList // Keyring for verification, nil if no signature is to be validated
 
-	content, err := ioutil.TempFile("", "")
-	if err != nil {
-		return nil, err
+	parsed    bool
+	signed    bool              // Whether this changes file signed
+	validated bool              //  Whether the signature is valid
+	signedBy  []*openpgp.Entity // The pgp entity that signed the file
+
+	controlMap map[string]string
+}
+
+func NewDebPackage(r io.Reader, kr openpgp.EntityList) DebPackageInfoer {
+	return &debPackage{
+		reader:  r,
+		keyRing: kr,
+	}
+}
+
+func (d *debPackage) Signed() (bool, error) {
+	var err error
+
+	if !d.parsed {
+		err = d.parseDebPackage()
+		if err != nil {
+			return false, err
+		}
 	}
 
-	controlTgz, err := ioutil.TempFile("", "")
+	return d.signed, nil
+}
+
+func (d *debPackage) Validated() (bool, error) {
+	var err error
+
+	if !d.parsed {
+		err = d.parseDebPackage()
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return d.validated, nil
+}
+
+func (d *debPackage) SignedBy() ([]*openpgp.Entity, error) {
+	var err error
+
+	if !d.parsed {
+		err = d.parseDebPackage()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return d.signedBy, nil
+}
+
+func (d *debPackage) MetaData() (map[string]string, error) {
+	var err error
+
+	if !d.parsed {
+		err = d.parseDebPackage()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return d.controlMap, nil
+}
+
+func (d *debPackage) Name() (string, error) {
+	return d.getMandatoryMetadata("Package")
+}
+
+func (d *debPackage) Version() (string, error) {
+	return d.getMandatoryMetadata("Version")
+}
+
+func (d *debPackage) Description() (string, error) {
+	return d.getMandatoryMetadata("Description")
+}
+
+func (d *debPackage) Maintainer() (string, error) {
+	return d.getMandatoryMetadata("Maintainer")
+}
+
+func (d *debPackage) getMandatoryMetadata(key string) (string, error) {
+	res, ok, err := d.getMetadata(key)
 	if err != nil {
-		return nil, err
+		return "", err
+	}
+	if !ok {
+		return "", fmt.Errorf("key %s not found in package metadata", key)
+	}
+
+	return res, nil
+}
+
+func (d *debPackage) getMetadata(key string) (string, bool, error) {
+	var err error
+
+	if !d.parsed {
+		err = d.parseDebPackage()
+		if err != nil {
+			return "", false, err
+		}
+	}
+
+	result, ok := d.controlMap[key]
+
+	return result, ok, nil
+}
+
+func (d *debPackage) parseDebPackage() (err error) {
+	arReader := ar.NewReader(d.reader)
+
+	signatures := make(map[string]string)
+	var control bytes.Buffer
+	var controlReader io.Reader
+
+	// if we are required to validate a signature, we must reconstruct the
+	// entity that was signed. To do this we need a temporary file to build
+	// the contents, which we then verify against the signature provide in
+	// the _gpg file
+	//var contentFile os.File
+
+	if d.keyRing != nil {
+		contentFile, err := ioutil.TempFile("", "")
+		defer os.Remove(contentFile.Name())
+		if err != nil {
+			return err
+		}
 	}
 
 	for {
@@ -43,29 +170,32 @@ func ParseDebPackage(r io.Reader, kr openpgp.EntityList) (p *DebPackage, err err
 			break
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
-		log.Println(header)
 
 		switch {
 		case strings.HasPrefix(header.Name, "_gpg"):
-			log.Println("signature found")
-			io.Copy(&signature, arReader)
+			d.signed = true
+			var sig bytes.Buffer
+			io.Copy(&sig, arReader)
+			signatures[header.Name] = sig.String()
 		case header.Name == "control.tar.gz":
-			io.Copy(
-				io.MultiWriter(controlTgz, content),
-				arReader)
-			controlTgz.Close()
-			f, err := os.Open(controlTgz.Name())
+			/*
+				io.Copy(
+					io.MultiWriter(controlTgz, content),
+					arReader)
+				controlTgz.Close()
+				f, err := os.Open(controlTgz.Name())
+			*/
 
-			gzReader, err := gzip.NewReader(f)
+			gzReader, err := gzip.NewReader(arReader)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			tarReader := tar.NewReader(gzReader)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			for {
@@ -73,31 +203,27 @@ func ParseDebPackage(r io.Reader, kr openpgp.EntityList) (p *DebPackage, err err
 				if err == io.EOF {
 					break
 				}
-				log.Println(tarHeader)
 				if tarHeader.Name == "./control" {
 					io.Copy(&control, tarReader)
 				}
 			}
 		default:
-			io.Copy(content, arReader)
+			//io.Copy(content, arReader)
 		}
 	}
 
 	if control.Len() == 0 {
-		return nil, errors.New("did not file control file in archive")
+		return errors.New("did not find control file in archive")
 	}
 
-	log.Println(signature)
-	log.Println(control)
-
-	if control.Len() == 0 {
-		return nil, errors.New("did not file control file in archive")
-	}
-
-	controlReader := bytes.NewReader(control.Bytes())
+	controlReader = bytes.NewReader(control.Bytes())
 	paragraphs, err := godebiancontrol.Parse(controlReader)
+	if err != nil {
+		return errors.New("parsing control failed, " + err.Error())
+	}
 
 	log.Println(paragraphs)
-
-	return &DebPackage{}, nil
+	d.controlMap = paragraphs[0]
+	d.parsed = true
+	return nil
 }
