@@ -268,6 +268,24 @@ func (a *AptServer) Updater() {
 				//Move the files into the pool
 				for _, f := range session.Changes().Files {
 					dstdir := a.Repo.PoolFilePath(f.Filename)
+					stat, err := os.Lstat(dstdir)
+
+					if err != nil {
+						if os.IsNotExist(err) {
+							err = os.MkdirAll(dstdir, 0777)
+							if err != nil {
+								resp = AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+							}
+						} else {
+							resp = AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+						}
+					} else {
+						if !stat.IsDir() {
+							resp = AptServerMessage(http.StatusInternalServerError,
+								"Destinatio path, "+dstdir+" is not a directory")
+						}
+					}
+
 					err = os.Rename(f.Filename, dstdir+f.Filename)
 					if err != nil {
 						resp = AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
