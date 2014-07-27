@@ -245,14 +245,19 @@ func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 	if strings.HasSuffix(tmpFilename, ".deb") {
 		// We should verify the signature
 		f, _ := os.Open(tmpFilename)
-		pkg := NewDebPackage(f, nil)
-		pkg.SignedBy()
+		if s.validateDebs {
+			pkg := NewDebPackage(f, s.keyRing)
 
-		log.Println(pkg.Name())
-		log.Println(pkg.Version())
-		log.Println(pkg.Maintainer())
-		log.Println(pkg.Description())
+			signed, _ := pkg.Signed()
+			validated, _ := pkg.Validated()
 
+			if !signed || !validated {
+				return errors.New("Package could not be validated")
+			} else {
+				signedBy, _ := pkg.SignedBy()
+				log.Println(*signedBy)
+			}
+		}
 	}
 
 	err = s.uploadHook.Run(tmpFilename)

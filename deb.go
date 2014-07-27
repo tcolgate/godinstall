@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
@@ -11,11 +12,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
+	"reflect"
+	"strconv"
 	"strings"
 
 	"code.google.com/p/go.crypto/openpgp"
+	"code.google.com/p/go.crypto/openpgp/clearsign"
 	"github.com/blakesmith/ar"
 	"github.com/stapelberg/godebiancontrol"
 )
@@ -23,7 +26,7 @@ import (
 type DebPackageInfoer interface {
 	Signed() (bool, error)
 	Validated() (bool, error)
-	SignedBy() ([]*openpgp.Entity, error)
+	SignedBy() (*openpgp.Entity, error)
 
 	Name() (string, error)
 	Version() (string, error)
@@ -37,11 +40,61 @@ type debPackage struct {
 	keyRing openpgp.EntityList // Keyring for verification, nil if no signature is to be validated
 
 	parsed    bool
-	signed    bool              // Whether this changes file signed
-	validated bool              //  Whether the signature is valid
-	signedBy  []*openpgp.Entity // The pgp entity that signed the file
+	signed    bool // Whether this changes file signed
+	validated bool //  Whether the signature is valid
+
+	signatures map[string]*debSigsFile
+	calcedSigs map[string]debSigs
+	signedBy   *openpgp.Entity
 
 	controlMap map[string]string
+}
+
+type debSigs struct {
+	md5  string
+	sha1 string
+}
+
+type debSigsFile struct {
+	version    int
+	signatures map[string]debSigs
+	signedBy   *openpgp.Entity
+}
+
+func parseSigsFile(sig string, kr openpgp.EntityList) (*debSigsFile, error) {
+	result := &debSigsFile{}
+	result.signatures = make(map[string]debSigs)
+
+	msg, _ := clearsign.Decode([]byte(sig))
+	bsig := bytes.NewReader(msg.Bytes)
+
+	result.signedBy, _ = openpgp.CheckDetachedSignature(kr, bsig, msg.ArmoredSignature.Body)
+
+	sigDataReader := bytes.NewReader(msg.Plaintext)
+	paragraphs, _ := godebiancontrol.Parse(sigDataReader)
+
+	result.version, _ = strconv.Atoi(paragraphs[0]["Version"])
+
+	fileData := paragraphs[0]["Files"]
+	fdLineReader := strings.NewReader(fileData)
+
+	scanner := bufio.NewScanner(fdLineReader)
+	for scanner.Scan() {
+		fields := strings.Fields(
+			strings.TrimSpace(
+				scanner.Text()))
+
+		md5 := fields[0]
+		sha1 := fields[1]
+		fileName := fields[3]
+
+		result.signatures[fileName] = debSigs{
+			md5:  md5,
+			sha1: sha1,
+		}
+	}
+
+	return result, nil
 }
 
 func NewDebPackage(r io.Reader, kr openpgp.EntityList) DebPackageInfoer {
@@ -77,7 +130,7 @@ func (d *debPackage) Validated() (bool, error) {
 	return d.validated, nil
 }
 
-func (d *debPackage) SignedBy() ([]*openpgp.Entity, error) {
+func (d *debPackage) SignedBy() (*openpgp.Entity, error) {
 	var err error
 
 	if !d.parsed {
@@ -148,10 +201,14 @@ func (d *debPackage) getMetadata(key string) (string, bool, error) {
 
 func (d *debPackage) parseDebPackage() (err error) {
 	arReader := ar.NewReader(d.reader)
+	d.signatures = make(map[string]*debSigsFile)
 
-	signatures := make(map[string]string)
 	var control bytes.Buffer
 	var controlReader io.Reader
+
+	// We'll keep a running set of file signatures to
+	// compare with any included signatures
+	d.calcedSigs = make(map[string]debSigs)
 
 	// if we are required to validate a signature, we must reconstruct the
 	// entity that was signed. To do this we need a temporary file to build
@@ -189,8 +246,8 @@ func (d *debPackage) parseDebPackage() (err error) {
 				io.MultiWriter(&sig, hasher),
 				arReader)
 
-			signatures[header.Name] = sig.String()
-			log.Println(sig.String())
+			d.signatures[header.Name], _ = parseSigsFile(sig.String(), d.keyRing)
+
 		case header.Name == "control.tar.gz":
 			tee := io.TeeReader(arReader, hasher)
 
@@ -217,10 +274,10 @@ func (d *debPackage) parseDebPackage() (err error) {
 			io.Copy(hasher, arReader)
 		}
 
-		md5 := hex.EncodeToString(md5er.Sum(nil))
-		sha1 := hex.EncodeToString(sha1er.Sum(nil))
-
-		log.Println("hashes " + md5 + " " + sha1)
+		d.calcedSigs[header.Name] = debSigs{
+			md5:  hex.EncodeToString(md5er.Sum(nil)),
+			sha1: hex.EncodeToString(sha1er.Sum(nil)),
+		}
 	}
 
 	if control.Len() == 0 {
@@ -233,8 +290,30 @@ func (d *debPackage) parseDebPackage() (err error) {
 		return errors.New("parsing control failed, " + err.Error())
 	}
 
-	log.Println(paragraphs)
+	// For each signature file we find, we'll check if we can
+	// validate it, and if it covers all included files
+	d.validated = false
+	for s := range d.signatures {
+		sigs := d.signatures[s].signatures
+		testSigs := make(map[string]debSigs)
+
+		// The calculated signature list includes the file containing
+		// the actual signature we are verifying, we must filter it out
+		for k, v := range d.calcedSigs {
+			if k != s {
+				testSigs[k] = v
+			}
+		}
+
+		if reflect.DeepEqual(testSigs, sigs) {
+			d.validated = true
+			d.signedBy = d.signatures[s].signedBy
+			break
+		}
+	}
+
 	d.controlMap = paragraphs[0]
 	d.parsed = true
+
 	return nil
 }
