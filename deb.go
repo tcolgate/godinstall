@@ -4,6 +4,9 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"crypto/md5"
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -173,22 +176,25 @@ func (d *debPackage) parseDebPackage() (err error) {
 			return err
 		}
 
+		md5er := md5.New()
+		sha1er := sha1.New()
+		hasher := io.MultiWriter(md5er, sha1er)
+
 		switch {
 		case strings.HasPrefix(header.Name, "_gpg"):
 			d.signed = true
 			var sig bytes.Buffer
-			io.Copy(&sig, arReader)
-			signatures[header.Name] = sig.String()
-		case header.Name == "control.tar.gz":
-			/*
-				io.Copy(
-					io.MultiWriter(controlTgz, content),
-					arReader)
-				controlTgz.Close()
-				f, err := os.Open(controlTgz.Name())
-			*/
 
-			gzReader, err := gzip.NewReader(arReader)
+			io.Copy(
+				io.MultiWriter(&sig, hasher),
+				arReader)
+
+			signatures[header.Name] = sig.String()
+			log.Println(sig.String())
+		case header.Name == "control.tar.gz":
+			tee := io.TeeReader(arReader, hasher)
+
+			gzReader, err := gzip.NewReader(tee)
 			if err != nil {
 				return err
 			}
@@ -208,8 +214,13 @@ func (d *debPackage) parseDebPackage() (err error) {
 				}
 			}
 		default:
-			//io.Copy(content, arReader)
+			io.Copy(hasher, arReader)
 		}
+
+		md5 := hex.EncodeToString(md5er.Sum(nil))
+		sha1 := hex.EncodeToString(sha1er.Sum(nil))
+
+		log.Println("hashes " + md5 + " " + sha1)
 	}
 
 	if control.Len() == 0 {
