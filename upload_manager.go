@@ -21,12 +21,13 @@ type UploadSessionManager interface {
 
 // uploadSessionManager is a concreate implmentation of the UploadSessionManager
 type uploadSessionManager struct {
-	TTL             time.Duration
-	TmpDir          *string
-	UploadHook      HookRunner
-	ValidateChanges bool
-	ValidateDebs    bool
-	PubRing         openpgp.EntityList
+	TTL                       time.Duration
+	TmpDir                    *string
+	UploadHook                HookRunner
+	ValidateChanges           bool
+	ValidateChangesSufficient bool
+	ValidateDebs              bool
+	PubRing                   openpgp.EntityList
 
 	finished chan UpdateRequest
 	sessMap  *SafeMap
@@ -37,17 +38,19 @@ func NewUploadSessionManager(
 	tmpDir *string,
 	uploadHook HookRunner,
 	validateChanges bool,
+	validateChangesSufficient bool,
 	validateDebs bool,
 	pubRing openpgp.EntityList,
 	finished chan UpdateRequest,
 ) UploadSessionManager {
 	return &uploadSessionManager{
-		TTL:             TTL,
-		TmpDir:          tmpDir,
-		UploadHook:      uploadHook,
-		ValidateChanges: validateChanges,
-		ValidateDebs:    validateDebs,
-		PubRing:         pubRing,
+		TTL:                       TTL,
+		TmpDir:                    tmpDir,
+		UploadHook:                uploadHook,
+		ValidateChanges:           validateChanges,
+		ValidateChangesSufficient: validateChangesSufficient,
+		ValidateDebs:              validateDebs,
+		PubRing:                   pubRing,
 
 		finished: finished,
 		sessMap:  NewSafeMap(),
@@ -93,9 +96,17 @@ func (usm *uploadSessionManager) AddUploadSession(changesReader io.Reader) (stri
 		return "", err
 	}
 
+	// Should we check signatures on individual debs?
+	var validateDebSign bool
+	if usm.ValidateChanges && changes.validated && usm.ValidateChangesSufficient {
+		validateDebSign = false
+	} else {
+		validateDebSign = usm.ValidateDebs
+	}
+
 	s := NewUploadSession(
 		changes,
-		usm.ValidateDebs,
+		validateDebSign,
 		usm.PubRing,
 		usm.TmpDir,
 		usm.UploadHook,

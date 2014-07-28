@@ -42,6 +42,7 @@ func main() {
 	// Setup CLI flags
 	listenAddress := flag.String("listen", ":3000", "ip:port to listen on")
 	validateChanges := flag.Bool("validateChanges", true, "Validate signatures on changes files")
+	validateChangesSufficient := flag.Bool("validateChangesSufficient", true, "If we are given a signed chnages file, we wont validate individual debs")
 	validateDebs := flag.Bool("validateDebs", false, "Validate signatures on deb files")
 	ttl := flag.String("ttl", "60s", "Session life time")
 	maxReqs := flag.Int("max-requests", 4, "Maximum concurrent requests")
@@ -146,6 +147,7 @@ func main() {
 		tmpDir,
 		NewScriptHook(postUploadHook),
 		*validateChanges,
+		*validateChangesSufficient,
 		*validateDebs,
 		pubRing,
 		updateChan,

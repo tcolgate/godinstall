@@ -248,8 +248,8 @@ func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 		if s.validateDebs {
 			pkg := NewDebPackage(f, s.keyRing)
 
-			signed, _ := pkg.Signed()
-			validated, _ := pkg.Validated()
+			signed, _ := pkg.IsSigned()
+			validated, _ := pkg.IsValidated()
 
 			if !signed || !validated {
 				return errors.New("Package could not be validated")
