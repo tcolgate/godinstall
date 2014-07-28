@@ -25,6 +25,8 @@ type AptServer struct {
 	CookieName string        // The session cookie name for uploads
 	TTL        time.Duration // How long to keep session alive
 
+	AcceptLoneDebs bool // Whether we should allow individual deb uploads
+
 	Repo           AptRepo              // The repository to populate
 	AptGenerator   AptGenerator         // The generator for updating the repo
 	SessionManager UploadSessionManager // The session manager
@@ -179,7 +181,10 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 				} else {
 					if session == "" {
 						if changesReader == nil {
-							err = errors.New("No debian changes file in request")
+							if !a.AcceptLoneDebs {
+								err = errors.New("No debian changes file in request")
+							} else {
+							}
 						} else {
 							session, err = a.SessionManager.AddUploadSession(changesReader)
 							if err != nil {

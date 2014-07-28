@@ -41,6 +41,7 @@ func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
 func main() {
 	// Setup CLI flags
 	listenAddress := flag.String("listen", ":3000", "ip:port to listen on")
+	acceptLoneDebs := flag.Bool("accpetLoneDebs", true, "Accept individual debs for upload")
 	validateChanges := flag.Bool("validateChanges", true, "Validate signatures on changes files")
 	validateChangesSufficient := flag.Bool("validateChangesSufficient", true, "If we are given a signed chnages file, we wont validate individual debs")
 	validateDebs := flag.Bool("validateDebs", false, "Validate signatures on deb files")
@@ -154,10 +155,11 @@ func main() {
 	)
 
 	server := &AptServer{
-		MaxReqs:      *maxReqs,
-		CookieName:   *cookieName,
-		PreAftpHook:  NewScriptHook(preAftpHook),
-		PostAftpHook: NewScriptHook(postAftpHook),
+		MaxReqs:        *maxReqs,
+		CookieName:     *cookieName,
+		PreAftpHook:    NewScriptHook(preAftpHook),
+		PostAftpHook:   NewScriptHook(postAftpHook),
+		AcceptLoneDebs: acceptLoneDebs,
 
 		Repo:           &aptRepo,
 		AptGenerator:   aptGenerator,
