@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
@@ -14,7 +15,8 @@ import (
 // session  It creates sessions, times them out, amd acts as a request
 // muxer to pass requests on to invidiuvidual managers
 type UploadSessionManager interface {
-	AddUploadSession(io.Reader) (string, error)
+	AddDeb(*multipart.FileHeader) AptServerResponder
+	AddChangesSession(io.Reader) (string, error)
 	Status(string) AptServerResponder
 	AddItems(string, []*multipart.FileHeader) AptServerResponder
 }
@@ -76,9 +78,53 @@ func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) 
 	}
 }
 
+// Add a Deb, this probably shouldn't be here, but we don't
+// need an upladSession, as they are focused too much on
+// changes files
+func (usm *uploadSessionManager) AddDeb(upload *multipart.FileHeader) (resp AptServerResponder) {
+	storeFilename := *usm.TmpDir + "/debupload/" + upload.Filename
+	storeFile, err := os.Open(storeFilename)
+
+	reader := io.TeeReader(
+
+	pkg := NewDebPackage(storeFile, usm.PubRing)
+
+	err = pkg.Parse()
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Package file not valid, "+err.Error(),
+		)
+	}
+
+	if usm.ValidateDebs {
+		signed, _ := pkg.IsSigned()
+		validated, _ := pkg.IsValidated()
+
+		if !signed || !validated {
+			resp = AptServerMessage(
+				http.StatusBadRequest,
+				"Pacakge could not be validated",
+			)
+		} else {
+			signedBy, _ := pkg.SignedBy()
+		}
+	}
+
+	err = usm.UploadHook.Run(storeFilename)
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Post upload hook failed",
+		)
+	}
+
+	return
+}
+
 // Add a new upload session based on the details from the passed
 // debian changes file.
-func (usm *uploadSessionManager) AddUploadSession(changesReader io.Reader) (string, error) {
+func (usm *uploadSessionManager) AddChangesSession(changesReader io.Reader) (string, error) {
 	var err error
 
 	changes, err := ParseDebianChanges(changesReader, usm.PubRing)

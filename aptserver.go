@@ -181,12 +181,25 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 				} else {
 					if session == "" {
 						if changesReader == nil {
+							// Not overly keen on having this here.
 							if !a.AcceptLoneDebs {
 								err = errors.New("No debian changes file in request")
 							} else {
+								if len(otherParts) != 1 {
+									if !strings.HasSuffix(otherParts[0].Filename, ".deb") {
+										err = errors.New("Lone files for upload must end in .deb")
+									}
+
+									err = a.SessionManager.AddDeb(otherParts[0])
+									if err != nil {
+										err = errors.New(".deb file upload failed, " + err.Error())
+									}
+								} else {
+									err = errors.New("Too many files in upload request without changes file present")
+								}
 							}
 						} else {
-							session, err = a.SessionManager.AddUploadSession(changesReader)
+							session, err = a.SessionManager.AddChangesSession(changesReader)
 							if err != nil {
 								resp = AptServerMessage(http.StatusBadRequest, err.Error())
 							} else {

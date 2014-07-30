@@ -23,6 +23,7 @@ import (
 
 // An interface for describing a debian package.
 type DebPackageInfoer interface {
+	Parse() error
 	Name() (string, error)
 	Version() (string, error)
 	Description() (string, error)
@@ -115,6 +116,17 @@ func NewDebPackage(r io.Reader, kr openpgp.EntityList) DebPackageInfoer {
 		reader:  r,
 		keyRing: kr,
 	}
+}
+
+// Does this package contain signatures
+func (d *debPackage) Parse() error {
+	var err error
+
+	if !d.parsed {
+		err = d.parseDebPackage()
+	}
+
+	return err
 }
 
 // Does this package contain signatures
