@@ -23,18 +23,6 @@ type DebChanges struct {
 	Files     map[string]*UploadItem // Descriptions of files to be included in this upload
 }
 
-// UploadItem describes a specific item to be uploaded along
-// with the changes file
-type UploadItem struct {
-	Filename string
-	Size     string
-	Md5      string
-	Sha1     string
-	Sha256   string
-	Uploaded bool
-	data     io.Reader
-}
-
 // Parse a debian chnages file into a DebChanges object and verify any signature
 // against keys in PHP keyring kr.
 //

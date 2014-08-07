@@ -17,6 +17,18 @@ import (
 	"code.google.com/p/go.crypto/openpgp"
 )
 
+// UploadItem describes a specific item to be uploaded along
+// with the changes file
+type UploadItem struct {
+	Filename string
+	Size     string
+	Md5      string
+	Sha1     string
+	Sha256   string
+	Uploaded bool
+	data     io.Reader
+}
+
 // This defines an interface to an individual upload session
 type UploadSessioner interface {
 	SessionID() string                      // return the UUID for this session
