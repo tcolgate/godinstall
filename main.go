@@ -159,7 +159,7 @@ func main() {
 		CookieName:     *cookieName,
 		PreAftpHook:    NewScriptHook(preAftpHook),
 		PostAftpHook:   NewScriptHook(postAftpHook),
-		AcceptLoneDebs: acceptLoneDebs,
+		AcceptLoneDebs: *acceptLoneDebs,
 
 		Repo:           &aptRepo,
 		AptGenerator:   aptGenerator,

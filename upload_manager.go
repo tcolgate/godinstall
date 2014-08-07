@@ -85,8 +85,6 @@ func (usm *uploadSessionManager) AddDeb(upload *multipart.FileHeader) (resp AptS
 	storeFilename := *usm.TmpDir + "/debupload/" + upload.Filename
 	storeFile, err := os.Open(storeFilename)
 
-	reader := io.TeeReader(
-
 	pkg := NewDebPackage(storeFile, usm.PubRing)
 
 	err = pkg.Parse()
@@ -107,7 +105,8 @@ func (usm *uploadSessionManager) AddDeb(upload *multipart.FileHeader) (resp AptS
 				"Pacakge could not be validated",
 			)
 		} else {
-			signedBy, _ := pkg.SignedBy()
+			//signedBy, _ := pkg.SignedBy()
+			pkg.SignedBy()
 		}
 	}
 
