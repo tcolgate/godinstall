@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"strconv"
 	"strings"
 
 	"code.google.com/p/go.crypto/openpgp"
@@ -96,9 +97,10 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *DebChanges, err 
 	for _, f := range files {
 		fileDesc := strings.Fields(f)
 		if len(fileDesc) == 5 {
+			size, _ := strconv.ParseInt(fileDesc[1], 10, 64)
 			cf := UploadItem{
 				Filename: fileDesc[4],
-				Size:     fileDesc[1],
+				Size:     size,
 				Md5:      fileDesc[0],
 			}
 			c.Files[cf.Filename] = &cf

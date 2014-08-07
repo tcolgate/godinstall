@@ -129,14 +129,14 @@ uiTJMgKpAOxBFeEzO1quFyWnQePIjQ2zWVaTwqDPiZNQ6+377gCrC4Fu+SYdmlQ=
 var testResult = map[string]UploadItem{
 	"collectd_5.4.0-3.dsc": UploadItem{
 		Filename: "collectd_5.4.0-3.dsc",
-		Size:     "2416",
+		Size:     2416,
 		Md5:      "cd9aa41b337352fd160f326523a9c3d8",
 		Sha1:     "7670839693da39075134c1a1f5faad6623df70af",
 		Sha256:   "c0679d60f28ceecd09b3c000361c691e373dba599e3878135bc36bede14e109d",
 	},
 	"collectd_5.4.0-3.diff.gz": UploadItem{
 		Filename: "collectd_5.4.0-3.diff.gz",
-		Size:     "76417",
+		Size:     76417,
 		Md5:      "d1270867f1c9517dd92016ea9f2d5afe",
 		Sha1:     "8f06307bf1c17b83351fccdd7a93b4a822ecbdf4",
 		Sha256:   "e6d7f21737d2146a9bb30a46137fbd0f00be7971e8c3edc6e66a5981498a261e",

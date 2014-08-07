@@ -5,7 +5,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
@@ -82,41 +81,19 @@ func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) 
 // need an upladSession, as they are focused too much on
 // changes files
 func (usm *uploadSessionManager) AddDeb(upload *multipart.FileHeader) (resp AptServerResponder) {
-	storeFilename := *usm.TmpDir + "/debupload/" + upload.Filename
-	storeFile, err := os.Open(storeFilename)
+	s := NewLoneDebSession(
+		usm.ValidateDebs,
+		usm.PubRing,
+		usm.TmpDir,
+		usm.UploadHook,
+		usm.finished,
+	)
 
-	pkg := NewDebPackage(storeFile, usm.PubRing)
-
-	err = pkg.Parse()
-	if err != nil {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Package file not valid, "+err.Error(),
-		)
-	}
-
-	if usm.ValidateDebs {
-		signed, _ := pkg.IsSigned()
-		validated, _ := pkg.IsValidated()
-
-		if !signed || !validated {
-			resp = AptServerMessage(
-				http.StatusBadRequest,
-				"Pacakge could not be validated",
-			)
-		} else {
-			//signedBy, _ := pkg.SignedBy()
-			pkg.SignedBy()
-		}
-	}
-
-	err = usm.UploadHook.Run(storeFilename)
-	if err != nil {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Post upload hook failed",
-		)
-	}
+	reader, _ := upload.Open()
+	resp = s.AddItem(&UploadItem{
+		Filename: upload.Filename,
+		data:     reader,
+	})
 
 	return
 }

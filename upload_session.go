@@ -21,11 +21,12 @@ import (
 // with the changes file
 type UploadItem struct {
 	Filename string
-	Size     string
+	Size     int64
 	Md5      string
 	Sha1     string
 	Sha256   string
 	Uploaded bool
+	SignedBy []string
 	data     io.Reader
 }
 
@@ -263,11 +264,15 @@ func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
 			signed, _ := pkg.IsSigned()
 			validated, _ := pkg.IsValidated()
 
-			if !signed || !validated {
-				return errors.New("Package could not be validated")
-			} else {
+			if signed && validated {
 				signedBy, _ := pkg.SignedBy()
-				log.Println(*signedBy)
+				i := 0
+				for k, _ := range signedBy.Identities {
+					expectedFile.SignedBy[i] = k
+					i++
+				}
+			} else {
+				return errors.New("Package could not be validated")
 			}
 		}
 	}
@@ -292,6 +297,189 @@ func (s *changesSession) MarshalJSON() (j []byte, err error) {
 	}{
 		s.SessionId,
 		*s.changes,
+	}
+	j, err = json.Marshal(resp)
+	return
+}
+
+// An UploadSession for uploading lone deb packages
+type loneDebSession struct {
+	SessionId    string             // Name of the session
+	validateDebs bool               // Validate uploaded. deb files
+	keyRing      openpgp.EntityList // Keyring for validation
+	dir          string             // Temporary directory for storage
+	requireSig   bool               // Check debian package signatures
+	uploadHook   HookRunner         // A hook to run after a successful upload
+	file         *UploadItem
+
+	// output session
+	finished chan UpdateRequest // A channel to anounce completion and trigger a repo update
+}
+
+func NewLoneDebSession(
+	validateDebs bool,
+	keyRing openpgp.EntityList,
+	tmpDirBase *string,
+	uploadHook HookRunner,
+	finished chan UpdateRequest,
+) UploadSessioner {
+	var s loneDebSession
+	s.validateDebs = validateDebs
+	s.keyRing = keyRing
+	s.finished = finished
+	s.SessionId = uuid.New()
+	s.uploadHook = uploadHook
+	s.dir = *tmpDirBase + "/" + s.SessionId
+
+	os.Mkdir(s.dir, os.FileMode(0755))
+	os.Mkdir(s.dir+"/upload", os.FileMode(0755))
+
+	return &s
+}
+
+func (s *loneDebSession) SessionID() string {
+	return s.SessionId
+}
+
+func (s *loneDebSession) Directory() string {
+	return s.dir
+}
+
+// Should never get called
+func (s *loneDebSession) Close() {
+	return
+}
+
+// Should never get called
+func (s *loneDebSession) DoneChan() chan struct{} {
+	dummy := make(chan struct{})
+	return dummy
+}
+
+func (s *loneDebSession) Status() AptServerResponder {
+	return AptServerMessage(http.StatusBadRequest, "Not done yet")
+}
+
+func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
+	defer os.RemoveAll(s.dir)
+	tmpFilename := s.dir + "/upload/" + upload.Filename
+	storeFilename := s.dir + "/" + upload.Filename
+	tmpfile, err := os.Create(tmpFilename)
+
+	md5er := md5.New()
+	sha1er := sha1.New()
+	sha256er := sha256.New()
+	hasher := io.MultiWriter(md5er, sha1er, sha256er)
+	tee := io.TeeReader(upload.data, hasher)
+
+	upload.Size, err = io.Copy(tmpfile, tee)
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Package upload failed, "+err.Error(),
+		)
+		return
+	}
+
+	err = tmpfile.Close()
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Package upload failed, "+err.Error(),
+		)
+		return
+	}
+
+	tmpfile, err = os.Open(tmpFilename)
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Package upload failed, "+err.Error(),
+		)
+		return
+	}
+
+	pkg := NewDebPackage(tmpfile, s.keyRing)
+
+	err = pkg.Parse()
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Package file not valid, "+err.Error(),
+		)
+		return
+	}
+
+	signers := make([]string, 1)
+	if s.validateDebs {
+		signed, _ := pkg.IsSigned()
+		validated, _ := pkg.IsValidated()
+
+		if signed && validated {
+			signedBy, _ := pkg.SignedBy()
+			i := 0
+			for k, _ := range signedBy.Identities {
+				signers[i] = k
+				i++
+			}
+		} else {
+			resp = AptServerMessage(
+				http.StatusBadRequest,
+				"Package could not be validated",
+			)
+			return
+		}
+	}
+
+	err = os.Rename(tmpFilename, storeFilename)
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Package file not valid, "+err.Error(),
+		)
+	}
+
+	err = s.uploadHook.Run(storeFilename)
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Post upload hook failed",
+		)
+	}
+
+	s.file = upload
+	s.file.Uploaded = true
+	s.file.Md5 = hex.EncodeToString(md5er.Sum(nil))
+	s.file.Sha1 = hex.EncodeToString(sha1er.Sum(nil))
+	s.file.Sha256 = hex.EncodeToString(sha256er.Sum(nil))
+	s.file.SignedBy = signers
+
+	// We're done, lets call out to the server to update
+	// with the contents of this session
+	updater := make(chan AptServerResponder)
+	s.finished <- UpdateRequest{
+		session: s,
+		resp:    updater,
+	}
+
+	updateresp := <-updater
+
+	return updateresp
+}
+
+func (s *loneDebSession) Items() map[string]*UploadItem {
+	result := make(map[string]*UploadItem)
+	result[s.file.Filename] = s.file
+	return result
+}
+
+func (s *loneDebSession) MarshalJSON() (j []byte, err error) {
+	resp := struct {
+		SessionId string
+		File      UploadItem
+	}{
+		s.SessionId,
+		*s.file,
 	}
 	j, err = json.Marshal(resp)
 	return

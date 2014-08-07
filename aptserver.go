@@ -185,15 +185,15 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 							if !a.AcceptLoneDebs {
 								err = errors.New("No debian changes file in request")
 							} else {
-								if len(otherParts) != 1 {
+								if len(otherParts) == 1 {
 									if !strings.HasSuffix(otherParts[0].Filename, ".deb") {
 										err = errors.New("Lone files for upload must end in .deb")
 									}
 
-									err = a.SessionManager.AddDeb(otherParts[0])
-									if err != nil {
-										err = errors.New(".deb file upload failed, " + err.Error())
-									}
+									resp := a.SessionManager.AddDeb(otherParts[0])
+									w.WriteHeader(resp.GetStatus())
+									w.Write(resp.GetMessage())
+									return
 								} else {
 									err = errors.New("Too many files in upload request without changes file present")
 								}

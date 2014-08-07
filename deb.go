@@ -250,6 +250,8 @@ func (d *debPackage) parseDebPackage() (err error) {
 	// We'll keep a running set of file signatures to
 	// compare with any included signatures
 	d.calcedSigs = make(map[string]debSigs)
+	d.signed = false
+	d.validated = false
 
 	// We walk over each file in the ar archive, parsing
 	// as we go
