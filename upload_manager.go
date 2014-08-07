@@ -208,7 +208,7 @@ func (usm *uploadSessionManager) AddItems(
 	if len(otherParts) > 0 {
 		for _, f := range otherParts {
 			reader, _ := f.Open()
-			resp = session.AddItem(&ChangesItem{
+			resp = session.AddItem(&UploadItem{
 				Filename: f.Filename,
 				data:     reader,
 			})

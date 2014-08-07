@@ -17,19 +17,19 @@ import (
 	"code.google.com/p/go.crypto/openpgp"
 )
 
-// This defines an interface to an individual upload session for a changes
+// This defines an interface to an individual upload session
 type UploadSessioner interface {
-	SessionID() string                       // return the UUID for this session
-	Directory() string                       // returnt he base directory for the verified uploaded files
-	Changes() *DebChanges                    // return the changes file for this session
-	AddItem(*ChangesItem) AptServerResponder // Add the given item to this session
-	Close()                                  // Close, and clear up, any remaining files
-	DoneChan() chan struct{}                 // This returns a channel that anounces copletion
-	Status() AptServerResponder              // Return the status of this session
-	json.Marshaler                           // All session implementations should serialize to JSON
+	SessionID() string                      // return the UUID for this session
+	Directory() string                      // returnt he base directory for the verified uploaded files
+	Changes() *DebChanges                   // return the changes file for this session
+	AddItem(*UploadItem) AptServerResponder // Add the given item to this session
+	Close()                                 // Close, and clear up, any remaining files
+	DoneChan() chan struct{}                // This returns a channel that anounces copletion
+	Status() AptServerResponder             // Return the status of this session
+	json.Marshaler                          // All session implementations should serialize to JSON
 }
 
-// Concreate implementation of an upload session
+// An UploadSession for uploading using a changes file
 type changesSession struct {
 	SessionId    string             // Name of the session
 	changes      *DebChanges        // The changes file for this session
@@ -85,7 +85,7 @@ func NewChangesSession(
 type closeMsg struct{}
 
 type addItemMsg struct {
-	file *ChangesItem
+	file *UploadItem
 	resp chan AptServerResponder
 }
 
@@ -187,7 +187,7 @@ func (s *changesSession) Status() AptServerResponder {
 	return resp
 }
 
-func (s *changesSession) AddItem(upload *ChangesItem) AptServerResponder {
+func (s *changesSession) AddItem(upload *UploadItem) AptServerResponder {
 	done := make(chan AptServerResponder)
 	go func() {
 		s.incoming <- addItemMsg{
@@ -199,7 +199,7 @@ func (s *changesSession) AddItem(upload *ChangesItem) AptServerResponder {
 	return resp
 }
 
-func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
+func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
 	// Check that there is an upload slot
 	expectedFile, ok := s.changes.Files[upload.Filename]
 	if !ok {

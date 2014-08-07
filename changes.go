@@ -17,15 +17,15 @@ import (
 // DebChanges represents a debian changes file. A changes file
 // describes a set of files for upload to a repositry
 type DebChanges struct {
-	signed    bool                    // Whether this changes file signed
-	validated bool                    //  Whether the signature is valid
-	signedBy  *openpgp.Entity         // The pgp entity that signed the file
-	Files     map[string]*ChangesItem // Descriptions of files to be included in this upload
+	signed    bool                   // Whether this changes file signed
+	validated bool                   //  Whether the signature is valid
+	signedBy  *openpgp.Entity        // The pgp entity that signed the file
+	Files     map[string]*UploadItem // Descriptions of files to be included in this upload
 }
 
-// ChangesItem describes a specific item to be uploaded along
+// UploadItem describes a specific item to be uploaded along
 // with the changes file
-type ChangesItem struct {
+type UploadItem struct {
 	Filename string
 	Size     string
 	Md5      string
@@ -103,12 +103,12 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *DebChanges, err 
 		return nil, errors.New("No Files section in changes")
 	}
 
-	c.Files = make(map[string]*ChangesItem)
+	c.Files = make(map[string]*UploadItem)
 	files := strings.Split(filesStr, "\n")
 	for _, f := range files {
 		fileDesc := strings.Fields(f)
 		if len(fileDesc) == 5 {
-			cf := ChangesItem{
+			cf := UploadItem{
 				Filename: fileDesc[4],
 				Size:     fileDesc[1],
 				Md5:      fileDesc[0],
