@@ -33,7 +33,7 @@ type UploadItem struct {
 type UploadSessioner interface {
 	SessionID() string                      // return the UUID for this session
 	Directory() string                      // returnt he base directory for the verified uploaded files
-	Changes() *DebChanges                   // return the changes file for this session
+	Items() map[string]*UploadItem          // return the changes file for this session
 	AddItem(*UploadItem) AptServerResponder // Add the given item to this session
 	Close()                                 // Close, and clear up, any remaining files
 	DoneChan() chan struct{}                // This returns a channel that anounces copletion
@@ -176,8 +176,8 @@ func (s *changesSession) Directory() string {
 	return s.dir
 }
 
-func (s *changesSession) Changes() *DebChanges {
-	return s.changes
+func (s *changesSession) Items() map[string]*UploadItem {
+	return s.changes.Files
 }
 
 func (s *changesSession) Close() {

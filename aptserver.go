@@ -284,7 +284,7 @@ func (a *AptServer) Updater() {
 				}
 
 				//Move the files into the pool
-				for _, f := range session.Changes().Files {
+				for _, f := range session.Items() {
 					dstdir := a.Repo.PoolFilePath(f.Filename)
 					stat, err := os.Lstat(dstdir)
 
