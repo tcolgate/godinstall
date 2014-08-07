@@ -150,7 +150,7 @@ func (usm *uploadSessionManager) AddChangesSession(changesReader io.Reader) (str
 		validateDebSign = usm.ValidateDebs
 	}
 
-	s := NewUploadSession(
+	s := NewChangesSession(
 		changes,
 		validateDebSign,
 		usm.PubRing,

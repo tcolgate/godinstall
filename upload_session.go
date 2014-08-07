@@ -30,7 +30,7 @@ type UploadSessioner interface {
 }
 
 // Concreate implementation of an upload session
-type uploadSession struct {
+type changesSession struct {
 	SessionId    string             // Name of the session
 	changes      *DebChanges        // The changes file for this session
 	validateDebs bool               // Validate uploaded. deb files
@@ -51,7 +51,7 @@ type uploadSession struct {
 	finished chan UpdateRequest // A channel to anounce completion and trigger a repo update
 }
 
-func NewUploadSession(
+func NewChangesSession(
 	changes *DebChanges,
 	validateDebs bool,
 	keyRing openpgp.EntityList,
@@ -60,7 +60,7 @@ func NewUploadSession(
 	done chan struct{},
 	finished chan UpdateRequest,
 ) UploadSessioner {
-	var s uploadSession
+	var s changesSession
 	s.validateDebs = validateDebs
 	s.keyRing = keyRing
 	s.done = done
@@ -95,7 +95,7 @@ type getStatusMsg struct {
 
 // All item additions to this session are
 // serialized through this routine
-func (s *uploadSession) handler() {
+func (s *changesSession) handler() {
 	defer func() {
 		err := os.RemoveAll(s.dir)
 		if err != nil {
@@ -156,27 +156,27 @@ func (s *uploadSession) handler() {
 	}
 }
 
-func (s *uploadSession) SessionID() string {
+func (s *changesSession) SessionID() string {
 	return s.SessionId
 }
 
-func (s *uploadSession) Directory() string {
+func (s *changesSession) Directory() string {
 	return s.dir
 }
 
-func (s *uploadSession) Changes() *DebChanges {
+func (s *changesSession) Changes() *DebChanges {
 	return s.changes
 }
 
-func (s *uploadSession) Close() {
+func (s *changesSession) Close() {
 	s.close <- closeMsg{}
 }
 
-func (s *uploadSession) DoneChan() chan struct{} {
+func (s *changesSession) DoneChan() chan struct{} {
 	return s.done
 }
 
-func (s *uploadSession) Status() AptServerResponder {
+func (s *changesSession) Status() AptServerResponder {
 	done := make(chan AptServerResponder)
 	go func() {
 		s.getstatus <- getStatusMsg{
@@ -187,7 +187,7 @@ func (s *uploadSession) Status() AptServerResponder {
 	return resp
 }
 
-func (s *uploadSession) AddItem(upload *ChangesItem) AptServerResponder {
+func (s *changesSession) AddItem(upload *ChangesItem) AptServerResponder {
 	done := make(chan AptServerResponder)
 	go func() {
 		s.incoming <- addItemMsg{
@@ -199,7 +199,7 @@ func (s *uploadSession) AddItem(upload *ChangesItem) AptServerResponder {
 	return resp
 }
 
-func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
+func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 	// Check that there is an upload slot
 	expectedFile, ok := s.changes.Files[upload.Filename]
 	if !ok {
@@ -273,7 +273,7 @@ func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 	return
 }
 
-func (s *uploadSession) MarshalJSON() (j []byte, err error) {
+func (s *changesSession) MarshalJSON() (j []byte, err error) {
 	resp := struct {
 		SessionId string
 		Changes   DebChanges
