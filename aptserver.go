@@ -276,11 +276,11 @@ func (a *AptServer) Updater() {
 
 				a.aptLocks.WriteLock()
 
-				_, err = a.PreAftpHook.Run(session.SessionID())
-				if err != nil {
+				hookResult := a.PreAftpHook.Run(session.SessionID())
+				if hookResult.err != nil {
 					resp = AptServerMessage(
 						http.StatusBadRequest,
-						"Pre apt-ftparchive hook failed, "+err.Error())
+						"Pre apt-ftparchive hook failed, "+hookResult.err.Error())
 				}
 
 				//Move the files into the pool
@@ -314,9 +314,9 @@ func (a *AptServer) Updater() {
 				if err != nil {
 					resp = AptServerMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
 				} else {
-					_, err = a.PostAftpHook.Run(session.SessionID())
-					if err != nil {
-						log.Println("Error executing post-aftp-hook, " + err.Error())
+					hookResult := a.PostAftpHook.Run(session.SessionID())
+					if hookResult.err != nil {
+						log.Println("Error executing post-aftp-hook, " + hookResult.err.Error())
 					}
 				}
 

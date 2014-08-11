@@ -20,14 +20,16 @@ import (
 // UploadItem describes a specific item to be uploaded along
 // with the changes file
 type UploadItem struct {
-	Filename string
-	Size     int64
-	Md5      string
-	Sha1     string
-	Sha256   string
-	Uploaded bool
-	SignedBy []string
-	data     io.Reader
+	Filename         string
+	Size             int64
+	Md5              string
+	Sha1             string
+	Sha256           string
+	Uploaded         bool
+	SignedBy         []string
+	UploadHookResult HookOutput
+
+	data io.Reader
 }
 
 // This defines an interface to an individual upload session
@@ -277,8 +279,8 @@ func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
 		}
 	}
 
-	_, err = s.uploadHook.Run(tmpFilename)
-	if err != nil {
+	hookResult := s.uploadHook.Run(tmpFilename)
+	if hookResult.err != nil {
 		return errors.New("Post upload hook failed, ")
 	}
 
@@ -439,8 +441,8 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 		)
 	}
 
-	_, err = s.uploadHook.Run(storeFilename)
-	if err != nil {
+	hookResult := s.uploadHook.Run(storeFilename)
+	if hookResult.err != nil {
 		resp = AptServerMessage(
 			http.StatusBadRequest,
 			"Post upload hook failed",
@@ -448,6 +450,7 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 	}
 
 	s.file = upload
+	s.file.UploadHookResult = hookResult
 	s.file.Uploaded = true
 	s.file.Md5 = hex.EncodeToString(md5er.Sum(nil))
 	s.file.Sha1 = hex.EncodeToString(sha1er.Sum(nil))
