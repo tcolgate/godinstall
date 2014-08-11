@@ -2,9 +2,15 @@ package main
 
 import "os/exec"
 
+// Output
+type HookOutput struct {
+	output []byte // Output of the commands
+	err    error  // Error information as returned by the hook
+}
+
 // This implements an interface to external hooks
 type HookRunner interface {
-	Run(...string) error
+	Run(...string) HookOutput
 }
 
 // Hooks to external scripts
@@ -13,18 +19,20 @@ type hookRunnerCmdExec struct {
 }
 
 func NewScriptHook(cmd *string) HookRunner {
-	newhook := hookRunnerCmdExec{cmd: cmd}
+	result := hookRunnerCmdExec{cmd: cmd}
 
-	return newhook
+	return result
 }
 
-func (h hookRunnerCmdExec) Run(args ...string) (err error) {
+func (h hookRunnerCmdExec) Run(args ...string) HookOutput {
+	var result HookOutput
+
 	if h.cmd != nil && *h.cmd != "" {
 		cmd := exec.Command(*h.cmd)
 		cmd.Args = args
-		err = cmd.Run()
+		result.output, result.err = cmd.CombinedOutput()
 	}
-	return
+	return result
 }
 
 // Hooks that are internal functions
@@ -33,7 +41,7 @@ type hookRunnerFuncExec struct {
 	f hookFunc
 }
 
-type hookFunc func([]string) error
+type hookFunc func([]string) ([]byte, error)
 
 func NewScriptHookr(hook hookFunc) HookRunner {
 	newhook := hookRunnerFuncExec{f: hook}
@@ -41,9 +49,11 @@ func NewScriptHookr(hook hookFunc) HookRunner {
 	return newhook
 }
 
-func (h hookRunnerFuncExec) Run(args ...string) (err error) {
+func (h hookRunnerFuncExec) Run(args ...string) HookOutput {
+	var result HookOutput
+
 	if h.f != nil {
-		err = h.f(args)
+		result.output, result.err = h.f(args)
 	}
-	return
+	return result
 }

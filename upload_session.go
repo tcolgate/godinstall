@@ -277,7 +277,7 @@ func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
 		}
 	}
 
-	err = s.uploadHook.Run(tmpFilename)
+	_, err = s.uploadHook.Run(tmpFilename)
 	if err != nil {
 		return errors.New("Post upload hook failed, ")
 	}
@@ -439,7 +439,7 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 		)
 	}
 
-	err = s.uploadHook.Run(storeFilename)
+	_, err = s.uploadHook.Run(storeFilename)
 	if err != nil {
 		resp = AptServerMessage(
 			http.StatusBadRequest,

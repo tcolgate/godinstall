@@ -276,7 +276,7 @@ func (a *AptServer) Updater() {
 
 				a.aptLocks.WriteLock()
 
-				err = a.PreAftpHook.Run(session.SessionID())
+				_, err = a.PreAftpHook.Run(session.SessionID())
 				if err != nil {
 					resp = AptServerMessage(
 						http.StatusBadRequest,
@@ -314,7 +314,7 @@ func (a *AptServer) Updater() {
 				if err != nil {
 					resp = AptServerMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
 				} else {
-					err = a.PostAftpHook.Run(session.SessionID())
+					_, err = a.PostAftpHook.Run(session.SessionID())
 					if err != nil {
 						log.Println("Error executing post-aftp-hook, " + err.Error())
 					}
