@@ -439,6 +439,7 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 			http.StatusBadRequest,
 			"Package file not valid, "+err.Error(),
 		)
+		return
 	}
 
 	hookResult := s.uploadHook.Run(storeFilename)
@@ -447,6 +448,7 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 			http.StatusBadRequest,
 			"Post upload hook failed",
 		)
+		return
 	}
 
 	s.file = upload
