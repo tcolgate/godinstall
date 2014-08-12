@@ -41,10 +41,6 @@ func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
 func main() {
 	// Setup CLI flags
 	listenAddress := flag.String("listen", ":3000", "ip:port to listen on")
-	acceptLoneDebs := flag.Bool("acceptLoneDebs", true, "Accept individual debs for upload")
-	validateChanges := flag.Bool("validateChanges", true, "Validate signatures on changes files")
-	validateChangesSufficient := flag.Bool("validateChangesSufficient", true, "If we are given a signed chnages file, we wont validate individual debs")
-	validateDebs := flag.Bool("validateDebs", false, "Validate signatures on deb files")
 	ttl := flag.String("ttl", "60s", "Session life time")
 	maxReqs := flag.Int("max-requests", 4, "Maximum concurrent requests")
 	repoBase := flag.String("repo-base", "/tmp/myrepo", "Location of repository root")
@@ -54,10 +50,14 @@ func main() {
 	aftpPath := flag.String("aftp-bin-path", "/usr/bin/apt-ftparchive", "Location of apt-ftparchive binary")
 	aftpConfig := flag.String("config", "/etc/aptconfig", "Location of apt-ftparchive configuration file")
 	releaseConfig := flag.String("rel-config", "/etc/aptconfig", "Location of apt-ftparchive releases file")
-	postUploadHook := flag.String("post-upload-hook", "", "Script to run after for each uploaded file")
+	uploadHook := flag.String("upload-hook", "", "Script to run after for each uploaded file")
 	preAftpHook := flag.String("pre-aftp-hook", "", "Script to run before apt-ftparchive")
 	postAftpHook := flag.String("post-aftp-hook", "", "Script to run after apt-ftparchive")
 	poolPattern := flag.String("pool-pattern", "[a-z]|lib[a-z]", "A pattern to match package prefixes to split into directories in the pool")
+	validateChanges := flag.Bool("validate-changes", true, "Validate signatures on changes files")
+	validateChangesSufficient := flag.Bool("validate-changes-sufficient", true, "If we are given a signed chnages file, we wont validate individual debs")
+	acceptLoneDebs := flag.Bool("accept-lone-debs", true, "Accept individual debs for upload")
+	validateDebs := flag.Bool("validate-debs", true, "Validate signatures on deb files")
 	pubringFile := flag.String("gpg-pubring", "", "Public keyring file")
 	privringFile := flag.String("gpg-privring", "", "Private keyring file")
 	signerEmail := flag.String("signer-email", "", "Key Email to use for signing releases")
@@ -146,7 +146,7 @@ func main() {
 	uploadSessionManager := NewUploadSessionManager(
 		expire,
 		tmpDir,
-		NewScriptHook(postUploadHook),
+		NewScriptHook(uploadHook),
 		*validateChanges,
 		*validateChangesSufficient,
 		*validateDebs,
