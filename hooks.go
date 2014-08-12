@@ -1,11 +1,26 @@
 package main
 
-import "os/exec"
+import (
+	"encoding/json"
+	"os/exec"
+)
 
 // Output
 type HookOutput struct {
 	output []byte // Output of the commands
 	err    error  // Error information as returned by the hook
+}
+
+func (ho HookOutput) MarshalJSON() (j []byte, err error) {
+	resp := struct {
+		Output string
+		Error  error
+	}{
+		string(ho.output),
+		ho.err,
+	}
+	j, err = json.Marshal(resp)
+	return
 }
 
 // This implements an interface to external hooks
