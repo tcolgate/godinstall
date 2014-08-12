@@ -260,6 +260,27 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 
 // Updater is a go rourtine that repond to request to run
 // the apt regeneration
+
+type CompletedUpload struct {
+	Session            UploadSessioner
+	PreAftpHookOutput  HookOutput
+	PostAftpHookOutput HookOutput
+}
+
+func (s CompletedUpload) MarshalJSON() (j []byte, err error) {
+	resp := struct {
+		Session            UploadSessioner
+		PreAftpHookOutput  HookOutput
+		PostAftpHookOutput HookOutput
+	}{
+		s.Session,
+		s.PreAftpHookOutput,
+		s.PostAftpHookOutput,
+	}
+	j, err = json.Marshal(resp)
+	return
+}
+
 func (a *AptServer) Updater() {
 	for {
 		select {
@@ -269,10 +290,13 @@ func (a *AptServer) Updater() {
 				var resp AptServerResponder
 
 				session := msg.session
+				completedsession := CompletedUpload{
+					Session: session,
+				}
 
 				os.Chdir(session.Directory()) // Chdir may be bad here
 
-				resp = AptServerMessage(http.StatusOK, session)
+				resp = AptServerMessage(http.StatusOK, completedsession)
 
 				a.aptLocks.WriteLock()
 
@@ -280,7 +304,9 @@ func (a *AptServer) Updater() {
 				if hookResult.err != nil {
 					resp = AptServerMessage(
 						http.StatusBadRequest,
-						"Pre apt-ftparchive hook failed, "+hookResult.err.Error())
+						"Pre apt-ftparchive "+hookResult.Error())
+				} else {
+					completedsession.PreAftpHookOutput = hookResult
 				}
 
 				//Move the files into the pool
@@ -316,7 +342,9 @@ func (a *AptServer) Updater() {
 				} else {
 					hookResult := a.PostAftpHook.Run(session.SessionID())
 					if hookResult.err != nil {
-						log.Println("Error executing post-aftp-hook, " + hookResult.err.Error())
+						log.Println("Post aftp-archive " + hookResult.Error())
+					} else {
+						completedsession.PostAftpHookOutput = hookResult
 					}
 				}
 
