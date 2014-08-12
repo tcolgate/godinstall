@@ -11,14 +11,12 @@ type HookOutput struct {
 	err    error  // Error information as returned by the hook
 }
 
+func (ho HookOutput) Error() string {
+	return "hook run failed, " + ho.err.Error() + ", output was: " + string(ho.output)
+}
+
 func (ho HookOutput) MarshalJSON() (j []byte, err error) {
-	resp := struct {
-		Output string
-		Error  error
-	}{
-		string(ho.output),
-		ho.err,
-	}
+	resp := string(ho.output)
 	j, err = json.Marshal(resp)
 	return
 }

@@ -279,9 +279,9 @@ func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
 		}
 	}
 
-	hookResult := s.uploadHook.Run(tmpFilename)
-	if hookResult.err != nil {
-		return errors.New("Post upload hook failed, ")
+	expectedFile.UploadHookResult = s.uploadHook.Run(tmpFilename)
+	if expectedFile.UploadHookResult.err != nil {
+		err = errors.New("Upload " + expectedFile.UploadHookResult.Error())
 	}
 
 	if err == nil {
@@ -446,7 +446,7 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 	if hookResult.err != nil {
 		resp = AptServerMessage(
 			http.StatusBadRequest,
-			"Post upload hook failed",
+			"Upload "+hookResult.Error(),
 		)
 		return
 	}
