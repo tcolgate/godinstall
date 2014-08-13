@@ -8,21 +8,21 @@ availability), along with optional validation of signed changes and debs.
 ## Features
 
 - Synchronous confirmation of repository regeneration.
-- Signing of Pacakges and InReleases files
+- Signing of Packages and InReleases files
 - Verification of hashes and signatures in changes files
 - Optional verification of debsigs signed packages
 - Allow upload of lone deb packages, without changes file
-- Optionally only verify debsisgs signatures on lone uploads
-- Run scripts on package upload, and pre/post repo regeneration
+- Optionally only verify debsigs signatures on lone uploads
+- Run scripts on package upload, and pre/post repository regeneration
 
 ## Example
 
 Apt-ftparchive is used to create the repository itself.
 
-At present, you must provide an apt-ftparchive configuration. This configruation is not parsed,
+At present, you must provide an apt-ftparchive configuration. This configuration is not parsed,
 and you need to also provide the pool and repository bases to godinstall.
 
-The follwoing configuration has been tested:
+The following configuration has been tested:
 
 aftp.conf:
 
