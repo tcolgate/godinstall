@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -287,24 +286,20 @@ func (a *AptServer) Updater() {
 		case msg := <-a.UpdateChannel:
 			{
 				var err error
-				var resp AptServerResponder
+				respStatus := http.StatusOK
+				var respObj interface{}
 
 				session := msg.session
-				completedsession := CompletedUpload{
-					Session: session,
-				}
+				completedsession := CompletedUpload{Session: session}
 
 				os.Chdir(session.Directory()) // Chdir may be bad here
-
-				resp = AptServerMessage(http.StatusOK, completedsession)
 
 				a.aptLocks.WriteLock()
 
 				hookResult := a.PreAftpHook.Run(session.SessionID())
 				if hookResult.err != nil {
-					resp = AptServerMessage(
-						http.StatusBadRequest,
-						"Pre apt-ftparchive "+hookResult.Error())
+					respStatus = http.StatusBadRequest
+					respObj = "Pre apt-ftparchive " + hookResult.Error()
 				} else {
 					completedsession.PreAftpHookOutput = hookResult
 				}
@@ -318,39 +313,43 @@ func (a *AptServer) Updater() {
 						if os.IsNotExist(err) {
 							err = os.MkdirAll(dstdir, 0777)
 							if err != nil {
-								resp = AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+								respStatus = http.StatusInternalServerError
+								respObj = "File move failed, " + err.Error()
 							}
 						} else {
-							resp = AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+							respStatus = http.StatusInternalServerError
+							respObj = "File move failed, "
 						}
 					} else {
 						if !stat.IsDir() {
-							resp = AptServerMessage(http.StatusInternalServerError,
-								"Destinatio path, "+dstdir+" is not a directory")
+							respStatus = http.StatusInternalServerError
+							respObj = "Destinatio path, " + dstdir + " is not a directory"
 						}
 					}
 
 					err = os.Rename(f.Filename, dstdir+f.Filename)
 					if err != nil {
-						resp = AptServerMessage(http.StatusInternalServerError, "File move failed, "+err.Error())
+						respStatus = http.StatusInternalServerError
+						respObj = "File move failed, " + err.Error()
 					}
 				}
 
 				err = a.AptGenerator.Regenerate()
 				if err != nil {
-					resp = AptServerMessage(http.StatusInternalServerError, "Apt FTP Archive failed, "+err.Error())
+					respStatus = http.StatusInternalServerError
+					respObj = "Apt FTP Archive failed, " + err.Error()
 				} else {
 					hookResult := a.PostAftpHook.Run(session.SessionID())
-					if hookResult.err != nil {
-						log.Println("Post aftp-archive " + hookResult.Error())
-					} else {
-						completedsession.PostAftpHookOutput = hookResult
-					}
+					completedsession.PostAftpHookOutput = hookResult
 				}
 
 				a.aptLocks.WriteUnLock()
 
-				msg.resp <- resp
+				if respStatus == http.StatusOK {
+					respObj = completedsession
+				}
+
+				msg.resp <- AptServerMessage(respStatus, respObj)
 			}
 		}
 	}

@@ -16,8 +16,13 @@ func (ho HookOutput) Error() string {
 }
 
 func (ho HookOutput) MarshalJSON() (j []byte, err error) {
-	resp := string(ho.output)
-	j, err = json.Marshal(resp)
+	if ho.err == nil {
+		resp := string(ho.output)
+		j, err = json.Marshal(resp)
+	} else {
+		resp := ho.Error()
+		j, err = json.Marshal(resp)
+	}
 	return
 }
 
