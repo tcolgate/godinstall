@@ -5,6 +5,18 @@ GoDInstall is intended to be a dynamically maintainable apt repository server
 The primary motivation is to provide confirmation of package upload (and
 availability), along with optional validation of signed changes and debs.
 
+## Features
+
+- Synchronous confirmation of repository regeneration.
+- Signing of Pacakges and InReleases files
+- Verification of hashes and signatures in changes files
+- Optional verification of debsigs signed packages
+- Allow upload of lone deb packages, without changes file
+- Optionally only verify debsisgs signatures on lone uploads
+- Run scripts on package upload, and pre/post repo regeneration
+
+## Example
+
 Apt-ftparchive is used to create the repository itself.
 
 At present, you must provide an apt-ftparchive configuration. This configruation is not parsed,
