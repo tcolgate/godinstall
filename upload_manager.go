@@ -171,9 +171,10 @@ func (usm *uploadSessionManager) AddItems(
 
 	if !ok {
 		resp = AptServerMessage(
-			http.StatusCreated,
+			http.StatusBadRequest,
 			"Unknown Session",
 		)
+		return
 	}
 
 	resp = AptServerMessage(

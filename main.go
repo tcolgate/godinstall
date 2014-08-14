@@ -16,8 +16,6 @@ import (
 	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
-
-	"github.com/gorilla/mux"
 )
 
 // HTTP handler for the server /
@@ -169,11 +167,9 @@ func main() {
 
 	server.InitAptServer()
 
-	r := mux.NewRouter()
-	r.HandleFunc("/", rootHandler).Methods("GET")
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", rootHandler)
 
-	server.Register(r)
-
-	http.Handle("/", r)
-	http.ListenAndServe(*listenAddress, nil)
+	server.Register(mux)
+	http.ListenAndServe(*listenAddress, mux)
 }

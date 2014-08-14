@@ -67,8 +67,6 @@ errors	changes.go	6;"	i	line:6
 errors	governor.go	3;"	i	line:3
 flag	main.go	7;"	i	line:7
 getLocks	aptserver.go	30;"	w	access:private	ctype:AptServer	line:30	type:*Governor
-github.com/gorilla/mux	aptserver.go	17;"	i	line:17
-github.com/gorilla/mux	main.go	11;"	i	line:11
 github.com/stapelberg/godebiancontrol	changes.go	14;"	i	line:14
 io	changes.go	7;"	i	line:7
 io/ioutil	changes.go	8;"	i	line:8

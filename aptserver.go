@@ -7,11 +7,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"regexp"
 
 	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
 )
 
 // The maximum amount of RAM to use when parsing
@@ -50,20 +49,26 @@ func (a *AptServer) InitAptServer() {
 }
 
 // Register this server with a HTTP server
-func (a *AptServer) Register(r *mux.Router) {
-	r.HandleFunc("/repo/{rest:.*}", a.downloadHandler).Methods("GET")
-	r.HandleFunc("/upload", a.uploadHandler).Methods("POST", "PUT")
-	r.HandleFunc("/upload/{session}", a.uploadHandler).Methods("GET", "POST", "PUT")
+func (a *AptServer) Register(mux *http.ServeMux) {
+	mux.HandleFunc("/repo/", a.downloadHandler)
+	mux.HandleFunc("/upload", a.uploadHandler)
+	mux.HandleFunc("/upload/", a.uploadHandler)
 }
 
 // Construct the download handler for normal client downloads
 func (a *AptServer) makeDownloadHandler() http.HandlerFunc {
+	var reqRegex = regexp.MustCompile("^/repo/(.+)$")
 	return func(w http.ResponseWriter, r *http.Request) {
 		a.aptLocks.ReadLock()
 		defer a.aptLocks.ReadUnLock()
 
-		file := mux.Vars(r)["rest"]
-		realFile := a.Repo.Base() + "/" + file
+		file := reqRegex.FindStringSubmatch(r.URL.Path)
+		if file == nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		realFile := a.Repo.Base() + "/" + file[1]
 		http.ServeFile(w, r, realFile)
 	}
 }
@@ -152,9 +157,23 @@ func AptServerMessage(status int, msg interface{}) AptServerResponder {
 
 // This build a function to despatch upload requests
 func (a *AptServer) makeUploadHandler() http.HandlerFunc {
+	var reqRegex = regexp.MustCompile("^/upload(|/(.+))$")
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Did we get a session
-		session, found := mux.Vars(r)["session"]
+		rest := reqRegex.FindStringSubmatch(r.URL.Path)
+		if rest == nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		found := false
+		session := ""
+
+		if rest[1] != "" {
+			session = rest[2]
+			found = true
+		}
+
 		var resp AptServerResponder
 
 		//maybe in a cookie?
@@ -207,7 +226,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 									Value:    session,
 									Expires:  time.Now().Add(a.TTL),
 									HttpOnly: false,
-									Path:     "/package/upload",
+									Path:     "/upload",
 								}
 								http.SetCookie(w, &cookie)
 							}
