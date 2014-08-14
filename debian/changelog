@@ -1,5 +1,13 @@
-godinstall (0.1) UNRELEASED; urgency=medium
+godinstall (0.2) unstable; urgency=medium
+
+  * Upload url moved to /upload
+  * Remove a dependency on gorilla mux
+  * Support upload of lond deb files, with optional verification
+
+ -- Tristan Colgate-McFarlane  <tristan@localhost>  Thu, 14 Aug 2014 20:41:22 +0100
+
+godinstall (0.1) unstable; urgency=medium
 
   * Initial release.
 
- -- Tristan Colgate-McFarlane  <tcolgate@gmail.com>  Sun, 15 Jun 2014 22:13:27 +0100
+ -- Tristan Colgate-McFarlane  <tcolgate@gmail.com>  Thu, 14 Aug 2014 20:39:42 +0100

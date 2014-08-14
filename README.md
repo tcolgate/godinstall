@@ -8,6 +8,8 @@ availability), along with optional validation of signed changes and debs.
 ## Features
 
 - Synchronous confirmation of repository regeneration.
+- Instant feedback on all failures
+- Files can be uploaded a few at a time, or all in one go
 - Signing of Packages and InReleases files
 - Verification of hashes and signatures in changes files
 - Optional verification of debsigs signed packages
@@ -81,6 +83,6 @@ To upload a package, you upload the changes file, and then upload the individual
 
 ```
 SESSION=`curl -q -c cookie.jar  -XPOST -F 'debfiles=@woot.changes' http://localhost:3000/package/upload   | awk -F\" '{print $4}'`
-curl -v -c cookie.jar  -XPUT -F 'debfiles=@collectd-core_5.4.0-3_amd64.deb' -F 'debfiles=@collectd_5.4.0-3_amd64.deb'  http://localhost:3000/package/upload/$SESSION
+curl -v -c cookie.jar  -XPUT -F 'debfiles=@collectd-core_5.4.0-3_amd64.deb' -F 'debfiles=@collectd_5.4.0-3_amd64.deb'  http://localhost:3000/upload/$SESSION
 ```
 
