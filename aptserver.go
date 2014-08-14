@@ -52,8 +52,8 @@ func (a *AptServer) InitAptServer() {
 // Register this server with a HTTP server
 func (a *AptServer) Register(r *mux.Router) {
 	r.HandleFunc("/repo/{rest:.*}", a.downloadHandler).Methods("GET")
-	r.HandleFunc("/package/upload", a.uploadHandler).Methods("POST", "PUT")
-	r.HandleFunc("/package/upload/{session}", a.uploadHandler).Methods("GET", "POST", "PUT")
+	r.HandleFunc("/upload", a.uploadHandler).Methods("POST", "PUT")
+	r.HandleFunc("/upload/{session}", a.uploadHandler).Methods("GET", "POST", "PUT")
 }
 
 // Construct the download handler for normal client downloads
