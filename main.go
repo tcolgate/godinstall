@@ -13,10 +13,13 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"text/template"
 	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
 )
+
+var t = template.Must(template.ParseFiles("aftp-config.tmpl", "releases.tmpl"))
 
 // HTTP handler for the server /
 func rootHandler(w http.ResponseWriter, r *http.Request) {

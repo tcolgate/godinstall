@@ -1,0 +1,6 @@
+APT::FTPArchive::Release::Codename "{{ .CodeName }}";
+APT::FTPArchive::Release::Origin "{{ .Origin }}";
+APT::FTPArchive::Release::Components "main";
+APT::FTPArchive::Release::Label "{{ .Label }}";
+APT::FTPArchive::Release::Architectures "{{ range .Architectures }}{{ . }} {{ end }}all";
+APT::FTPArchive::Release::Suite "stable";
