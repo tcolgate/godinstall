@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+var storeTestPrefixDepth = 3
 var storeTestString = "Store some test info"
 var storeTestStringHash = "d83bc8150b1469193705c6e2e166db5963be38bf"
 var storeTestNullStringHash = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
@@ -29,7 +30,7 @@ func makeTestSha1Store(t *testing.T) (Storer, func(), error) {
 		os.RemoveAll(testBaseDir)
 	}
 
-	return Sha1Store(testBaseDir, testTempDir), clean, nil
+	return Sha1Store(testBaseDir, testTempDir, storeTestPrefixDepth), clean, nil
 }
 
 func TestSha1Store(t *testing.T) {
@@ -54,7 +55,7 @@ func TestStore(t *testing.T) {
 		return
 	}
 
-	err = writer.Close()
+	err = writer.CloseAndLink()
 	if err != nil {
 		t.Errorf("Call to Close failed, %v", err)
 		return
