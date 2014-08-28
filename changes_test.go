@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -40,7 +41,7 @@ func TestParseDebianChanges(t *testing.T) {
 						match = false
 						break
 					}
-					if v != *f {
+					if !reflect.DeepEqual(v, *f) {
 						match = false
 						break
 					}
