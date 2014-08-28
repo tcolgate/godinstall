@@ -7,7 +7,10 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
+	"path/filepath"
+	"syscall"
 )
 
 // An interface to a content addressable file store
@@ -125,6 +128,27 @@ func (t *sha1Store) Delete(id StoreID) error {
 }
 
 func (t *sha1Store) GarbageCollect() {
+	f := func(path string, info os.FileInfo, err error) error {
+		var reterr error
+
+		if info.IsDir() {
+			return reterr
+		}
+
+		// Have no idea how I'd do this on other OSs
+		stat := info.Sys().(*syscall.Stat_t)
+		if stat != nil {
+			nlink := int64(stat.Nlink)
+			if nlink == 1 {
+				reterr = os.Remove(path)
+			}
+		} else {
+			log.Println("Could not get UNIX stat info for " + path)
+		}
+		return reterr
+	}
+
+	filepath.Walk(t.baseDir, f)
 	return
 }
 

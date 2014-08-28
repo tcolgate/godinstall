@@ -180,22 +180,10 @@ func TestPrematureIdentity(t *testing.T) {
 	}
 }
 
-func TestGarbageCollect1(t *testing.T) {
+func TestGarbageCollect(t *testing.T) {
 	s, clean, _ := makeTestSha1Store(t)
 	defer clean()
 
-	s.GarbageCollect(nil)
-	return
-}
-
-func TestGarbageCollect2(t *testing.T) {
-	s, clean, _ := makeTestSha1Store(t)
-	defer clean()
-
-	done := make(chan struct{})
-
-	s.GarbageCollect(done)
-	<-done
-
+	s.GarbageCollect()
 	return
 }
