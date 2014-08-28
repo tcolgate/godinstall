@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -69,6 +70,36 @@ func TestStore(t *testing.T) {
 
 	if id.String() != storeTestStringHash {
 		t.Errorf("Incorrect hash, %v, expected %v", id, storeTestStringHash)
+		return
+	}
+
+	reader, err := s.Open(id)
+	if err != nil {
+		t.Errorf("open blob by id failed, %v", err)
+		return
+	}
+
+	storedData := make([]byte, 1000)
+	n, err := io.ReadFull(reader, storedData)
+	if n == 0 {
+		t.Errorf("read from blob failed, %v", err)
+		return
+	}
+
+	if string(storedData[0:n]) != storeTestString {
+		t.Errorf("wrong data in  blob , %v", string(storedData[0:n]))
+		return
+	}
+
+	err = s.Delete(id)
+	if err != nil {
+		t.Errorf("delete blob by id failed, %v", err)
+		return
+	}
+
+	reader, err = s.Open(id)
+	if err == nil {
+		t.Errorf("open after delete succeeded, %v")
 		return
 	}
 }
