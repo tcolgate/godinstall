@@ -23,7 +23,7 @@ type Storer interface {
 	Open(StoreID) (io.Reader, error)  // Open a file by id
 	Link(StoreID, ...string) error    // Link a file id to a given location
 	Delete(StoreID) error             // Delete an file by id
-	GarbageCollect(chan<- struct{})   // Remove all files with no external links
+	GarbageCollect()                  // Remove all files with no external links
 }
 
 type sha1Store struct {
@@ -124,11 +124,7 @@ func (t *sha1Store) Delete(id StoreID) error {
 	return os.Remove(name)
 }
 
-func (t *sha1Store) GarbageCollect(done chan<- struct{}) {
-	go func() {
-		var msg struct{}
-		done <- msg
-	}()
+func (t *sha1Store) GarbageCollect() {
 	return
 }
 
