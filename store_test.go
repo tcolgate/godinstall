@@ -6,6 +6,10 @@ import (
 	"testing"
 )
 
+var storeTestString = "Store some test info"
+var storeTestStringHash = "d83bc8150b1469193705c6e2e166db5963be38bf"
+var storeTestNullStringHash = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+
 func makeTestSha1Store(t *testing.T) (Storer, func(), error) {
 	testTempDir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -41,23 +45,60 @@ func TestStore(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Call to store failed, %v", err)
+		return
 	}
 
-	writer.Write([]byte("Store some test info"))
+	writer.Write([]byte(storeTestString))
 	if err != nil {
 		t.Errorf("Call to Write failed, %v", err)
+		return
 	}
 
 	err = writer.Close()
 	if err != nil {
 		t.Errorf("Call to Close failed, %v", err)
+		return
 	}
 
 	id, err := writer.Identity()
 	if err != nil {
 		t.Errorf("Call to Close failed, %v", err)
+		return
 	}
-	t.Log("ID: " + id.String())
+
+	if id.String() != storeTestStringHash {
+		t.Errorf("Incorrect hash, %v, expected %v", id, storeTestStringHash)
+		return
+	}
+}
+
+func TestStoreNullString(t *testing.T) {
+	s, clean, _ := makeTestSha1Store(t)
+	defer clean()
+
+	writer, err := s.Store()
+
+	if err != nil {
+		t.Errorf("Call to store failed, %v", err)
+		return
+	}
+
+	err = writer.Close()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	id, err := writer.Identity()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	if id.String() != storeTestNullStringHash {
+		t.Errorf("Incorrect hash for NULL string, %v, expected %v", id.String(), storeTestNullStringHash)
+		return
+	}
 }
 
 func TestWriteAfterClose(t *testing.T) {
