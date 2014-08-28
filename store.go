@@ -32,6 +32,20 @@ type sha1Store struct {
 	prefixDepth int
 }
 
+func (t *sha1Store) storeIdToPathName(id StoreID) (string, string) {
+	idStr := id.String()
+	prefix := idStr[0:t.prefixDepth]
+
+	filePath := t.baseDir + "/"
+	for c := range prefix {
+		filePath = filePath + string(prefix[c]) + "/"
+	}
+
+	fileName := filePath + idStr
+
+	return fileName, filePath
+}
+
 func (t *sha1Store) Store() (StoreWriteCloser, error) {
 	file, err := ioutil.TempFile(t.tempDir, "blob")
 	if err != nil {
@@ -54,23 +68,16 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 		defer os.Remove(file.Name())
 		extraLink := <-doneChan
 		id, _ := writer.Identity()
-		idStr := id.String()
-		prefix := idStr[0:t.prefixDepth]
+		name, path := t.storeIdToPathName(id)
 
-		filePath := t.baseDir + "/"
-		for c := range prefix {
-			filePath = filePath + string(prefix[c]) + "/"
-		}
-		err := os.MkdirAll(filePath, 0755)
+		err := os.MkdirAll(path, 0755)
 		if err != nil {
 			err = errors.New("Failed to create blob directory " + err.Error())
 			writer.complete <- err
 			return
 		}
 
-		fileName := filePath + idStr
-
-		err = os.Link(file.Name(), fileName)
+		err = os.Link(file.Name(), name)
 		if err != nil {
 			err = errors.New("Failed to link blob  " + err.Error())
 			writer.complete <- err
@@ -78,7 +85,7 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 		}
 
 		if extraLink != "" {
-			err = os.Link(fileName, extraLink)
+			err = os.Link(name, extraLink)
 			if err != nil {
 				err = errors.New("Failed to link blob  " + err.Error())
 				writer.complete <- err
@@ -93,15 +100,28 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 }
 
 func (t *sha1Store) Open(id StoreID) (io.Reader, error) {
-	return nil, nil
+	name, _ := t.storeIdToPathName(id)
+	reader, err := os.Open(name)
+
+	return reader, err
 }
 
 func (t *sha1Store) Link(id StoreID, targets ...string) error {
-	return nil
+	name, _ := t.storeIdToPathName(id)
+	var err error
+
+	for t := range targets {
+		err = os.Link(name, targets[t])
+		if err != nil {
+			break
+		}
+	}
+	return err
 }
 
 func (t *sha1Store) Delete(id StoreID) error {
-	return nil
+	name, _ := t.storeIdToPathName(id)
+	return os.Remove(name)
 }
 
 func (t *sha1Store) GarbageCollect(done chan<- struct{}) {

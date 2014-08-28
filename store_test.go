@@ -55,7 +55,7 @@ func TestStore(t *testing.T) {
 		return
 	}
 
-	err = writer.CloseAndLink()
+	err = writer.Close()
 	if err != nil {
 		t.Errorf("Call to Close failed, %v", err)
 		return
