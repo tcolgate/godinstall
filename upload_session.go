@@ -116,15 +116,15 @@ func (s *changesSession) handler() {
 		if err != nil {
 			log.Println(err)
 		}
-		msg := new(struct{})
-		s.done <- *msg
+		var msg struct{}
+		s.done <- msg
 	}()
 	for {
 		select {
 		case <-s.close:
 			{
-				msg := new(struct{})
-				s.done <- *msg
+				var msg struct{}
+				s.done <- msg
 				return
 			}
 		case msg := <-s.getstatus:

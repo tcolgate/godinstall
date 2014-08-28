@@ -126,8 +126,8 @@ func (t *sha1Store) Delete(id StoreID) error {
 
 func (t *sha1Store) GarbageCollect(done chan<- struct{}) {
 	go func() {
-		msg := new(struct{})
-		done <- *msg
+		var msg struct{}
+		done <- msg
 	}()
 	return
 }
