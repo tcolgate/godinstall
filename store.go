@@ -85,6 +85,13 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 			return
 		}
 
+    _,err = os.Stat(name)
+		if err == nil {
+		  os.Remove(file.Name())
+			writer.complete <- err
+			return
+    }
+
 		err = os.Link(file.Name(), name)
 		if err != nil {
 			err = errors.New("Failed to link blob  " + err.Error())

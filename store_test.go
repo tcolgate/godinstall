@@ -41,9 +41,8 @@ func TestSha1Store(t *testing.T) {
 }
 
 func TestStore(t *testing.T) {
-	s, _, _ := makeTestSha1Store(t)
-	//s, clean, _ := makeTestSha1Store(t)
-  //defer clean()
+	s, clean, _ := makeTestSha1Store(t)
+  defer clean()
 
 	writer, err := s.Store()
 
@@ -101,6 +100,143 @@ func TestStore(t *testing.T) {
 	reader, err = s.Open(id)
 	if err == nil {
 		t.Errorf("open unref'd blob after GC succeeded")
+		return
+	}
+}
+
+func TestStoreTwice(t *testing.T) {
+	s, clean, _ := makeTestSha1Store(t)
+  defer clean()
+
+  // Store content first time
+	writer, err := s.Store()
+
+	if err != nil {
+		t.Errorf("Call to store failed, %v", err)
+		return
+	}
+
+	writer.Write([]byte(storeTestString))
+	if err != nil {
+		t.Errorf("Call to Write failed, %v", err)
+		return
+	}
+
+  // Close with no additional reference
+	err = writer.Close()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	id, err := writer.Identity()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	if id.String() != storeTestStringHash {
+		t.Errorf("Incorrect hash, %v, expected %v", id, storeTestStringHash)
+		return
+	}
+
+  // Store content a second time
+	writer, err = s.Store()
+
+	if err != nil {
+		t.Errorf("Call to store failed, %v", err)
+		return
+	}
+
+	writer.Write([]byte(storeTestString))
+	if err != nil {
+		t.Errorf("Call to Write failed, %v", err)
+		return
+	}
+
+	err = writer.Close()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	id, err = writer.Identity()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	if id.String() != storeTestStringHash {
+		t.Errorf("Incorrect hash, %v, expected %v", id, storeTestStringHash)
+		return
+	}
+}
+
+func TestStoreTwiceWithGC(t *testing.T) {
+	s, clean, _ := makeTestSha1Store(t)
+  defer clean()
+
+  // Store content first time
+	writer, err := s.Store()
+
+	if err != nil {
+		t.Errorf("Call to store failed, %v", err)
+		return
+	}
+
+	writer.Write([]byte(storeTestString))
+	if err != nil {
+		t.Errorf("Call to Write failed, %v", err)
+		return
+	}
+
+	err = writer.Close()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	id, err := writer.Identity()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	if id.String() != storeTestStringHash {
+		t.Errorf("Incorrect hash, %v, expected %v", id, storeTestStringHash)
+		return
+	}
+
+  s.GarbageCollect()
+
+  // Store content a second time
+	writer, err = s.Store()
+
+	if err != nil {
+		t.Errorf("Call to store failed, %v", err)
+		return
+	}
+
+	writer.Write([]byte(storeTestString))
+	if err != nil {
+		t.Errorf("Call to Write failed, %v", err)
+		return
+	}
+
+	err = writer.Close()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	id, err = writer.Identity()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	if id.String() != storeTestStringHash {
+		t.Errorf("Incorrect hash, %v, expected %v", id, storeTestStringHash)
 		return
 	}
 }
