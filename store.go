@@ -26,6 +26,7 @@ type Storer interface {
 	Open(StoreID) (io.Reader, error)  // Open a file by id
 	Link(StoreID, ...string) error    // Link a file id to a given location
 	GarbageCollect()                  // Remove all files with no external links
+	EmptyFileID()(StoreID)            // Return the StoreID for an 0 byte object
 }
 
 type sha1Store struct {
@@ -168,6 +169,12 @@ func Sha1Store(
 	}
 
 	return store
+}
+
+func (t *sha1Store) EmptyFileID() (StoreID) {
+  hasher := sha1.New()
+  id := hasher.Sum(nil)
+	return id
 }
 
 // StoreWriterCloser is used to arite a file to the file store.

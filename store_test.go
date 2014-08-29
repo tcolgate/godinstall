@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"bytes"
 )
 
 var storeTestPrefixDepth = 3
@@ -108,6 +109,12 @@ func TestStoreNullString(t *testing.T) {
 	s, clean, _ := makeTestSha1Store(t)
 	defer clean()
 
+  emptyId := s.EmptyFileID()
+	if emptyId.String() != storeTestNullStringHash {
+		t.Errorf("Incorrect hash for empty blob %v, expected %v", emptyId.String(), storeTestNullStringHash)
+		return
+  }
+
 	writer, err := s.Store()
 
 	if err != nil {
@@ -127,7 +134,7 @@ func TestStoreNullString(t *testing.T) {
 		return
 	}
 
-	if id.String() != storeTestNullStringHash {
+	if bytes.Compare(id, emptyId) != 0 {
 		t.Errorf("Incorrect hash for NULL string, %v, expected %v", id.String(), storeTestNullStringHash)
 		return
 	}
