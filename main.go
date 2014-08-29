@@ -47,10 +47,8 @@ func main() {
 	repoBase := flag.String("repo-base", "/tmp/myrepo", "Location of repository root")
 	poolBase := flag.String("pool-base", "/tmp/myrepo/pool", "Location of the pool base")
 	tmpDir := flag.String("tmp-dir", "/tmp/up", "Location for temporary storage")
+	storeDir := flag.String("store-dir", "/tmp/store", "Location for persitant storage")
 	cookieName := flag.String("cookie-name", "godinstall-sess", "Name for the sessio ookie")
-	aftpPath := flag.String("aftp-bin-path", "/usr/bin/apt-ftparchive", "Location of apt-ftparchive binary")
-	aftpConfig := flag.String("config", "/etc/aptconfig", "Location of apt-ftparchive configuration file")
-	releaseConfig := flag.String("rel-config", "/etc/aptconfig", "Location of apt-ftparchive releases file")
 	uploadHook := flag.String("upload-hook", "", "Script to run after for each uploaded file")
 	preAftpHook := flag.String("pre-aftp-hook", "", "Script to run before apt-ftparchive")
 	postAftpHook := flag.String("post-aftp-hook", "", "Script to run after apt-ftparchive")
@@ -135,13 +133,13 @@ func main() {
 		poolRegexp,
 	}
 
-	aptGenerator := NewAptFtpArchiveGenerator(
+	blobStore := Sha1Store(*tmpDir, *storeDir, 3)
+
+	aptGenerator := NewAptBlobArchiveGenerator(
 		&aptRepo,
-		aftpPath,
-		aftpConfig,
-		releaseConfig,
 		privRing,
 		signerId,
+		blobStore,
 	)
 
 	uploadSessionManager := NewUploadSessionManager(
