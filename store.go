@@ -25,7 +25,6 @@ type Storer interface {
 	Store() (StoreWriteCloser, error) // Write something to the store
 	Open(StoreID) (io.Reader, error)  // Open a file by id
 	Link(StoreID, ...string) error    // Link a file id to a given location
-	Delete(StoreID) error             // Delete an file by id
 	GarbageCollect()                  // Remove all files with no external links
 }
 
@@ -51,6 +50,7 @@ func (t *sha1Store) storeIdToPathName(id StoreID) (string, string) {
 
 func (t *sha1Store) Store() (StoreWriteCloser, error) {
 	file, err := ioutil.TempFile(t.tempDir, "blob")
+
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,10 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 	}
 
 	go func() {
-		defer os.Remove(file.Name())
+    // We can't use defer to clean up the TempFile, as
+    // we must ensure it is delete before we return success
+    // to the calling channel. Should probably rewrite this
+
 		extraLink := <-doneChan
 		id, _ := writer.Identity()
 		name, path := t.storeIdToPathName(id)
@@ -76,6 +79,7 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 		err := os.MkdirAll(path, 0755)
 		if err != nil {
 			err = errors.New("Failed to create blob directory " + err.Error())
+		  os.Remove(file.Name())
 			writer.complete <- err
 			return
 		}
@@ -83,6 +87,7 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 		err = os.Link(file.Name(), name)
 		if err != nil {
 			err = errors.New("Failed to link blob  " + err.Error())
+		  os.Remove(file.Name())
 			writer.complete <- err
 			return
 		}
@@ -91,11 +96,13 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 			err = os.Link(name, extraLink)
 			if err != nil {
 				err = errors.New("Failed to link blob  " + err.Error())
+		    os.Remove(file.Name())
 				writer.complete <- err
 				return
 			}
 		}
 
+		os.Remove(file.Name())
 		writer.complete <- err
 	}()
 
@@ -120,11 +127,6 @@ func (t *sha1Store) Link(id StoreID, targets ...string) error {
 		}
 	}
 	return err
-}
-
-func (t *sha1Store) Delete(id StoreID) error {
-	name, _ := t.storeIdToPathName(id)
-	return os.Remove(name)
 }
 
 func (t *sha1Store) GarbageCollect() {

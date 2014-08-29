@@ -40,8 +40,9 @@ func TestSha1Store(t *testing.T) {
 }
 
 func TestStore(t *testing.T) {
-	s, clean, _ := makeTestSha1Store(t)
-	defer clean()
+	s, _, _ := makeTestSha1Store(t)
+	//s, clean, _ := makeTestSha1Store(t)
+  //defer clean()
 
 	writer, err := s.Store()
 
@@ -56,6 +57,7 @@ func TestStore(t *testing.T) {
 		return
 	}
 
+  // Close with no additional reference
 	err = writer.Close()
 	if err != nil {
 		t.Errorf("Call to Close failed, %v", err)
@@ -91,15 +93,13 @@ func TestStore(t *testing.T) {
 		return
 	}
 
-	err = s.Delete(id)
-	if err != nil {
-		t.Errorf("delete blob by id failed, %v", err)
-		return
-	}
+  // Run a gc, the previous blob has no additional references
+  // so should disspear
+	s.GarbageCollect()
 
 	reader, err = s.Open(id)
 	if err == nil {
-		t.Errorf("open after delete succeeded, %v")
+		t.Errorf("open unref'd blob after GC succeeded")
 		return
 	}
 }
