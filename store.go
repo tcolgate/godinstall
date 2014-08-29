@@ -26,7 +26,7 @@ type Storer interface {
 	Open(StoreID) (io.Reader, error)  // Open a file by id
 	Link(StoreID, ...string) error    // Link a file id to a given location
 	GarbageCollect()                  // Remove all files with no external links
-	EmptyFileID()(StoreID)            // Return the StoreID for an 0 byte object
+	EmptyFileID() StoreID             // Return the StoreID for an 0 byte object
 }
 
 type sha1Store struct {
@@ -69,9 +69,9 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 	}
 
 	go func() {
-    // We can't use defer to clean up the TempFile, as
-    // we must ensure it is delete before we return success
-    // to the calling channel. Should probably rewrite this
+		// We can't use defer to clean up the TempFile, as
+		// we must ensure it is delete before we return success
+		// to the calling channel. Should probably rewrite this
 
 		extraLink := <-doneChan
 		id, _ := writer.Identity()
@@ -80,22 +80,24 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 		err := os.MkdirAll(path, 0755)
 		if err != nil {
 			err = errors.New("Failed to create blob directory " + err.Error())
-		  os.Remove(file.Name())
+			os.Remove(file.Name())
 			writer.complete <- err
 			return
 		}
 
-    _,err = os.Stat(name)
+		_, err = os.Stat(name)
 		if err == nil {
-		  os.Remove(file.Name())
+			// File already exists, we should probably do some additional checking
+			// here
+			os.Remove(file.Name())
 			writer.complete <- err
 			return
-    }
+		}
 
 		err = os.Link(file.Name(), name)
 		if err != nil {
 			err = errors.New("Failed to link blob  " + err.Error())
-		  os.Remove(file.Name())
+			os.Remove(file.Name())
 			writer.complete <- err
 			return
 		}
@@ -104,7 +106,7 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 			err = os.Link(name, extraLink)
 			if err != nil {
 				err = errors.New("Failed to link blob  " + err.Error())
-		    os.Remove(file.Name())
+				os.Remove(file.Name())
 				writer.complete <- err
 				return
 			}
@@ -178,9 +180,9 @@ func Sha1Store(
 	return store
 }
 
-func (t *sha1Store) EmptyFileID() (StoreID) {
-  hasher := sha1.New()
-  id := hasher.Sum(nil)
+func (t *sha1Store) EmptyFileID() StoreID {
+	hasher := sha1.New()
+	id := hasher.Sum(nil)
 	return id
 }
 

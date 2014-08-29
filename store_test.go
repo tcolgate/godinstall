@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"os"
 	"testing"
-	"bytes"
 )
 
 var storeTestPrefixDepth = 3
@@ -42,7 +42,7 @@ func TestSha1Store(t *testing.T) {
 
 func TestStore(t *testing.T) {
 	s, clean, _ := makeTestSha1Store(t)
-  defer clean()
+	defer clean()
 
 	writer, err := s.Store()
 
@@ -57,7 +57,7 @@ func TestStore(t *testing.T) {
 		return
 	}
 
-  // Close with no additional reference
+	// Close with no additional reference
 	err = writer.Close()
 	if err != nil {
 		t.Errorf("Call to Close failed, %v", err)
@@ -93,8 +93,8 @@ func TestStore(t *testing.T) {
 		return
 	}
 
-  // Run a gc, the previous blob has no additional references
-  // so should disspear
+	// Run a gc, the previous blob has no additional references
+	// so should disspear
 	s.GarbageCollect()
 
 	reader, err = s.Open(id)
@@ -106,9 +106,9 @@ func TestStore(t *testing.T) {
 
 func TestStoreTwice(t *testing.T) {
 	s, clean, _ := makeTestSha1Store(t)
-  defer clean()
+	defer clean()
 
-  // Store content first time
+	// Store content first time
 	writer, err := s.Store()
 
 	if err != nil {
@@ -122,7 +122,7 @@ func TestStoreTwice(t *testing.T) {
 		return
 	}
 
-  // Close with no additional reference
+	// Close with no additional reference
 	err = writer.Close()
 	if err != nil {
 		t.Errorf("Call to Close failed, %v", err)
@@ -140,7 +140,7 @@ func TestStoreTwice(t *testing.T) {
 		return
 	}
 
-  // Store content a second time
+	// Store content a second time
 	writer, err = s.Store()
 
 	if err != nil {
@@ -174,9 +174,9 @@ func TestStoreTwice(t *testing.T) {
 
 func TestStoreTwiceWithGC(t *testing.T) {
 	s, clean, _ := makeTestSha1Store(t)
-  defer clean()
+	defer clean()
 
-  // Store content first time
+	// Store content first time
 	writer, err := s.Store()
 
 	if err != nil {
@@ -207,9 +207,9 @@ func TestStoreTwiceWithGC(t *testing.T) {
 		return
 	}
 
-  s.GarbageCollect()
+	s.GarbageCollect()
 
-  // Store content a second time
+	// Store content a second time
 	writer, err = s.Store()
 
 	if err != nil {
@@ -245,11 +245,11 @@ func TestStoreNullString(t *testing.T) {
 	s, clean, _ := makeTestSha1Store(t)
 	defer clean()
 
-  emptyId := s.EmptyFileID()
+	emptyId := s.EmptyFileID()
 	if emptyId.String() != storeTestNullStringHash {
 		t.Errorf("Incorrect hash for empty blob %v, expected %v", emptyId.String(), storeTestNullStringHash)
 		return
-  }
+	}
 
 	writer, err := s.Store()
 
