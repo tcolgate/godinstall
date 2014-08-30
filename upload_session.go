@@ -53,6 +53,7 @@ type changesSession struct {
 	dir          string             // Temporary directory for storage
 	requireSig   bool               // Check debian package signatures
 	uploadHook   HookRunner         // A hook to run after a successful upload
+	store        Storer             // Blob store to keep files in
 
 	// Channels for requests
 	// TODO revisit this
@@ -71,6 +72,7 @@ func NewChangesSession(
 	validateDebs bool,
 	keyRing openpgp.EntityList,
 	tmpDirBase *string,
+	store Storer,
 	uploadHook HookRunner,
 	done chan struct{},
 	finished chan UpdateRequest,
@@ -83,10 +85,11 @@ func NewChangesSession(
 	s.SessionId = uuid.New()
 	s.changes = changes
 	s.uploadHook = uploadHook
+	s.store = store
 	s.dir = *tmpDirBase + "/" + s.SessionId
+	s.store = store
 
 	os.Mkdir(s.dir, os.FileMode(0755))
-	os.Mkdir(s.dir+"/upload", os.FileMode(0755))
 
 	s.incoming = make(chan addItemMsg)
 	s.close = make(chan closeMsg)
@@ -116,6 +119,7 @@ func (s *changesSession) handler() {
 		if err != nil {
 			log.Println(err)
 		}
+		s.store.GarbageCollect()
 		var msg struct{}
 		s.done <- msg
 	}()
@@ -230,22 +234,34 @@ func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
 	sha256er := sha256.New()
 	hasher := io.MultiWriter(md5er, sha1er, sha256er)
 	tee := io.TeeReader(upload.data, hasher)
-	tmpFilename := s.dir + "/upload/" + upload.Filename
 	storeFilename := s.dir + "/" + upload.Filename
-	tmpfile, err := os.Create(tmpFilename)
-	if err != nil {
-		return errors.New("Upload temporary file failed, " + err.Error())
-	}
 	defer func() {
 		if err != nil {
-			os.Remove(tmpFilename)
+			log.Println(err)
 		}
+		s.store.GarbageCollect()
 	}()
 
-	_, err = io.Copy(tmpfile, tee)
+	blob, err := s.store.Store()
 	if err != nil {
-		return errors.New("Upload failed: " + err.Error())
+		return errors.New("Upload to store failed: " + err.Error())
 	}
+
+	_, err = io.Copy(blob, tee)
+	if err != nil {
+		return errors.New("Upload to store failed: " + err.Error())
+	}
+
+	err = blob.Close()
+	if err != nil {
+		return errors.New("Upload to store failed: " + err.Error())
+	}
+
+	id, err := blob.Identity()
+	if err != nil {
+		return errors.New("Retrieving upload blob id failed: " + err.Error())
+	}
+	log.Println("ID: " + id.String())
 
 	md5 := hex.EncodeToString(md5er.Sum(nil))
 	sha1 := hex.EncodeToString(sha1er.Sum(nil))
@@ -257,9 +273,9 @@ func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
 		return errors.New("Uploaded file hashes do not match")
 	}
 
-	if strings.HasSuffix(tmpFilename, ".deb") {
+	if strings.HasSuffix(upload.Filename, ".deb") {
 		// We should verify the signature
-		f, _ := os.Open(tmpFilename)
+		f, _ := s.store.Open(id)
 		if s.validateDebs {
 			pkg := NewDebPackage(f, s.keyRing)
 
@@ -279,15 +295,18 @@ func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
 		}
 	}
 
-	expectedFile.UploadHookResult = s.uploadHook.Run(tmpFilename)
+	err = s.store.Link(id, storeFilename)
+	if err != nil {
+		return errors.New("Error linking store file: " + err.Error())
+	}
+
+	expectedFile.UploadHookResult = s.uploadHook.Run(storeFilename)
 	if expectedFile.UploadHookResult.err != nil {
+		os.Remove(storeFilename)
 		err = errors.New("Upload " + expectedFile.UploadHookResult.Error())
 	}
 
-	if err == nil {
-		os.Rename(tmpFilename, storeFilename)
-		expectedFile.Uploaded = true
-	}
+	expectedFile.Uploaded = true
 
 	return
 }
@@ -310,6 +329,7 @@ type loneDebSession struct {
 	validateDebs bool               // Validate uploaded. deb files
 	keyRing      openpgp.EntityList // Keyring for validation
 	dir          string             // Temporary directory for storage
+	store        Storer             // Blob store for file storage
 	requireSig   bool               // Check debian package signatures
 	uploadHook   HookRunner         // A hook to run after a successful upload
 	file         *UploadItem
@@ -322,6 +342,7 @@ func NewLoneDebSession(
 	validateDebs bool,
 	keyRing openpgp.EntityList,
 	tmpDirBase *string,
+	store Storer,
 	uploadHook HookRunner,
 	finished chan UpdateRequest,
 ) UploadSessioner {
@@ -332,9 +353,9 @@ func NewLoneDebSession(
 	s.SessionId = uuid.New()
 	s.uploadHook = uploadHook
 	s.dir = *tmpDirBase + "/" + s.SessionId
+	s.store = store
 
 	os.Mkdir(s.dir, os.FileMode(0755))
-	os.Mkdir(s.dir+"/upload", os.FileMode(0755))
 
 	return &s
 }
@@ -364,9 +385,7 @@ func (s *loneDebSession) Status() AptServerResponder {
 
 func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 	defer os.RemoveAll(s.dir)
-	tmpFilename := s.dir + "/upload/" + upload.Filename
 	storeFilename := s.dir + "/" + upload.Filename
-	tmpfile, err := os.Create(tmpFilename)
 
 	md5er := md5.New()
 	sha1er := sha1.New()
@@ -374,7 +393,44 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 	hasher := io.MultiWriter(md5er, sha1er, sha256er)
 	tee := io.TeeReader(upload.data, hasher)
 
-	upload.Size, err = io.Copy(tmpfile, tee)
+	blob, err := s.store.Store()
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Package upload to store failed, "+err.Error(),
+		)
+		return
+	}
+
+	upload.Size, err = io.Copy(blob, tee)
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Package upload to store failed, "+err.Error(),
+		)
+		return
+	}
+
+	err = blob.Close()
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Package upload to store failed, "+err.Error(),
+		)
+		return
+	}
+
+	id, err := blob.Identity()
+	if err != nil {
+		resp = AptServerMessage(
+			http.StatusBadRequest,
+			"Retrieving upload blob id failed: "+err.Error(),
+		)
+		return
+	}
+
+	log.Println("ID: " + id.String())
+
 	if err != nil {
 		resp = AptServerMessage(
 			http.StatusBadRequest,
@@ -383,7 +439,7 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 		return
 	}
 
-	err = tmpfile.Close()
+	pkgfile, err := s.store.Open(id)
 	if err != nil {
 		resp = AptServerMessage(
 			http.StatusBadRequest,
@@ -392,16 +448,7 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 		return
 	}
 
-	tmpfile, err = os.Open(tmpFilename)
-	if err != nil {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Package upload failed, "+err.Error(),
-		)
-		return
-	}
-
-	pkg := NewDebPackage(tmpfile, s.keyRing)
+	pkg := NewDebPackage(pkgfile, s.keyRing)
 
 	err = pkg.Parse()
 	if err != nil {
@@ -433,7 +480,7 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 		}
 	}
 
-	err = os.Rename(tmpFilename, storeFilename)
+	err = s.store.Link(id, storeFilename)
 	if err != nil {
 		resp = AptServerMessage(
 			http.StatusBadRequest,
@@ -488,28 +535,4 @@ func (s *loneDebSession) MarshalJSON() (j []byte, err error) {
 	}
 	j, err = json.Marshal(resp)
 	return
-}
-
-// Upload session stores keep the state for an upload
-// session. We need to be able to mock this out to
-// avoid testing disk content
-type UploadSessionStorer interface {
-}
-
-// On disk storage for upload content
-type uploadDiskStorer struct {
-}
-
-func NewUploadDiskStorer() UploadSessionStorer {
-	newstore := uploadDiskStorer{}
-	return newstore
-}
-
-// RAM storage for upload content, used for testing
-type uploadMemStorer struct {
-}
-
-func NewUploadMemStorer() UploadSessionStorer {
-	newstore := uploadMemStorer{}
-	return newstore
 }

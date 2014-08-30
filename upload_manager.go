@@ -24,6 +24,7 @@ type UploadSessionManager interface {
 type uploadSessionManager struct {
 	TTL                       time.Duration
 	TmpDir                    *string
+	Store                     Storer
 	UploadHook                HookRunner
 	ValidateChanges           bool
 	ValidateChangesSufficient bool
@@ -37,6 +38,7 @@ type uploadSessionManager struct {
 func NewUploadSessionManager(
 	TTL time.Duration,
 	tmpDir *string,
+	store Storer,
 	uploadHook HookRunner,
 	validateChanges bool,
 	validateChangesSufficient bool,
@@ -47,6 +49,7 @@ func NewUploadSessionManager(
 	return &uploadSessionManager{
 		TTL:                       TTL,
 		TmpDir:                    tmpDir,
+		Store:                     store,
 		UploadHook:                uploadHook,
 		ValidateChanges:           validateChanges,
 		ValidateChangesSufficient: validateChangesSufficient,
@@ -85,6 +88,7 @@ func (usm *uploadSessionManager) AddDeb(upload *multipart.FileHeader) (resp AptS
 		usm.ValidateDebs,
 		usm.PubRing,
 		usm.TmpDir,
+		usm.Store,
 		usm.UploadHook,
 		usm.finished,
 	)
@@ -131,6 +135,7 @@ func (usm *uploadSessionManager) AddChangesSession(changesReader io.Reader) (str
 		validateDebSign,
 		usm.PubRing,
 		usm.TmpDir,
+		usm.Store,
 		usm.UploadHook,
 		make(chan struct{}),
 		usm.finished,

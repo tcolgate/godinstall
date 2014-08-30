@@ -133,7 +133,7 @@ func main() {
 		poolRegexp,
 	}
 
-	blobStore := Sha1Store(*tmpDir, *storeDir, 3)
+	blobStore := Sha1Store(*storeDir, *tmpDir, 3)
 
 	aptGenerator := NewAptBlobArchiveGenerator(
 		&aptRepo,
@@ -145,6 +145,7 @@ func main() {
 	uploadSessionManager := NewUploadSessionManager(
 		expire,
 		tmpDir,
+		blobStore,
 		NewScriptHook(uploadHook),
 		*validateChanges,
 		*validateChangesSufficient,

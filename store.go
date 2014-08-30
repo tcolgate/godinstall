@@ -87,22 +87,19 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 
 		_, err = os.Stat(name)
 		if err == nil {
-			// File already exists, we should probably do some additional checking
-			// here
 			os.Remove(file.Name())
-			writer.complete <- err
-			return
-		}
-
-		err = os.Link(file.Name(), name)
-		if err != nil {
-			err = errors.New("Failed to link blob  " + err.Error())
-			os.Remove(file.Name())
-			writer.complete <- err
-			return
+		} else {
+			err = os.Link(file.Name(), name)
+			if err != nil {
+				err = errors.New("Failed to link blob  " + err.Error())
+				os.Remove(file.Name())
+				writer.complete <- err
+				return
+			}
 		}
 
 		if extraLink != "" {
+			log.Println("Linking " + name + " to " + extraLink)
 			err = os.Link(name, extraLink)
 			if err != nil {
 				err = errors.New("Failed to link blob  " + err.Error())

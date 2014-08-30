@@ -346,7 +346,10 @@ func (a *AptServer) Updater() {
 						}
 					}
 
-					err = os.Rename(f.Filename, dstdir+f.Filename)
+					//err = os.Rename(f.Filename, dstdir+f.Filename)
+					// This should really be a re-linking
+					reader, _ := os.Open(f.Filename)
+					err = a.AptGenerator.AddFile(dstdir+f.Filename, reader)
 					if err != nil {
 						respStatus = http.StatusInternalServerError
 						respObj = "File move failed, " + err.Error()
