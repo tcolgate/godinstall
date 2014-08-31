@@ -21,6 +21,7 @@ import (
 // with the changes file
 type UploadItem struct {
 	Filename         string
+	StoreID          StoreID
 	Size             int64
 	Md5              string
 	Sha1             string
@@ -261,7 +262,7 @@ func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
 	if err != nil {
 		return errors.New("Retrieving upload blob id failed: " + err.Error())
 	}
-	log.Println("ID: " + id.String())
+	expectedFile.StoreID = id
 
 	md5 := hex.EncodeToString(md5er.Sum(nil))
 	sha1 := hex.EncodeToString(sha1er.Sum(nil))
@@ -429,8 +430,6 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 		return
 	}
 
-	log.Println("ID: " + id.String())
-
 	if err != nil {
 		resp = AptServerMessage(
 			http.StatusBadRequest,
@@ -505,6 +504,7 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 	s.file.Sha1 = hex.EncodeToString(sha1er.Sum(nil))
 	s.file.Sha256 = hex.EncodeToString(sha256er.Sum(nil))
 	s.file.SignedBy = signers
+	s.file.StoreID = id
 
 	// We're done, lets call out to the server to update
 	// with the contents of this session

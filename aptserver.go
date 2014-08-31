@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -323,38 +324,11 @@ func (a *AptServer) Updater() {
 					completedsession.PreAftpHookOutput = hookResult
 				}
 
-				//Move the files into the pool
-				for _, f := range session.Items() {
-					dstdir := a.Repo.PoolFilePath(f.Filename)
-					stat, err := os.Lstat(dstdir)
-
-					if err != nil {
-						if os.IsNotExist(err) {
-							err = os.MkdirAll(dstdir, 0777)
-							if err != nil {
-								respStatus = http.StatusInternalServerError
-								respObj = "File move failed, " + err.Error()
-							}
-						} else {
-							respStatus = http.StatusInternalServerError
-							respObj = "File move failed, "
-						}
-					} else {
-						if !stat.IsDir() {
-							respStatus = http.StatusInternalServerError
-							respObj = "Destinatio path, " + dstdir + " is not a directory"
-						}
-					}
-
-					//err = os.Rename(f.Filename, dstdir+f.Filename)
-					// This should really be a re-linking
-					reader, _ := os.Open(f.Filename)
-					err = a.AptGenerator.AddFile(dstdir+f.Filename, reader)
-					if err != nil {
-						respStatus = http.StatusInternalServerError
-						respObj = "File move failed, " + err.Error()
-					}
-				}
+				respStatus, respObj, err = a.AptGenerator.AddSession(session)
+				log.Println(respStatus)
+				log.Println(respObj)
+				log.Println(err)
+				log.Println(session)
 
 				err = a.AptGenerator.Regenerate()
 				if err != nil {
