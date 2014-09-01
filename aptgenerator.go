@@ -48,7 +48,7 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 	sourcesEndFields := []string{"Description"}
 
 	packageFile, err := os.Create(*a.Repo.RepoBase + "/Packages")
-	packagesStartFields := []string{"Package"}
+	packagesStartFields := []string{"Package", "Filename"}
 	packagesEndFields := []string{"Description"}
 
 	f := func(path string, info os.FileInfo, err error) error {
@@ -61,6 +61,7 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 			reader, _ := os.Open(path)
 			pkg := NewDebPackage(reader, nil)
 			controlData, _ := pkg.Control()
+			controlData["Filename"] = path[len(*a.Repo.RepoBase)+1:]
 			paragraphs := make([]godebiancontrol.Paragraph, 1)
 			paragraphs[0] = controlData
 			WriteDebianControl(packageFile, paragraphs, packagesStartFields, packagesEndFields)
