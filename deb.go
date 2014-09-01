@@ -28,7 +28,7 @@ type DebPackageInfoer interface {
 	Version() (string, error)
 	Description() (string, error)
 	Maintainer() (string, error)
-	MetaData() (map[string]string, error) // Map of all the package metadata
+	Control() (map[string]string, error) // Map of all the package metadata
 
 	IsSigned() (bool, error)            // This package contains a dpkg-sig signature
 	IsValidated() (bool, error)         // The signature has been validated against provided keyring
@@ -173,7 +173,7 @@ func (d *debPackage) SignedBy() (*openpgp.Entity, error) {
 }
 
 // Generic access to the metadata for the package
-func (d *debPackage) MetaData() (map[string]string, error) {
+func (d *debPackage) Control() (map[string]string, error) {
 	var err error
 
 	if !d.parsed {
@@ -188,27 +188,27 @@ func (d *debPackage) MetaData() (map[string]string, error) {
 
 // The package name
 func (d *debPackage) Name() (string, error) {
-	return d.getMandatoryMetadata("Package")
+	return d.getMandatoryControl("Package")
 }
 
 // The package version string
 func (d *debPackage) Version() (string, error) {
-	return d.getMandatoryMetadata("Version")
+	return d.getMandatoryControl("Version")
 }
 
 // The package description
 func (d *debPackage) Description() (string, error) {
-	return d.getMandatoryMetadata("Description")
+	return d.getMandatoryControl("Description")
 }
 
 // The package maintainer contact details
 func (d *debPackage) Maintainer() (string, error) {
-	return d.getMandatoryMetadata("Maintainer")
+	return d.getMandatoryControl("Maintainer")
 }
 
 // Retried any peace of metadata that is mandatory
-func (d *debPackage) getMandatoryMetadata(key string) (string, error) {
-	res, ok, err := d.getMetadata(key)
+func (d *debPackage) getMandatoryControl(key string) (string, error) {
+	res, ok, err := d.getControl(key)
 	if err != nil {
 		return "", err
 	}
@@ -220,7 +220,7 @@ func (d *debPackage) getMandatoryMetadata(key string) (string, error) {
 }
 
 // Retrieve any emtadata from the control infrormation
-func (d *debPackage) getMetadata(key string) (string, bool, error) {
+func (d *debPackage) getControl(key string) (string, bool, error) {
 	var err error
 
 	if !d.parsed {
@@ -352,4 +352,63 @@ func (d *debPackage) parseDebPackage() (err error) {
 	d.parsed = true
 
 	return nil
+}
+
+// Attempt to format a debian control file
+func WriteDebianControl(out io.Writer, paragraphs []godebiancontrol.Paragraph, start []string, end []string) {
+	for p := range paragraphs {
+		fields := paragraphs[p]
+		orderedMap := make(map[string]bool, len(fields))
+
+		// We don't want to repeat fields used in the start and
+		// end lists, so track which ones we will output there
+		for f := range start {
+			orderedMap[start[f]] = true
+		}
+		for f := range end {
+			orderedMap[end[f]] = true
+		}
+
+		// Output first fields
+		for i := range start {
+			fieldName := start[i]
+			value, ok := fields[fieldName]
+			if !strings.HasSuffix(value, "\n") {
+				value = value + "\n"
+			}
+			if ok {
+				out.Write([]byte(fieldName + ": " + value))
+			}
+		}
+
+		// Output any fields not in the start and end list
+		for fieldName := range fields {
+			if !orderedMap[fieldName] {
+				value, ok := fields[fieldName]
+				if !strings.HasSuffix(value, "\n") {
+					value = value + "\n"
+				}
+				if ok {
+					out.Write([]byte(fieldName + ": " + value))
+				}
+			}
+		}
+
+		// Output final fields
+		for i := range end {
+			fieldName := end[i]
+			value, ok := fields[fieldName]
+			if !strings.HasSuffix(value, "\n") {
+				value = value + "\n"
+			}
+			if ok {
+				out.Write([]byte(fieldName + ": " + value))
+			}
+		}
+
+		// If this isn't the last paragraph, output a newline
+		if p < len(paragraphs)-1 {
+			out.Write([]byte("\n"))
+		}
+	}
 }

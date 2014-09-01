@@ -4,6 +4,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/stapelberg/godebiancontrol"
 
 	"code.google.com/p/go.crypto/openpgp"
 )
@@ -39,6 +43,45 @@ func NewAptBlobArchiveGenerator(
 }
 
 func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
+	sourcesFile, err := os.Create(*a.Repo.RepoBase + "/Sources")
+	sourcesStartFields := []string{"Package"}
+	sourcesEndFields := []string{"Description"}
+
+	packageFile, err := os.Create(*a.Repo.RepoBase + "/Packages")
+	packagesStartFields := []string{"Package"}
+	packagesEndFields := []string{"Description"}
+
+	f := func(path string, info os.FileInfo, err error) error {
+		var reterr error
+
+		switch {
+		case info.IsDir():
+			return reterr
+		case strings.HasSuffix(path, ".deb"):
+			reader, _ := os.Open(path)
+			pkg := NewDebPackage(reader, nil)
+			controlData, _ := pkg.Control()
+			paragraphs := make([]godebiancontrol.Paragraph, 1)
+			paragraphs[0] = controlData
+			WriteDebianControl(packageFile, paragraphs, packagesStartFields, packagesEndFields)
+			packageFile.Write([]byte("\n"))
+		case strings.HasSuffix(path, ".dsc"):
+			reader, _ := os.Open(path)
+			paragraphs, _ := godebiancontrol.Parse(reader)
+			paragraphs[0]["Package"] = paragraphs[0]["Source"]
+			delete(paragraphs[0], "Source")
+
+			WriteDebianControl(sourcesFile, paragraphs, sourcesStartFields, sourcesEndFields)
+			sourcesFile.Write([]byte("\n"))
+		}
+
+		return reterr
+	}
+	filepath.Walk(*a.Repo.PoolBase, f)
+
+	sourcesFile.Close()
+	packageFile.Close()
+
 	return
 }
 
