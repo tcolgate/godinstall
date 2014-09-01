@@ -45,7 +45,6 @@ func main() {
 	ttl := flag.String("ttl", "60s", "Session life time")
 	maxReqs := flag.Int("max-requests", 4, "Maximum concurrent requests")
 	repoBase := flag.String("repo-base", "/tmp/myrepo", "Location of repository root")
-	poolBase := flag.String("pool-base", "/tmp/myrepo/pool", "Location of the pool base")
 	tmpDir := flag.String("tmp-dir", "/tmp/up", "Location for temporary storage")
 	storeDir := flag.String("store-dir", "/tmp/store", "Location for persitant storage")
 	cookieName := flag.String("cookie-name", "godinstall-sess", "Name for the sessio ookie")
@@ -132,7 +131,6 @@ func main() {
 
 	aptRepo := aptRepo{
 		repoBase,
-		poolBase,
 		poolRegexp,
 	}
 

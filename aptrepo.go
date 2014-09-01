@@ -18,7 +18,6 @@ type AptRepo interface {
 // Simple AptRepo implementation
 type aptRepo struct {
 	RepoBase    *string        // The base directory of the repository
-	PoolBase    *string        // The pool directory where debs are stored
 	PoolPattern *regexp.Regexp // A regex for deciding which pool directory to store a file in
 }
 
@@ -31,7 +30,7 @@ func (a *aptRepo) Base() string {
 // Given a file name, provide the full path to the location
 // in the debian apt pool
 func (a *aptRepo) PoolFilePath(filename string) (poolpath string) {
-	poolpath = *a.PoolBase
+	poolpath = *a.RepoBase + "/pool"
 
 	matches := a.PoolPattern.FindSubmatch([]byte(filename))
 	if len(matches) > 0 {

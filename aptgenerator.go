@@ -77,7 +77,7 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 
 		return reterr
 	}
-	filepath.Walk(*a.Repo.PoolBase, f)
+	filepath.Walk(*a.Repo.RepoBase, f)
 
 	sourcesFile.Close()
 	packageFile.Close()
