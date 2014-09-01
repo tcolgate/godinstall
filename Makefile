@@ -24,7 +24,7 @@ install: godinstall
 	install -D godinstall $(DESTDIR)/$(PREFIX)/godinstall
 
 check:
-	$(GOPATH)/bin/godep go test
+	$(GOPATH)/bin/godep go test -v
 
 clean:
 	rm -rf build godinstall
