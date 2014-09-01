@@ -99,13 +99,17 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 		}
 
 		if extraLink != "" {
-			log.Println("Linking " + name + " to " + extraLink)
-			err = os.Link(name, extraLink)
-			if err != nil {
-				err = errors.New("Failed to link blob  " + err.Error())
-				os.Remove(file.Name())
-				writer.complete <- err
-				return
+			srcInfo, _ := os.Stat(name)
+			targetInfo, _ := os.Stat(extraLink)
+
+			if !os.SameFile(srcInfo, targetInfo) {
+				err = os.Link(name, extraLink)
+				if err != nil {
+					err = errors.New("Failed to link blob  " + err.Error())
+					os.Remove(file.Name())
+					writer.complete <- err
+					return
+				}
 			}
 		}
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -325,10 +324,6 @@ func (a *AptServer) Updater() {
 				}
 
 				respStatus, respObj, err = a.AptGenerator.AddSession(session)
-				log.Println(respStatus)
-				log.Println(respObj)
-				log.Println(err)
-				log.Println(session)
 
 				err = a.AptGenerator.Regenerate()
 				if err != nil {
