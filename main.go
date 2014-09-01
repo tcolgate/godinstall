@@ -113,16 +113,19 @@ func main() {
 		}
 	}
 
-	signerId := getKeyByEmail(privRing, *signerEmail)
-	if signerId == nil {
-		log.Println("Can't find signer id in keyring")
-		return
-	}
+	var signerId *openpgp.Entity
+	if *signerEmail != "" {
+		signerId = getKeyByEmail(privRing, *signerEmail)
+		if signerId == nil {
+			log.Println("Can't find signer id in keyring")
+			return
+		}
 
-	err = signerId.PrivateKey.Decrypt([]byte(""))
-	if err != nil {
-		log.Println("Can't decrypt private key, " + err.Error())
-		return
+		err = signerId.PrivateKey.Decrypt([]byte(""))
+		if err != nil {
+			log.Println("Can't decrypt private key, " + err.Error())
+			return
+		}
 	}
 
 	updateChan := make(chan UpdateRequest)
