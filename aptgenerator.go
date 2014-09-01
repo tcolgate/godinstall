@@ -43,6 +43,8 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 }
 
 func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
+	respStatus = http.StatusOK
+
 	//Move the files into the pool
 	for _, f := range session.Items() {
 		dstdir := a.Repo.PoolFilePath(f.Filename)
