@@ -7,6 +7,7 @@ import (
 	"compress/gzip"
 	"crypto/md5"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -33,6 +34,10 @@ type DebPackageInfoer interface {
 	IsSigned() (bool, error)            // This package contains a dpkg-sig signature
 	IsValidated() (bool, error)         // The signature has been validated against provided keyring
 	SignedBy() (*openpgp.Entity, error) // The entity that signed the package
+
+	Md5() ([]byte, error)
+	Sha1() ([]byte, error)
+	Sha256() ([]byte, error)
 }
 
 // A set of signatures as contained in a dpkg-gig signed package
@@ -63,6 +68,10 @@ type debPackage struct {
 	signatures map[string]*debSigsFile // Details of any signature files contained
 	calcedSigs map[string]debSigs      // Calculated signature of the contained files
 	signedBy   *openpgp.Entity         // The verified siger of the package
+
+	md5    []byte // Package md5
+	sha1   []byte // Package sha1
+	sha256 []byte // Package sha256
 
 	controlMap map[string]string // This content of the debian/control file
 }
@@ -235,13 +244,58 @@ func (d *debPackage) getControl(key string) (string, bool, error) {
 	return result, ok, nil
 }
 
+func (d *debPackage) Md5() ([]byte, error) {
+	var err error
+
+	if !d.parsed {
+		err = d.parseDebPackage()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return d.md5, nil
+}
+
+func (d *debPackage) Sha1() ([]byte, error) {
+	var err error
+
+	if !d.parsed {
+		err = d.parseDebPackage()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return d.sha1, nil
+}
+
+func (d *debPackage) Sha256() ([]byte, error) {
+	var err error
+
+	if !d.parsed {
+		err = d.parseDebPackage()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return d.sha256, nil
+}
+
 // parse a debian pacakge.. Debian packages are ar archives containing;
 //  data.tar.gz - The actual package content - changelog is in here
 //  contro.tar.gz - The control data from when the package was built
 //  debian-binary - Package version info
 //  _gpg* - dpkg-sig signatures covering hashes of the other files
 func (d *debPackage) parseDebPackage() (err error) {
-	arReader := ar.NewReader(d.reader)
+	pkgmd5er := md5.New()
+	pkgsha1er := sha1.New()
+	pkgsha256er := sha256.New()
+	pkghasher := io.MultiWriter(pkgmd5er, pkgsha1er, pkgsha256er)
+	pkgtee := io.TeeReader(d.reader, pkghasher)
+
+	arReader := ar.NewReader(pkgtee)
 	d.signatures = make(map[string]*debSigsFile)
 
 	var control bytes.Buffer
@@ -315,6 +369,10 @@ func (d *debPackage) parseDebPackage() (err error) {
 			sha1: hex.EncodeToString(sha1er.Sum(nil)),
 		}
 	}
+
+	d.md5 = pkgmd5er.Sum(nil)
+	d.sha1 = pkgsha1er.Sum(nil)
+	d.sha256 = pkgsha256er.Sum(nil)
 
 	if control.Len() == 0 {
 		return errors.New("did not find control file in archive")

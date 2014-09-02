@@ -24,6 +24,7 @@ func (i StoreID) String() string {
 type Storer interface {
 	Store() (StoreWriteCloser, error) // Write something to the store
 	Open(StoreID) (io.Reader, error)  // Open a file by id
+	Size(StoreID) (int64, error)      // Open a file by id
 	Link(StoreID, ...string) error    // Link a file id to a given location
 	GarbageCollect()                  // Remove all files with no external links
 	EmptyFileID() StoreID             // Return the StoreID for an 0 byte object
@@ -125,6 +126,14 @@ func (t *sha1Store) Open(id StoreID) (io.Reader, error) {
 	reader, err := os.Open(name)
 
 	return reader, err
+}
+
+func (t *sha1Store) Size(id StoreID) (int64, error) {
+	name, _ := t.storeIdToPathName(id)
+	info, err := os.Stat(name)
+	size := info.Size()
+
+	return size, err
 }
 
 func (t *sha1Store) Link(id StoreID, targets ...string) error {

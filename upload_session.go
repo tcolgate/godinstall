@@ -301,6 +301,8 @@ func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
 		return errors.New("Error linking store file: " + err.Error())
 	}
 
+	expectedFile.Size, _ = s.store.Size(id)
+
 	expectedFile.UploadHookResult = s.uploadHook.Run(storeFilename)
 	if expectedFile.UploadHookResult.err != nil {
 		os.Remove(storeFilename)
@@ -505,6 +507,7 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 	s.file.Sha256 = hex.EncodeToString(sha256er.Sum(nil))
 	s.file.SignedBy = signers
 	s.file.StoreID = id
+	s.file.Size, _ = s.store.Size(id)
 
 	// We're done, lets call out to the server to update
 	// with the contents of this session
