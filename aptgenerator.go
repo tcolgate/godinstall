@@ -183,18 +183,27 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 	release[0]["SHA256"] = SHA256Str
 
 	unsignedReleaseFile, err := os.Create(*a.Repo.RepoBase + "/Release")
-	signedReleaseFile, err := os.Create(*a.Repo.RepoBase + "/InRelease")
-	signedReleaseWriter, err := clearsign.Encode(signedReleaseFile, a.SignerId.PrivateKey, nil)
-	if err != nil {
-		return errors.New("Error InRelease clear-signer, " + err.Error())
-	}
 
-	releaseWriter := io.MultiWriter(unsignedReleaseFile, signedReleaseWriter)
+	var releaseWriter io.Writer
+	var signedReleaseWriter io.WriteCloser
+
+	if a.SignerId != nil {
+		signedReleaseFile, err := os.Create(*a.Repo.RepoBase + "/InRelease")
+		signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, a.SignerId.PrivateKey, nil)
+		if err != nil {
+			return errors.New("Error InRelease clear-signer, " + err.Error())
+		}
+		releaseWriter = io.MultiWriter(unsignedReleaseFile, signedReleaseWriter)
+	} else {
+		releaseWriter = unsignedReleaseFile
+	}
 
 	WriteDebianControl(releaseWriter, release, releaseStartFields, releaseEndFields)
 
 	unsignedReleaseFile.Close()
-	signedReleaseWriter.Close()
+	if a.SignerId != nil {
+		signedReleaseWriter.Close()
+	}
 
 	return
 }
