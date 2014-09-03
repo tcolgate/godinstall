@@ -138,7 +138,7 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 
 		return reterr
 	}
-	filepath.Walk(*a.Repo.RepoBase, f)
+	filepath.Walk(a.Repo.PoolFilePath(""), f)
 
 	sourcesFile.Close()
 	//sourcesMD5 := hex.EncodeToString(sourcesMD5er.Sum(nil))
