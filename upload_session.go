@@ -45,16 +45,30 @@ type UploadSessioner interface {
 	json.Marshaler                          // All session implementations should serialize to JSON
 }
 
-// An UploadSession for uploading using a changes file
-type changesSession struct {
+// Base session information
+type uploadSession struct {
 	SessionId    string             // Name of the session
-	changes      *DebChanges        // The changes file for this session
 	validateDebs bool               // Validate uploaded. deb files
 	keyRing      openpgp.EntityList // Keyring for validation
 	dir          string             // Temporary directory for storage
-	requireSig   bool               // Check debian package signatures
 	uploadHook   HookRunner         // A hook to run after a successful upload
+	requireSig   bool               // Check debian package signatures
 	store        Storer             // Blob store to keep files in
+	finished     chan UpdateRequest // A channel to anounce completion and trigger a repo update
+}
+
+func (s *uploadSession) SessionID() string {
+	return s.SessionId
+}
+
+func (s *uploadSession) Directory() string {
+	return s.dir
+}
+
+// An UploadSession for uploading using a changes file
+type changesSession struct {
+	uploadSession
+	changes *DebChanges // The changes file for this session
 
 	// Channels for requests
 	// TODO revisit this
@@ -64,8 +78,7 @@ type changesSession struct {
 
 	// output session
 	// TODO revisit this
-	done     chan struct{}      // A channel to be informed of closure on
-	finished chan UpdateRequest // A channel to anounce completion and trigger a repo update
+	done chan struct{} // A channel to be informed of closure on
 }
 
 func NewChangesSession(
@@ -174,14 +187,6 @@ func (s *changesSession) handler() {
 			}
 		}
 	}
-}
-
-func (s *changesSession) SessionID() string {
-	return s.SessionId
-}
-
-func (s *changesSession) Directory() string {
-	return s.dir
 }
 
 func (s *changesSession) Items() map[string]*UploadItem {
@@ -328,17 +333,8 @@ func (s *changesSession) MarshalJSON() (j []byte, err error) {
 
 // An UploadSession for uploading lone deb packages
 type loneDebSession struct {
-	SessionId    string             // Name of the session
-	validateDebs bool               // Validate uploaded. deb files
-	keyRing      openpgp.EntityList // Keyring for validation
-	dir          string             // Temporary directory for storage
-	store        Storer             // Blob store for file storage
-	requireSig   bool               // Check debian package signatures
-	uploadHook   HookRunner         // A hook to run after a successful upload
-	file         *UploadItem
-
-	// output session
-	finished chan UpdateRequest // A channel to anounce completion and trigger a repo update
+	uploadSession
+	file *UploadItem
 }
 
 func NewLoneDebSession(
@@ -361,14 +357,6 @@ func NewLoneDebSession(
 	os.Mkdir(s.dir, os.FileMode(0755))
 
 	return &s
-}
-
-func (s *loneDebSession) SessionID() string {
-	return s.SessionId
-}
-
-func (s *loneDebSession) Directory() string {
-	return s.dir
 }
 
 // Should never get called
