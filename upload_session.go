@@ -55,6 +55,7 @@ type uploadSession struct {
 	requireSig   bool               // Check debian package signatures
 	store        Storer             // Blob store to keep files in
 	finished     chan UpdateRequest // A channel to anounce completion and trigger a repo update
+	changes      *DebChanges        // The changes file for this session
 }
 
 func (s *uploadSession) SessionID() string {
@@ -65,10 +66,25 @@ func (s *uploadSession) Directory() string {
 	return s.dir
 }
 
+func (s *uploadSession) MarshalJSON() (j []byte, err error) {
+	resp := struct {
+		SessionId string
+		Changes   DebChanges
+	}{
+		s.SessionId,
+		*s.changes,
+	}
+	j, err = json.Marshal(resp)
+	return
+}
+
+func (s *uploadSession) Items() map[string]*UploadItem {
+	return s.changes.Files
+}
+
 // An UploadSession for uploading using a changes file
 type changesSession struct {
 	uploadSession
-	changes *DebChanges // The changes file for this session
 
 	// Channels for requests
 	// TODO revisit this
@@ -187,10 +203,6 @@ func (s *changesSession) handler() {
 			}
 		}
 	}
-}
-
-func (s *changesSession) Items() map[string]*UploadItem {
-	return s.changes.Files
 }
 
 func (s *changesSession) Close() {
@@ -319,22 +331,9 @@ func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
 	return
 }
 
-func (s *changesSession) MarshalJSON() (j []byte, err error) {
-	resp := struct {
-		SessionId string
-		Changes   DebChanges
-	}{
-		s.SessionId,
-		*s.changes,
-	}
-	j, err = json.Marshal(resp)
-	return
-}
-
 // An UploadSession for uploading lone deb packages
 type loneDebSession struct {
 	uploadSession
-	file *UploadItem
 }
 
 func NewLoneDebSession(
@@ -377,6 +376,9 @@ func (s *loneDebSession) Status() AptServerResponder {
 func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 	defer os.RemoveAll(s.dir)
 	storeFilename := s.dir + "/" + upload.Filename
+
+	var changes DebChanges
+	changes.Files = make(map[string]*UploadItem)
 
 	md5er := md5.New()
 	sha1er := sha1.New()
@@ -450,10 +452,10 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 
 	signers := make([]string, 1)
 	if s.validateDebs {
-		signed, _ := pkg.IsSigned()
-		validated, _ := pkg.IsValidated()
+		changes.signed, _ = pkg.IsSigned()
+		changes.validated, _ = pkg.IsValidated()
 
-		if signed && validated {
+		if changes.signed && changes.validated {
 			signedBy, _ := pkg.SignedBy()
 			i := 0
 			for k, _ := range signedBy.Identities {
@@ -487,15 +489,18 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 		return
 	}
 
-	s.file = upload
-	s.file.UploadHookResult = hookResult
-	s.file.Uploaded = true
-	s.file.Md5 = hex.EncodeToString(md5er.Sum(nil))
-	s.file.Sha1 = hex.EncodeToString(sha1er.Sum(nil))
-	s.file.Sha256 = hex.EncodeToString(sha256er.Sum(nil))
-	s.file.SignedBy = signers
-	s.file.StoreID = id
-	s.file.Size, _ = s.store.Size(id)
+	changes.Files[upload.Filename] = upload
+
+	upload.UploadHookResult = hookResult
+	upload.Uploaded = true
+	upload.Md5 = hex.EncodeToString(md5er.Sum(nil))
+	upload.Sha1 = hex.EncodeToString(sha1er.Sum(nil))
+	upload.Sha256 = hex.EncodeToString(sha256er.Sum(nil))
+	upload.SignedBy = signers
+	upload.StoreID = id
+	upload.Size, _ = s.store.Size(id)
+
+	s.changes = &changes
 
 	// We're done, lets call out to the server to update
 	// with the contents of this session
@@ -508,22 +513,4 @@ func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
 	updateresp := <-updater
 
 	return updateresp
-}
-
-func (s *loneDebSession) Items() map[string]*UploadItem {
-	result := make(map[string]*UploadItem)
-	result[s.file.Filename] = s.file
-	return result
-}
-
-func (s *loneDebSession) MarshalJSON() (j []byte, err error) {
-	resp := struct {
-		SessionId string
-		File      UploadItem
-	}{
-		s.SessionId,
-		*s.file,
-	}
-	j, err = json.Marshal(resp)
-	return
 }
