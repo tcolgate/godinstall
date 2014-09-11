@@ -15,9 +15,9 @@ import (
 	"github.com/stapelberg/godebiancontrol"
 )
 
-// DebChanges represents a debian changes file. A changes file
+// ChangesFile represents a debian changes file. A changes file
 // describes a set of files for upload to a repositry
-type DebChanges struct {
+type ChangesFile struct {
 	signed    bool                    // Whether this changes file signed
 	validated bool                    //  Whether the signature is valid
 	signedBy  *openpgp.Entity         // The pgp entity that signed the file
@@ -38,13 +38,13 @@ type ChangesItem struct {
 	data io.Reader
 }
 
-// Parse a debian chnages file into a DebChanges object and verify any signature
+// Parse a debian chnages file into a ChangesFile object and verify any signature
 // against keys in PHP keyring kr.
 //
 // TODO This fails DRY badlt as we repeat the process for each signature type
 // rewrite this to be more generic
-func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *DebChanges, err error) {
-	var c DebChanges
+func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err error) {
+	var c ChangesFile
 
 	b, err := ioutil.ReadAll(r)
 	if err != nil {

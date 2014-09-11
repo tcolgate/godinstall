@@ -4,121 +4,436 @@
 !_TAG_PROGRAM_NAME	gotags	
 !_TAG_PROGRAM_URL	https://github.com/jstemmer/gotags	
 !_TAG_PROGRAM_VERSION	1.2.0	
-AddChanges	upload.go	79;"	m	access:public	ctype:uploadSession	line:79	signature:(c *DebChanges)
-AptServer	aptserver.go	20;"	t	access:public	line:20	type:struct
-ChangesFile	changes.go	19;"	t	access:public	line:19	type:struct
-Check	safemap.go	45;"	m	access:public	ctype:SafeMap	line:45	signature:(k interface{})	type:bool
-Close	upload.go	58;"	m	access:public	ctype:uploadSession	line:58	signature:()
-CookieName	aptserver.go	25;"	w	access:public	ctype:AptServer	line:25	type:string
-DebChanges	changes.go	28;"	t	access:public	line:28	type:struct
-Delete	safemap.go	54;"	m	access:public	ctype:SafeMap	line:54	signature:(k interface{})
-Filename	changes.go	20;"	w	access:public	ctype:ChangesFile	line:20	type:string
-Files	changes.go	32;"	w	access:public	ctype:DebChanges	line:32	type:map[string]*ChangesFile
-Get	safemap.go	20;"	m	access:public	ctype:SafeMap	line:20	signature:(k interface{})	type:interface{}
-Governor	governor.go	5;"	t	access:public	line:5	type:struct
-HandleReq	upload.go	35;"	m	access:public	ctype:uploadSession	line:35	signature:(w http.ResponseWriter, r *http.Request)
-InitAptServer	aptserver.go	40;"	m	access:public	ctype:AptServer	line:40	signature:()
-Max	governor.go	6;"	w	access:public	ctype:Governor	line:6	type:int
-MaxGets	aptserver.go	21;"	w	access:public	ctype:AptServer	line:21	type:int
-MaxPuts	aptserver.go	22;"	w	access:public	ctype:AptServer	line:22	type:int
-Md5	changes.go	22;"	w	access:public	ctype:ChangesFile	line:22	type:string
-NewGovernor	governor.go	10;"	f	access:public	ctype:Governor	line:10	signature:(max int)	type:*Governor, error
-NewSafeMap	safemap.go	12;"	f	access:public	ctype:SafeMap	line:12	signature:()	type:*SafeMap
-NewUploadSession	upload.go	21;"	m	access:public	ctype:AptServer	line:21	signature:(sessionId string)	type:*uploadSession
-ParseDebianChanges	changes.go	35;"	f	access:public	ctype:DebChanges	line:35	signature:(r io.Reader, kr *openpgp.KeyRing)	type:*DebChanges, error
-R	aptserver.go	74;"	w	access:public	ctype:uploadSessionReq	line:74	type:*http.Request
-Register	aptserver.go	54;"	m	access:public	ctype:AptServer	line:54	signature:(r *mux.Router)
-RepoDir	aptserver.go	23;"	w	access:public	ctype:AptServer	line:23	type:string
-Run	governor.go	26;"	m	access:public	ctype:Governor	line:26	signature:(f func())
-RunExclusive	governor.go	32;"	m	access:public	ctype:Governor	line:32	signature:(f func())
-SafeMap	safemap.go	7;"	t	access:public	line:7	type:struct
-SessionId	aptserver.go	72;"	w	access:public	ctype:uploadSessionReq	line:72	type:string
-SessionId	upload.go	14;"	w	access:public	ctype:uploadSession	line:14	type:string
-Set	safemap.go	31;"	m	access:public	ctype:SafeMap	line:31	signature:(k interface{}, v interface{})	type:bool
-Sha1	changes.go	23;"	w	access:public	ctype:ChangesFile	line:23	type:string
-Sha256	changes.go	24;"	w	access:public	ctype:ChangesFile	line:24	type:string
-Size	changes.go	21;"	w	access:public	ctype:ChangesFile	line:21	type:string
-TTL	aptserver.go	26;"	w	access:public	ctype:AptServer	line:26	type:time.Duration
-TestParseDebianChanges	changes_test.go	24;"	f	access:public	line:24	signature:(t *testing.T)
+AcceptLoneDebs	aptserver.go	26;"	w	access:public	ctype:AptServer	line:26	type:bool
+AddChangesSession	upload_manager.go	107;"	m	access:public	ctype:uploadSessionManager	line:107	signature:(changesReader io.Reader)	type:string, error
+AddChangesSession	upload_manager.go	18;"	m	access:public	line:18	ntype:UploadSessionManager	signature:(io.Reader)	type:string, error
+AddDeb	upload_manager.go	17;"	m	access:public	line:17	ntype:UploadSessionManager	signature:(*multipart.FileHeader)	type:AptServerResponder
+AddDeb	upload_manager.go	86;"	m	access:public	ctype:uploadSessionManager	line:86	signature:(upload *multipart.FileHeader)	type:AptServerResponder
+AddFile	aptgenerator.go	250;"	m	access:public	ctype:aptBlobArchiveGenerator	line:250	signature:(filename string, data io.Reader)	type:error
+AddFile	aptgenerator.go	28;"	m	access:public	line:28	ntype:AptGenerator	signature:(name string, r io.Reader)	type:error
+AddItem	upload_session.go	227;"	m	access:public	ctype:changesSession	line:227	signature:(upload *ChangesItem)	type:AptServerResponder
+AddItem	upload_session.go	376;"	m	access:public	ctype:loneDebSession	line:376	signature:(upload *ChangesItem)	type:AptServerResponder
+AddItem	upload_session.go	41;"	m	access:public	line:41	ntype:UploadSessioner	signature:(*ChangesItem)	type:AptServerResponder
+AddItems	upload_manager.go	171;"	m	access:public	ctype:uploadSessionManager	line:171	signature:(s string, otherParts []*multipart.FileHeader)	type:AptServerResponder
+AddItems	upload_manager.go	20;"	m	access:public	line:20	ntype:UploadSessionManager	signature:(string, []*multipart.FileHeader)	type:AptServerResponder
+AddSession	aptgenerator.go	211;"	m	access:public	ctype:aptBlobArchiveGenerator	line:211	signature:(session UploadSessioner)	type:int, string, error
+AddSession	aptgenerator.go	27;"	m	access:public	line:27	ntype:AptGenerator	signature:(session UploadSessioner)	type:int, string, error
+AptGenerator	aptgenerator.go	25;"	n	access:public	line:25	type:interface
+AptGenerator	aptserver.go	29;"	w	access:public	ctype:AptServer	line:29	type:AptGenerator
+AptRepo	aptrepo.go	12;"	n	access:public	line:12	type:interface
+AptServer	aptserver.go	21;"	t	access:public	line:21	type:struct
+AptServerMessage	aptserver.go	104;"	f	access:public	line:104	signature:(status int, msg interface{})	type:AptServerResponder
+AptServerResponder	aptserver.go	79;"	n	access:public	line:79	type:interface
+Base	aptrepo.go	13;"	m	access:public	line:13	ntype:AptRepo	signature:()	type:string
+Base	aptrepo.go	26;"	m	access:public	ctype:aptRepo	line:26	signature:()	type:string
+ChangesFile	changes.go	20;"	t	access:public	line:20	type:struct
+ChangesItem	changes.go	27;"	t	access:public	line:27	type:struct
+Check	safemap.go	46;"	m	access:public	ctype:SafeMap	line:46	signature:(k interface{})	type:bool
+Close	store.go	224;"	m	access:public	ctype:hashedStoreWriter	line:224	signature:()	type:error
+Close	upload_session.go	208;"	m	access:public	ctype:changesSession	line:208	signature:()
+Close	upload_session.go	362;"	m	access:public	ctype:loneDebSession	line:362	signature:()
+Close	upload_session.go	42;"	m	access:public	line:42	ntype:UploadSessioner	signature:()
+CloseAndLink	store.go	204;"	m	access:public	line:204	ntype:StoreWriteCloser	signature:(string)	type:error
+CloseAndLink	store.go	228;"	m	access:public	ctype:hashedStoreWriter	line:228	signature:(target string)	type:error
+CompletedUpload	aptserver.go	282;"	t	access:public	line:282	type:struct
+Control	deb.go	185;"	m	access:public	ctype:debPackage	line:185	signature:()	type:map[string]string, error
+Control	deb.go	32;"	m	access:public	line:32	ntype:DebPackageInfoer	signature:()	type:map[string]string, error
+CookieName	aptserver.go	23;"	w	access:public	ctype:AptServer	line:23	type:string
+DebPackageInfoer	deb.go	26;"	n	access:public	line:26	type:interface
+Delete	safemap.go	55;"	m	access:public	ctype:SafeMap	line:55	signature:(k interface{})
+Description	deb.go	209;"	m	access:public	ctype:debPackage	line:209	signature:()	type:string, error
+Description	deb.go	30;"	m	access:public	line:30	ntype:DebPackageInfoer	signature:()	type:string, error
+Directory	upload_session.go	39;"	m	access:public	line:39	ntype:UploadSessioner	signature:()	type:string
+Directory	upload_session.go	65;"	m	access:public	ctype:uploadSession	line:65	signature:()	type:string
+DoneChan	upload_session.go	212;"	m	access:public	ctype:changesSession	line:212	signature:()	type:chan 
+DoneChan	upload_session.go	367;"	m	access:public	ctype:loneDebSession	line:367	signature:()	type:chan 
+DoneChan	upload_session.go	43;"	m	access:public	line:43	ntype:UploadSessioner	signature:()	type:chan 
+EmptyFileID	store.go	193;"	m	access:public	ctype:sha1Store	line:193	signature:()	type:StoreID
+EmptyFileID	store.go	30;"	m	access:public	line:30	ntype:Storer	signature:()	type:StoreID
+Error	aptserver.go	98;"	m	access:public	ctype:aptServerResponse	line:98	signature:()	type:string
+Error	hooks.go	14;"	m	access:public	ctype:HookOutput	line:14	signature:()	type:string
+Filename	changes.go	28;"	w	access:public	ctype:ChangesItem	line:28	type:string
+Filename	upload_session.go	23;"	w	access:public	ctype:UploadItem	line:23	type:string
+Files	changes.go	24;"	w	access:public	ctype:ChangesFile	line:24	type:map[string]*ChangesItem
+FindReleaseBase	aptrepo.go	15;"	m	access:public	line:15	ntype:AptRepo	signature:()	type:string, error
+FindReleaseBase	aptrepo.go	45;"	m	access:public	ctype:aptRepo	line:45	signature:()	type:string, error
+GarbageCollect	store.go	152;"	m	access:public	ctype:sha1Store	line:152	signature:()
+GarbageCollect	store.go	29;"	m	access:public	line:29	ntype:Storer	signature:()
+Get	safemap.go	21;"	m	access:public	ctype:SafeMap	line:21	signature:(k interface{})	type:interface{}
+GetMessage	aptserver.go	81;"	m	access:public	line:81	ntype:AptServerResponder	signature:()	type:[]byte
+GetMessage	aptserver.go	94;"	m	access:public	ctype:aptServerResponse	line:94	signature:()	type:[]byte
+GetSession	upload_manager.go	65;"	m	access:public	ctype:uploadSessionManager	line:65	signature:(sid string)	type:UploadSessioner, bool
+GetStatus	aptserver.go	80;"	m	access:public	line:80	ntype:AptServerResponder	signature:()	type:int
+GetStatus	aptserver.go	90;"	m	access:public	ctype:aptServerResponse	line:90	signature:()	type:int
+Governor	governor.go	13;"	t	access:public	line:13	type:struct
+HookOutput	hooks.go	9;"	t	access:public	line:9	type:struct
+HookRunner	hooks.go	30;"	n	access:public	line:30	type:interface
+Identity	store.go	205;"	m	access:public	line:205	ntype:StoreWriteCloser	signature:()	type:StoreID, error
+Identity	store.go	239;"	m	access:public	ctype:hashedStoreWriter	line:239	signature:()	type:StoreID, error
+InitAptServer	aptserver.go	43;"	m	access:public	ctype:AptServer	line:43	signature:()
+IsSigned	deb.go	142;"	m	access:public	ctype:debPackage	line:142	signature:()	type:bool, error
+IsSigned	deb.go	34;"	m	access:public	line:34	ntype:DebPackageInfoer	signature:()	type:bool, error
+IsValidated	deb.go	157;"	m	access:public	ctype:debPackage	line:157	signature:()	type:bool, error
+IsValidated	deb.go	35;"	m	access:public	line:35	ntype:DebPackageInfoer	signature:()	type:bool, error
+Items	upload_session.go	40;"	m	access:public	line:40	ntype:UploadSessioner	signature:()	type:map[string]*ChangesItem
+Items	upload_session.go	81;"	m	access:public	ctype:uploadSession	line:81	signature:()	type:map[string]*ChangesItem
+Link	store.go	139;"	m	access:public	ctype:sha1Store	line:139	signature:(id StoreID, targets )	type:error
+Link	store.go	28;"	m	access:public	line:28	ntype:Storer	signature:(StoreID, )	type:error
+Maintainer	deb.go	214;"	m	access:public	ctype:debPackage	line:214	signature:()	type:string, error
+Maintainer	deb.go	31;"	m	access:public	line:31	ntype:DebPackageInfoer	signature:()	type:string, error
+MarshalJSON	aptserver.go	288;"	m	access:public	ctype:CompletedUpload	line:288	signature:()	type:[]byte, error
+MarshalJSON	hooks.go	18;"	m	access:public	ctype:HookOutput	line:18	signature:()	type:[]byte, error
+MarshalJSON	upload_session.go	69;"	m	access:public	ctype:uploadSession	line:69	signature:()	type:[]byte, error
+Max	governor.go	14;"	w	access:public	ctype:Governor	line:14	type:int
+MaxReqs	aptserver.go	22;"	w	access:public	ctype:AptServer	line:22	type:int
+Md5	changes.go	31;"	w	access:public	ctype:ChangesItem	line:31	type:string
+Md5	deb.go	247;"	m	access:public	ctype:debPackage	line:247	signature:()	type:[]byte, error
+Md5	deb.go	38;"	m	access:public	line:38	ntype:DebPackageInfoer	signature:()	type:[]byte, error
+Md5	upload_session.go	26;"	w	access:public	ctype:UploadItem	line:26	type:string
+Name	deb.go	199;"	m	access:public	ctype:debPackage	line:199	signature:()	type:string, error
+Name	deb.go	28;"	m	access:public	line:28	ntype:DebPackageInfoer	signature:()	type:string, error
+NewAptBlobArchiveGenerator	aptgenerator.go	40;"	f	access:public	line:40	signature:(repo *aptRepo, privRing openpgp.KeyRing, signerId *openpgp.Entity, blobStore Storer)	type:AptGenerator
+NewChangesSession	upload_session.go	100;"	f	access:public	line:100	signature:(changes *ChangesFile, validateDebs bool, keyRing openpgp.EntityList, tmpDirBase *string, store Storer, uploadHook HookRunner, done chan , finished chan UpdateRequest)	type:UploadSessioner
+NewDebPackage	deb.go	123;"	f	access:public	line:123	signature:(r io.Reader, kr openpgp.EntityList)	type:DebPackageInfoer
+NewGovernor	governor.go	19;"	f	access:public	ctype:Governor	line:19	signature:(max int)	type:*Governor, error
+NewLoneDebSession	upload_session.go	339;"	f	access:public	line:339	signature:(validateDebs bool, keyRing openpgp.EntityList, tmpDirBase *string, store Storer, uploadHook HookRunner, finished chan UpdateRequest)	type:UploadSessioner
+NewSafeMap	safemap.go	13;"	f	access:public	ctype:SafeMap	line:13	signature:()	type:*SafeMap
+NewScriptHook	hooks.go	39;"	f	access:public	line:39	signature:(cmd *string)	type:HookRunner
+NewScriptHookr	hooks.go	64;"	f	access:public	line:64	signature:(hook hookFunc)	type:HookRunner
+NewUploadSessionManager	upload_manager.go	38;"	f	access:public	line:38	signature:(TTL time.Duration, tmpDir *string, store Storer, uploadHook HookRunner, validateChanges bool, validateChangesSufficient bool, validateDebs bool, pubRing openpgp.EntityList, finished chan UpdateRequest)	type:UploadSessionManager
+Open	store.go	124;"	m	access:public	ctype:sha1Store	line:124	signature:(id StoreID)	type:io.Reader, error
+Open	store.go	26;"	m	access:public	line:26	ntype:Storer	signature:(StoreID)	type:io.Reader, error
+Parse	deb.go	131;"	m	access:public	ctype:debPackage	line:131	signature:()	type:error
+Parse	deb.go	27;"	m	access:public	line:27	ntype:DebPackageInfoer	signature:()	type:error
+ParseDebianChanges	changes.go	46;"	f	access:public	ctype:ChangesFile	line:46	signature:(r io.Reader, kr openpgp.EntityList)	type:*ChangesFile, error
+PoolFilePath	aptrepo.go	14;"	m	access:public	line:14	ntype:AptRepo	signature:(string)	type:string
+PoolFilePath	aptrepo.go	32;"	m	access:public	ctype:aptRepo	line:32	signature:(filename string)	type:string
+PoolPattern	aptrepo.go	21;"	w	access:public	ctype:aptRepo	line:21	type:*regexp.Regexp
+PostAftpHook	aptserver.go	34;"	w	access:public	ctype:AptServer	line:34	type:HookRunner
+PostAftpHookOutput	aptserver.go	285;"	w	access:public	ctype:CompletedUpload	line:285	type:HookOutput
+PreAftpHook	aptserver.go	33;"	w	access:public	ctype:AptServer	line:33	type:HookRunner
+PreAftpHookOutput	aptserver.go	284;"	w	access:public	ctype:CompletedUpload	line:284	type:HookOutput
+PrivRing	aptgenerator.go	34;"	w	access:public	ctype:aptBlobArchiveGenerator	line:34	type:openpgp.KeyRing
+PubRing	upload_manager.go	32;"	w	access:public	ctype:uploadSessionManager	line:32	type:openpgp.EntityList
+ReadLock	governor.go	34;"	m	access:public	ctype:Governor	line:34	signature:()
+ReadUnLock	governor.go	42;"	m	access:public	ctype:Governor	line:42	signature:()
+Regenerate	aptgenerator.go	26;"	m	access:public	line:26	ntype:AptGenerator	signature:()	type:error
+Regenerate	aptgenerator.go	54;"	m	access:public	ctype:aptBlobArchiveGenerator	line:54	signature:()	type:error
+Register	aptserver.go	52;"	m	access:public	ctype:AptServer	line:52	signature:(mux *http.ServeMux)
+Repo	aptgenerator.go	33;"	w	access:public	ctype:aptBlobArchiveGenerator	line:33	type:*aptRepo
+Repo	aptserver.go	28;"	w	access:public	ctype:AptServer	line:28	type:AptRepo
+RepoBase	aptrepo.go	20;"	w	access:public	ctype:aptRepo	line:20	type:*string
+Run	hooks.go	31;"	m	access:public	line:31	ntype:HookRunner	signature:()	type:HookOutput
+Run	hooks.go	45;"	m	access:public	ctype:hookRunnerCmdExec	line:45	signature:(args )	type:HookOutput
+Run	hooks.go	70;"	m	access:public	ctype:hookRunnerFuncExec	line:70	signature:(args )	type:HookOutput
+SafeMap	safemap.go	8;"	t	access:public	line:8	type:struct
+Session	aptserver.go	283;"	w	access:public	ctype:CompletedUpload	line:283	type:UploadSessioner
+SessionID	upload_session.go	38;"	m	access:public	line:38	ntype:UploadSessioner	signature:()	type:string
+SessionID	upload_session.go	61;"	m	access:public	ctype:uploadSession	line:61	signature:()	type:string
+SessionId	upload_session.go	50;"	w	access:public	ctype:uploadSession	line:50	type:string
+SessionManager	aptserver.go	30;"	w	access:public	ctype:AptServer	line:30	type:UploadSessionManager
+Set	safemap.go	32;"	m	access:public	ctype:SafeMap	line:32	signature:(k interface{}, v interface{})	type:bool
+Sha1	changes.go	32;"	w	access:public	ctype:ChangesItem	line:32	type:string
+Sha1	deb.go	260;"	m	access:public	ctype:debPackage	line:260	signature:()	type:[]byte, error
+Sha1	deb.go	39;"	m	access:public	line:39	ntype:DebPackageInfoer	signature:()	type:[]byte, error
+Sha1	upload_session.go	27;"	w	access:public	ctype:UploadItem	line:27	type:string
+Sha1Store	store.go	179;"	f	access:public	line:179	signature:(baseDir string, tempDir string, prefixDepth int)	type:Storer
+Sha256	changes.go	33;"	w	access:public	ctype:ChangesItem	line:33	type:string
+Sha256	deb.go	273;"	m	access:public	ctype:debPackage	line:273	signature:()	type:[]byte, error
+Sha256	deb.go	40;"	m	access:public	line:40	ntype:DebPackageInfoer	signature:()	type:[]byte, error
+Sha256	upload_session.go	28;"	w	access:public	ctype:UploadItem	line:28	type:string
+SignedBy	changes.go	35;"	w	access:public	ctype:ChangesItem	line:35	type:[]string
+SignedBy	deb.go	171;"	m	access:public	ctype:debPackage	line:171	signature:()	type:*openpgp.Entity, error
+SignedBy	deb.go	36;"	m	access:public	line:36	ntype:DebPackageInfoer	signature:()	type:*openpgp.Entity, error
+SignedBy	upload_session.go	30;"	w	access:public	ctype:UploadItem	line:30	type:[]string
+SignerId	aptgenerator.go	35;"	w	access:public	ctype:aptBlobArchiveGenerator	line:35	type:*openpgp.Entity
+Size	changes.go	30;"	w	access:public	ctype:ChangesItem	line:30	type:int64
+Size	store.go	131;"	m	access:public	ctype:sha1Store	line:131	signature:(id StoreID)	type:int64, error
+Size	store.go	27;"	m	access:public	line:27	ntype:Storer	signature:(StoreID)	type:int64, error
+Size	upload_session.go	25;"	w	access:public	ctype:UploadItem	line:25	type:int64
+Status	upload_manager.go	154;"	m	access:public	ctype:uploadSessionManager	line:154	signature:(s string)	type:AptServerResponder
+Status	upload_manager.go	19;"	m	access:public	line:19	ntype:UploadSessionManager	signature:(string)	type:AptServerResponder
+Status	upload_session.go	216;"	m	access:public	ctype:changesSession	line:216	signature:()	type:AptServerResponder
+Status	upload_session.go	372;"	m	access:public	ctype:loneDebSession	line:372	signature:()	type:AptServerResponder
+Status	upload_session.go	44;"	m	access:public	line:44	ntype:UploadSessioner	signature:()	type:AptServerResponder
+Store	store.go	25;"	m	access:public	line:25	ntype:Storer	signature:()	type:StoreWriteCloser, error
+Store	store.go	53;"	m	access:public	ctype:sha1Store	line:53	signature:()	type:StoreWriteCloser, error
+Store	upload_manager.go	27;"	w	access:public	ctype:uploadSessionManager	line:27	type:Storer
+StoreID	changes.go	29;"	w	access:public	ctype:ChangesItem	line:29	type:StoreID
+StoreID	store.go	18;"	t	access:public	line:18	type:[]byte
+StoreID	upload_session.go	24;"	w	access:public	ctype:UploadItem	line:24	type:StoreID
+StoreWriteCloser	store.go	202;"	n	access:public	line:202	type:interface
+Storer	store.go	24;"	n	access:public	line:24	type:interface
+String	store.go	20;"	m	access:public	ctype:StoreID	line:20	signature:()	type:string
+TTL	aptserver.go	24;"	w	access:public	ctype:AptServer	line:24	type:time.Duration
+TTL	upload_manager.go	25;"	w	access:public	ctype:uploadSessionManager	line:25	type:time.Duration
+TestGarbageCollect	store_test.go	326;"	f	access:public	line:326	signature:(t *testing.T)
+TestParseDebianChanges	changes_test.go	25;"	f	access:public	line:25	signature:(t *testing.T)
+TestPrematureIdentity	store_test.go	305;"	f	access:public	line:305	signature:(t *testing.T)
 TestRun	governor_test.go	7;"	f	access:public	line:7	signature:(t *testing.T)
 TestRunExclusive	governor_test.go	10;"	f	access:public	line:10	signature:(t *testing.T)
-TmpDir	aptserver.go	24;"	w	access:public	ctype:AptServer	line:24	type:string
-Uploaded	changes.go	25;"	w	access:public	ctype:ChangesFile	line:25	type:bool
-ValidateChanges	aptserver.go	27;"	w	access:public	ctype:AptServer	line:27	type:bool
-ValidateDebs	aptserver.go	28;"	w	access:public	ctype:AptServer	line:28	type:bool
-W	aptserver.go	73;"	w	access:public	ctype:uploadSessionReq	line:73	type:http.ResponseWriter
-aptLock	aptserver.go	32;"	w	access:private	ctype:AptServer	line:32	type:*Governor
-bm	safemap.go	9;"	w	access:private	ctype:SafeMap	line:9	type:map[interface{}]interface{}
+TestSha1Store	store_test.go	38;"	f	access:public	line:38	signature:(t *testing.T)
+TestStore	store_test.go	43;"	f	access:public	line:43	signature:(t *testing.T)
+TestStoreNullString	store_test.go	244;"	f	access:public	line:244	signature:(t *testing.T)
+TestStoreTwice	store_test.go	107;"	f	access:public	line:107	signature:(t *testing.T)
+TestStoreTwiceWithGC	store_test.go	175;"	f	access:public	line:175	signature:(t *testing.T)
+TestWriteAfterClose	store_test.go	279;"	f	access:public	line:279	signature:(t *testing.T)
+TmpDir	upload_manager.go	26;"	w	access:public	ctype:uploadSessionManager	line:26	type:*string
+UpdateChannel	aptserver.go	31;"	w	access:public	ctype:AptServer	line:31	type:chan UpdateRequest
+UpdateRequest	aptserver.go	352;"	t	access:public	line:352	type:struct
+Updater	aptserver.go	302;"	m	access:public	ctype:AptServer	line:302	signature:()
+UploadHook	upload_manager.go	28;"	w	access:public	ctype:uploadSessionManager	line:28	type:HookRunner
+UploadHookResult	changes.go	36;"	w	access:public	ctype:ChangesItem	line:36	type:HookOutput
+UploadHookResult	upload_session.go	31;"	w	access:public	ctype:UploadItem	line:31	type:HookOutput
+UploadItem	upload_session.go	22;"	t	access:public	line:22	type:struct
+UploadSessionManager	upload_manager.go	16;"	n	access:public	line:16	type:interface
+UploadSessioner	upload_session.go	37;"	n	access:public	line:37	type:interface
+Uploaded	changes.go	34;"	w	access:public	ctype:ChangesItem	line:34	type:bool
+Uploaded	upload_session.go	29;"	w	access:public	ctype:UploadItem	line:29	type:bool
+ValidateChanges	upload_manager.go	29;"	w	access:public	ctype:uploadSessionManager	line:29	type:bool
+ValidateChangesSufficient	upload_manager.go	30;"	w	access:public	ctype:uploadSessionManager	line:30	type:bool
+ValidateDebs	upload_manager.go	31;"	w	access:public	ctype:uploadSessionManager	line:31	type:bool
+Version	deb.go	204;"	m	access:public	ctype:debPackage	line:204	signature:()	type:string, error
+Version	deb.go	29;"	m	access:public	line:29	ntype:DebPackageInfoer	signature:()	type:string, error
+Write	store.go	216;"	m	access:public	ctype:hashedStoreWriter	line:216	signature:(p []byte)	type:int, error
+WriteDebianControl	deb.go	416;"	f	access:public	line:416	signature:(out io.Writer, paragraphs []godebiancontrol.Paragraph, start []string, end []string)
+WriteLock	governor.go	51;"	m	access:public	ctype:Governor	line:51	signature:()
+WriteUnLock	governor.go	61;"	m	access:public	ctype:Governor	line:61	signature:()	type:error
+addItemMsg	upload_session.go	135;"	t	access:private	line:135	type:struct
+aptBlobArchiveGenerator	aptgenerator.go	32;"	t	access:private	line:32	type:struct
+aptLocks	aptserver.go	36;"	w	access:private	ctype:AptServer	line:36	type:*Governor
+aptRepo	aptrepo.go	19;"	t	access:private	line:19	type:struct
+aptServerResponse	aptserver.go	85;"	t	access:private	line:85	type:struct
+archive/tar	deb.go	4;"	i	line:4
+baseDir	store.go	35;"	w	access:private	ctype:sha1Store	line:35	type:string
+blobStore	aptgenerator.go	36;"	w	access:private	ctype:aptBlobArchiveGenerator	line:36	type:Storer
+bm	safemap.go	10;"	w	access:private	ctype:SafeMap	line:10	type:map[interface{}]interface{}
+bufio	deb.go	5;"	i	line:5
 bytes	changes.go	5;"	i	line:5
-changes	upload.go	18;"	w	access:private	ctype:uploadSession	line:18	type:*DebChanges
-code.google.com/p/go-uuid/uuid	aptserver.go	15;"	i	line:15
-code.google.com/p/go.crypto/openpgp	aptserver.go	16;"	i	line:16
-code.google.com/p/go.crypto/openpgp	changes.go	12;"	i	line:12
-code.google.com/p/go.crypto/openpgp	changes_test.go	7;"	i	line:7
-code.google.com/p/go.crypto/openpgp	upload.go	10;"	i	line:10
-code.google.com/p/go.crypto/openpgp/clearsign	changes.go	13;"	i	line:13
-create	aptserver.go	75;"	w	access:private	ctype:uploadSessionReq	line:75	type:bool
-dir	upload.go	15;"	w	access:private	ctype:uploadSession	line:15	type:string
-dispatchRequest	aptserver.go	102;"	f	access:private	line:102	signature:(a *AptServer, r *uploadSessionReq)
-downloadHandler	aptserver.go	34;"	w	access:private	ctype:AptServer	line:34	type:http.HandlerFunc
-encoding/json	aptserver.go	7;"	i	line:7
-encoding/json	upload.go	4;"	i	line:4
+bytes	deb.go	6;"	i	line:6
+bytes	store_test.go	4;"	i	line:4
+calcedSigs	deb.go	69;"	w	access:private	ctype:debPackage	line:69	type:map[string]debSigs
+changes	upload_session.go	58;"	w	access:private	ctype:uploadSession	line:58	type:*ChangesFile
+changesFromRequest	aptserver.go	256;"	m	access:private	ctype:AptServer	line:256	signature:(r *http.Request)	type:io.Reader, []*multipart.FileHeader, error
+changesSession	upload_session.go	86;"	t	access:private	line:86	type:struct
+close	upload_session.go	92;"	w	access:private	ctype:changesSession	line:92	type:chan closeMsg
+closeMsg	upload_session.go	133;"	t	access:private	line:133	type:struct
+closed	store.go	211;"	w	access:private	ctype:hashedStoreWriter	line:211	type:bool
+cmd	hooks.go	36;"	w	access:private	ctype:hookRunnerCmdExec	line:36	type:*string
+code.google.com/p/go-uuid/uuid	upload_session.go	16;"	i	line:16
+code.google.com/p/go.crypto/openpgp	aptgenerator.go	20;"	i	line:20
+code.google.com/p/go.crypto/openpgp	changes.go	13;"	i	line:13
+code.google.com/p/go.crypto/openpgp	changes_test.go	8;"	i	line:8
+code.google.com/p/go.crypto/openpgp	deb.go	19;"	i	line:19
+code.google.com/p/go.crypto/openpgp	main.go	18;"	i	line:18
+code.google.com/p/go.crypto/openpgp	upload_manager.go	10;"	i	line:10
+code.google.com/p/go.crypto/openpgp	upload_session.go	17;"	i	line:17
+code.google.com/p/go.crypto/openpgp/clearsign	aptgenerator.go	21;"	i	line:21
+code.google.com/p/go.crypto/openpgp/clearsign	changes.go	14;"	i	line:14
+code.google.com/p/go.crypto/openpgp/clearsign	deb.go	20;"	i	line:20
+complete	store.go	213;"	w	access:private	ctype:hashedStoreWriter	line:213	type:chan error
+compress/gzip	aptgenerator.go	15;"	i	line:15
+compress/gzip	deb.go	7;"	i	line:7
+controlMap	deb.go	76;"	w	access:private	ctype:debPackage	line:76	type:map[string]string
+crypto/md5	aptgenerator.go	16;"	i	line:16
+crypto/md5	deb.go	8;"	i	line:8
+crypto/md5	upload_session.go	4;"	i	line:4
+crypto/sha1	aptgenerator.go	17;"	i	line:17
+crypto/sha1	deb.go	9;"	i	line:9
+crypto/sha1	store.go	4;"	i	line:4
+crypto/sha1	upload_session.go	5;"	i	line:5
+crypto/sha256	aptgenerator.go	18;"	i	line:18
+crypto/sha256	deb.go	10;"	i	line:10
+crypto/sha256	upload_session.go	6;"	i	line:6
+data	changes.go	38;"	w	access:private	ctype:ChangesItem	line:38	type:io.Reader
+data	upload_session.go	33;"	w	access:private	ctype:UploadItem	line:33	type:io.Reader
+debPackage	deb.go	60;"	t	access:private	line:60	type:struct
+debSigs	deb.go	44;"	t	access:private	line:44	type:struct
+debSigsFile	deb.go	51;"	t	access:private	line:51	type:struct
+dir	upload_session.go	53;"	w	access:private	ctype:uploadSession	line:53	type:string
+doAddItem	upload_session.go	239;"	m	access:private	ctype:changesSession	line:239	signature:(upload *ChangesItem)	type:error
+done	store.go	212;"	w	access:private	ctype:hashedStoreWriter	line:212	type:chan string
+done	upload_session.go	97;"	w	access:private	ctype:changesSession	line:97	type:chan 
+downloadHandler	aptserver.go	39;"	w	access:private	ctype:AptServer	line:39	type:http.HandlerFunc
+encoding/hex	aptgenerator.go	4;"	i	line:4
+encoding/hex	deb.go	11;"	i	line:11
+encoding/hex	store.go	5;"	i	line:5
+encoding/hex	upload_session.go	7;"	i	line:7
+encoding/json	aptserver.go	4;"	i	line:4
+encoding/json	hooks.go	4;"	i	line:4
+encoding/json	upload_session.go	8;"	i	line:8
+err	hooks.go	11;"	w	access:private	ctype:HookOutput	line:11	type:error
+error	aptserver.go	82;"	e	access:private	line:82	ntype:AptServerResponder
+errors	aptgenerator.go	5;"	i	line:5
+errors	aptrepo.go	4;"	i	line:4
+errors	aptserver.go	5;"	i	line:5
 errors	changes.go	6;"	i	line:6
-errors	governor.go	3;"	i	line:3
-flag	main.go	7;"	i	line:7
-getLocks	aptserver.go	30;"	w	access:private	ctype:AptServer	line:30	type:*Governor
-github.com/stapelberg/godebiancontrol	changes.go	14;"	i	line:14
+errors	deb.go	12;"	i	line:12
+errors	governor.go	4;"	i	line:4
+errors	store.go	6;"	i	line:6
+errors	upload_manager.go	4;"	i	line:4
+errors	upload_session.go	9;"	i	line:9
+f	hooks.go	59;"	w	access:private	ctype:hookRunnerFuncExec	line:59	type:hookFunc
+file	upload_session.go	136;"	w	access:private	ctype:addItemMsg	line:136	type:*ChangesItem
+finished	upload_manager.go	34;"	w	access:private	ctype:uploadSessionManager	line:34	type:chan UpdateRequest
+finished	upload_session.go	57;"	w	access:private	ctype:uploadSession	line:57	type:chan UpdateRequest
+flag	main.go	11;"	i	line:11
+fmt	deb.go	13;"	i	line:13
+getControl	deb.go	232;"	m	access:private	ctype:debPackage	line:232	signature:(key string)	type:string, bool, error
+getKeyByEmail	main.go	27;"	f	access:private	line:27	signature:(keyring openpgp.EntityList, email string)	type:*openpgp.Entity
+getMandatoryControl	deb.go	219;"	m	access:private	ctype:debPackage	line:219	signature:(key string)	type:string, error
+getStatusMsg	upload_session.go	140;"	t	access:private	line:140	type:struct
+getstatus	upload_session.go	93;"	w	access:private	ctype:changesSession	line:93	type:chan getStatusMsg
+github.com/blakesmith/ar	deb.go	21;"	i	line:21
+github.com/stapelberg/godebiancontrol	aptgenerator.go	13;"	i	line:13
+github.com/stapelberg/godebiancontrol	changes.go	15;"	i	line:15
+github.com/stapelberg/godebiancontrol	deb.go	22;"	i	line:22
+handler	upload_manager.go	206;"	m	access:private	ctype:uploadSessionManager	line:206	signature:(s UploadSessioner)
+handler	upload_session.go	146;"	m	access:private	ctype:changesSession	line:146	signature:()
+hash	store.go	7;"	i	line:7
+hashedStoreWriter	store.go	208;"	t	access:private	line:208	type:struct
+hasher	store.go	210;"	w	access:private	ctype:hashedStoreWriter	line:210	type:hash.Hash
+hookFunc	hooks.go	62;"	t	access:private	line:62	type:func([]string) []byte, error
+hookRunnerCmdExec	hooks.go	35;"	t	access:private	line:35	type:struct
+hookRunnerFuncExec	hooks.go	58;"	t	access:private	line:58	type:struct
+incoming	upload_session.go	91;"	w	access:private	ctype:changesSession	line:91	type:chan addItemMsg
+io	aptgenerator.go	6;"	i	line:6
+io	aptserver.go	6;"	i	line:6
 io	changes.go	7;"	i	line:7
+io	deb.go	14;"	i	line:14
+io	store.go	8;"	i	line:8
+io	store_test.go	5;"	i	line:5
+io	upload_manager.go	5;"	i	line:5
+io	upload_session.go	10;"	i	line:10
+io.WriteCloser	store.go	203;"	e	access:public	line:203	ntype:StoreWriteCloser
 io/ioutil	changes.go	8;"	i	line:8
-keyRing	upload.go	16;"	w	access:private	ctype:uploadSession	line:16	type:openpgp.KeyRing
-lock	safemap.go	8;"	w	access:private	ctype:SafeMap	line:8	type:*sync.RWMutex
-locks	governor.go	7;"	w	access:private	ctype:Governor	line:7	type:chan int
-log	aptserver.go	8;"	i	line:8
+io/ioutil	store.go	9;"	i	line:9
+io/ioutil	store_test.go	6;"	i	line:6
+json.Marshaler	upload_session.go	45;"	e	access:public	line:45	ntype:UploadSessioner
+keyRing	deb.go	62;"	w	access:private	ctype:debPackage	line:62	type:openpgp.EntityList
+keyRing	upload_session.go	52;"	w	access:private	ctype:uploadSession	line:52	type:openpgp.EntityList
+lock	safemap.go	9;"	w	access:private	ctype:SafeMap	line:9	type:*sync.RWMutex
 log	changes.go	9;"	i	line:9
-log	upload.go	5;"	i	line:5
+log	main.go	12;"	i	line:12
+log	store.go	10;"	i	line:10
+log	upload_session.go	11;"	i	line:11
+loneDebSession	upload_session.go	335;"	t	access:private	line:335	type:struct
+main	aptgenerator.go	1;"	p	line:1
+main	aptrepo.go	1;"	p	line:1
 main	aptserver.go	1;"	p	line:1
+main	aptserver_test.go	1;"	p	line:1
 main	changes.go	1;"	p	line:1
 main	changes_test.go	1;"	p	line:1
+main	deb.go	1;"	p	line:1
 main	governor.go	1;"	p	line:1
 main	governor_test.go	1;"	p	line:1
-main	main.go	18;"	f	access:private	line:18	signature:()
+main	hooks.go	1;"	p	line:1
+main	hooks_test.go	1;"	p	line:1
 main	main.go	1;"	p	line:1
+main	main.go	39;"	f	access:private	line:39	signature:()
 main	safemap.go	1;"	p	line:1
-main	upload.go	1;"	p	line:1
-makeDownloadHandler	aptserver.go	60;"	f	access:private	line:60	signature:(a *AptServer)	type:http.HandlerFunc
-makeUploadHandler	aptserver.go	78;"	f	access:private	line:78	signature:(a *AptServer)	type:http.HandlerFunc
-mime/multipart	aptserver.go	9;"	i	line:9
-net/http	aptserver.go	10;"	i	line:10
-net/http	main.go	8;"	i	line:8
-net/http	upload.go	6;"	i	line:6
-os	aptserver.go	11;"	i	line:11
-os	upload.go	7;"	i	line:7
-pathHandle	upload.go	62;"	f	access:private	line:62	signature:(sessMap *SafeMap, s string, timeout time.Duration)
-privRing	aptserver.go	37;"	w	access:private	ctype:AptServer	line:37	type:openpgp.KeyRing
-pubRing	aptserver.go	36;"	w	access:private	ctype:AptServer	line:36	type:openpgp.KeyRing
-putLocks	aptserver.go	31;"	w	access:private	ctype:AptServer	line:31	type:*Governor
-requireSig	upload.go	17;"	w	access:private	ctype:uploadSession	line:17	type:bool
-rootHandler	main.go	14;"	f	access:private	line:14	signature:(w http.ResponseWriter, r *http.Request)
-sessMap	aptserver.go	35;"	w	access:private	ctype:AptServer	line:35	type:*SafeMap
-signed	changes.go	29;"	w	access:private	ctype:DebChanges	line:29	type:bool
-signedBy	changes.go	31;"	w	access:private	ctype:DebChanges	line:31	type:*openpgp.Entity
+main	store.go	1;"	p	line:1
+main	store_test.go	1;"	p	line:1
+main	upload_manager.go	1;"	p	line:1
+main	upload_session.go	1;"	p	line:1
+makeDownloadHandler	aptserver.go	59;"	m	access:private	ctype:AptServer	line:59	signature:()	type:http.HandlerFunc
+makeTestSha1Store	store_test.go	16;"	f	access:private	line:16	signature:(t *testing.T)	type:Storer, func(), error
+makeUploadHandler	aptserver.go	159;"	m	access:private	ctype:AptServer	line:159	signature:()	type:http.HandlerFunc
+md5	deb.go	45;"	w	access:private	ctype:debSigs	line:45	type:string
+md5	deb.go	72;"	w	access:private	ctype:debPackage	line:72	type:[]byte
+message	aptserver.go	87;"	w	access:private	ctype:aptServerResponse	line:87	type:[]byte
+mime/multipart	aptserver.go	7;"	i	line:7
+mime/multipart	upload_manager.go	6;"	i	line:6
+mimeMemoryBufferSize	aptserver.go	18;"	v	access:private	line:18
+net/http	aptgenerator.go	7;"	i	line:7
+net/http	aptserver.go	8;"	i	line:8
+net/http	main.go	13;"	i	line:13
+net/http	upload_manager.go	7;"	i	line:7
+net/http	upload_session.go	12;"	i	line:12
+os	aptgenerator.go	8;"	i	line:8
+os	aptrepo.go	5;"	i	line:5
+os	aptserver.go	9;"	i	line:9
+os	main.go	14;"	i	line:14
+os	store.go	11;"	i	line:11
+os	store_test.go	7;"	i	line:7
+os	upload_session.go	13;"	i	line:13
+os/exec	hooks.go	5;"	i	line:5
+output	hooks.go	10;"	w	access:private	ctype:HookOutput	line:10	type:[]byte
+parseDebPackage	deb.go	291;"	m	access:private	ctype:debPackage	line:291	signature:()	type:error
+parseSigsFile	deb.go	81;"	f	access:private	ctype:debSigsFile	line:81	signature:(sig string, kr openpgp.EntityList)	type:*debSigsFile, error
+parsed	deb.go	64;"	w	access:private	ctype:debPackage	line:64	type:bool
+path/filepath	aptgenerator.go	9;"	i	line:9
+path/filepath	aptrepo.go	6;"	i	line:6
+path/filepath	store.go	12;"	i	line:12
+prefixDepth	store.go	36;"	w	access:private	ctype:sha1Store	line:36	type:int
+reader	deb.go	61;"	w	access:private	ctype:debPackage	line:61	type:io.Reader
+reflect	changes_test.go	4;"	i	line:4
+reflect	deb.go	15;"	i	line:15
+regexp	aptrepo.go	7;"	i	line:7
+regexp	aptserver.go	10;"	i	line:10
+regexp	main.go	15;"	i	line:15
+req	governor.go	8;"	t	access:private	line:8	type:struct
+reqs	governor.go	15;"	w	access:private	ctype:Governor	line:15	type:chan req
+requireSig	upload_session.go	55;"	w	access:private	ctype:uploadSession	line:55	type:bool
+resp	aptserver.go	353;"	w	access:private	ctype:UpdateRequest	line:353	type:chan AptServerResponder
+resp	upload_session.go	137;"	w	access:private	ctype:addItemMsg	line:137	type:chan AptServerResponder
+resp	upload_session.go	141;"	w	access:private	ctype:getStatusMsg	line:141	type:chan AptServerResponder
+rootHandler	main.go	22;"	f	access:private	line:22	signature:(w http.ResponseWriter, r *http.Request)
+rwLock	governor.go	16;"	w	access:private	ctype:Governor	line:16	type:sync.RWMutex
+sessMap	upload_manager.go	35;"	w	access:private	ctype:uploadSessionManager	line:35	type:*SafeMap
+session	aptserver.go	354;"	w	access:private	ctype:UpdateRequest	line:354	type:UploadSessioner
+sha1	deb.go	46;"	w	access:private	ctype:debSigs	line:46	type:string
+sha1	deb.go	73;"	w	access:private	ctype:debPackage	line:73	type:[]byte
+sha1Store	store.go	33;"	t	access:private	line:33	type:struct
+sha256	deb.go	74;"	w	access:private	ctype:debPackage	line:74	type:[]byte
+signatures	deb.go	53;"	w	access:private	ctype:debSigsFile	line:53	type:map[string]debSigs
+signatures	deb.go	68;"	w	access:private	ctype:debPackage	line:68	type:map[string]*debSigsFile
+signed	changes.go	21;"	w	access:private	ctype:ChangesFile	line:21	type:bool
+signed	deb.go	65;"	w	access:private	ctype:debPackage	line:65	type:bool
+signedBy	changes.go	23;"	w	access:private	ctype:ChangesFile	line:23	type:*openpgp.Entity
+signedBy	deb.go	54;"	w	access:private	ctype:debSigsFile	line:54	type:*openpgp.Entity
+signedBy	deb.go	70;"	w	access:private	ctype:debPackage	line:70	type:*openpgp.Entity
+statusCode	aptserver.go	86;"	w	access:private	ctype:aptServerResponse	line:86	type:int
+store	upload_session.go	56;"	w	access:private	ctype:uploadSession	line:56	type:Storer
+storeIdToPathName	store.go	39;"	m	access:private	ctype:sha1Store	line:39	signature:(id StoreID)	type:string, string
+storeTestNullStringHash	store_test.go	14;"	v	access:private	line:14
+storeTestPrefixDepth	store_test.go	11;"	v	access:private	line:11
+storeTestString	store_test.go	12;"	v	access:private	line:12
+storeTestStringHash	store_test.go	13;"	v	access:private	line:13
+strconv	aptgenerator.go	10;"	i	line:10
+strconv	changes.go	10;"	i	line:10
+strconv	deb.go	16;"	i	line:16
+strings	aptgenerator.go	11;"	i	line:11
 strings	aptserver.go	12;"	i	line:12
-strings	changes.go	10;"	i	line:10
-strings	changes_test.go	4;"	i	line:4
+strings	changes.go	11;"	i	line:11
+strings	changes_test.go	5;"	i	line:5
+strings	deb.go	17;"	i	line:17
+strings	upload_session.go	14;"	i	line:14
+sync	governor.go	5;"	i	line:5
 sync	safemap.go	4;"	i	line:4
-testInvalidUnsigned	changes_test.go	71;"	v	access:private	line:71
-testKrStr	changes_test.go	148;"	v	access:private	line:148
-testParseDebianChanges	changes_test.go	10;"	v	access:private	line:10
-testResult	changes_test.go	131;"	v	access:private	line:131
-testSignedInvalid	changes_test.go	107;"	v	access:private	line:107
-testSignedValid	changes_test.go	82;"	v	access:private	line:82
-testUnsigned	changes_test.go	72;"	v	access:private	line:72
-testing	changes_test.go	5;"	i	line:5
+syscall	store.go	13;"	i	line:13
+tempDir	store.go	34;"	w	access:private	ctype:sha1Store	line:34	type:string
+testInvalidUnsigned	changes_test.go	70;"	v	access:private	line:70
+testKrStr	changes_test.go	147;"	v	access:private	line:147
+testParseDebianChanges	changes_test.go	11;"	v	access:private	line:11
+testResult	changes_test.go	130;"	v	access:private	line:130
+testSignedInvalid	changes_test.go	106;"	v	access:private	line:106
+testSignedValid	changes_test.go	81;"	v	access:private	line:81
+testUnsigned	changes_test.go	71;"	v	access:private	line:71
+testing	changes_test.go	6;"	i	line:6
 testing	governor_test.go	4;"	i	line:4
+testing	store_test.go	8;"	i	line:8
 time	aptserver.go	13;"	i	line:13
-time	main.go	9;"	i	line:9
-time	upload.go	8;"	i	line:8
-uploadHandler	aptserver.go	33;"	w	access:private	ctype:AptServer	line:33	type:http.HandlerFunc
-uploadSession	upload.go	13;"	t	access:private	line:13	type:struct
-uploadSessionReq	aptserver.go	71;"	t	access:private	line:71	type:struct
-validated	changes.go	30;"	w	access:private	ctype:DebChanges	line:30	type:bool
+time	main.go	16;"	i	line:16
+time	upload_manager.go	8;"	i	line:8
+uploadHandler	aptserver.go	38;"	w	access:private	ctype:AptServer	line:38	type:http.HandlerFunc
+uploadHook	upload_session.go	54;"	w	access:private	ctype:uploadSession	line:54	type:HookRunner
+uploadSession	upload_session.go	336;"	e	access:private	ctype:loneDebSession	line:336	type:uploadSession
+uploadSession	upload_session.go	49;"	t	access:private	line:49	type:struct
+uploadSession	upload_session.go	87;"	e	access:private	ctype:changesSession	line:87	type:uploadSession
+uploadSessionManager	upload_manager.go	24;"	t	access:private	line:24	type:struct
+validateDebs	upload_session.go	51;"	w	access:private	ctype:uploadSession	line:51	type:bool
+validated	changes.go	22;"	w	access:private	ctype:ChangesFile	line:22	type:bool
+validated	deb.go	66;"	w	access:private	ctype:debPackage	line:66	type:bool
+version	deb.go	52;"	w	access:private	ctype:debSigsFile	line:52	type:int
+writer	store.go	209;"	w	access:private	ctype:hashedStoreWriter	line:209	type:io.Writer

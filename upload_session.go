@@ -55,7 +55,7 @@ type uploadSession struct {
 	requireSig   bool               // Check debian package signatures
 	store        Storer             // Blob store to keep files in
 	finished     chan UpdateRequest // A channel to anounce completion and trigger a repo update
-	changes      *DebChanges        // The changes file for this session
+	changes      *ChangesFile       // The changes file for this session
 }
 
 func (s *uploadSession) SessionID() string {
@@ -69,7 +69,7 @@ func (s *uploadSession) Directory() string {
 func (s *uploadSession) MarshalJSON() (j []byte, err error) {
 	resp := struct {
 		SessionId string
-		Changes   DebChanges
+		Changes   ChangesFile
 	}{
 		s.SessionId,
 		*s.changes,
@@ -98,7 +98,7 @@ type changesSession struct {
 }
 
 func NewChangesSession(
-	changes *DebChanges,
+	changes *ChangesFile,
 	validateDebs bool,
 	keyRing openpgp.EntityList,
 	tmpDirBase *string,
@@ -377,7 +377,7 @@ func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) 
 	defer os.RemoveAll(s.dir)
 	storeFilename := s.dir + "/" + upload.Filename
 
-	var changes DebChanges
+	var changes ChangesFile
 	changes.Files = make(map[string]*ChangesItem)
 
 	md5er := md5.New()
