@@ -20,12 +20,12 @@ AddSession	aptgenerator.go	211;"	m	access:public	ctype:aptBlobArchiveGenerator	l
 AddSession	aptgenerator.go	27;"	m	access:public	line:27	ntype:AptGenerator	signature:(session UploadSessioner)	type:int, string, error
 AptGenerator	aptgenerator.go	25;"	n	access:public	line:25	type:interface
 AptGenerator	aptserver.go	29;"	w	access:public	ctype:AptServer	line:29	type:AptGenerator
-AptRepo	aptrepo.go	12;"	n	access:public	line:12	type:interface
+AptRepo	aptrepo.go	7;"	n	access:public	line:7	type:interface
 AptServer	aptserver.go	21;"	t	access:public	line:21	type:struct
 AptServerMessage	aptserver.go	104;"	f	access:public	line:104	signature:(status int, msg interface{})	type:AptServerResponder
 AptServerResponder	aptserver.go	79;"	n	access:public	line:79	type:interface
-Base	aptrepo.go	13;"	m	access:public	line:13	ntype:AptRepo	signature:()	type:string
-Base	aptrepo.go	26;"	m	access:public	ctype:aptRepo	line:26	signature:()	type:string
+Base	aptrepo.go	20;"	m	access:public	ctype:aptRepo	line:20	signature:()	type:string
+Base	aptrepo.go	8;"	m	access:public	line:8	ntype:AptRepo	signature:()	type:string
 ChangesFile	changes.go	20;"	t	access:public	line:20	type:struct
 ChangesItem	changes.go	27;"	t	access:public	line:27	type:struct
 Check	safemap.go	46;"	m	access:public	ctype:SafeMap	line:46	signature:(k interface{})	type:bool
@@ -55,8 +55,6 @@ Error	hooks.go	14;"	m	access:public	ctype:HookOutput	line:14	signature:()	type:s
 Filename	changes.go	28;"	w	access:public	ctype:ChangesItem	line:28	type:string
 Filename	upload_session.go	23;"	w	access:public	ctype:UploadItem	line:23	type:string
 Files	changes.go	24;"	w	access:public	ctype:ChangesFile	line:24	type:map[string]*ChangesItem
-FindReleaseBase	aptrepo.go	15;"	m	access:public	line:15	ntype:AptRepo	signature:()	type:string, error
-FindReleaseBase	aptrepo.go	45;"	m	access:public	ctype:aptRepo	line:45	signature:()	type:string, error
 GarbageCollect	store.go	152;"	m	access:public	ctype:sha1Store	line:152	signature:()
 GarbageCollect	store.go	29;"	m	access:public	line:29	ntype:Storer	signature:()
 Get	safemap.go	21;"	m	access:public	ctype:SafeMap	line:21	signature:(k interface{})	type:interface{}
@@ -106,9 +104,9 @@ Open	store.go	26;"	m	access:public	line:26	ntype:Storer	signature:(StoreID)	type
 Parse	deb.go	131;"	m	access:public	ctype:debPackage	line:131	signature:()	type:error
 Parse	deb.go	27;"	m	access:public	line:27	ntype:DebPackageInfoer	signature:()	type:error
 ParseDebianChanges	changes.go	46;"	f	access:public	ctype:ChangesFile	line:46	signature:(r io.Reader, kr openpgp.EntityList)	type:*ChangesFile, error
-PoolFilePath	aptrepo.go	14;"	m	access:public	line:14	ntype:AptRepo	signature:(string)	type:string
-PoolFilePath	aptrepo.go	32;"	m	access:public	ctype:aptRepo	line:32	signature:(filename string)	type:string
-PoolPattern	aptrepo.go	21;"	w	access:public	ctype:aptRepo	line:21	type:*regexp.Regexp
+PoolFilePath	aptrepo.go	26;"	m	access:public	ctype:aptRepo	line:26	signature:(filename string)	type:string
+PoolFilePath	aptrepo.go	9;"	m	access:public	line:9	ntype:AptRepo	signature:(string)	type:string
+PoolPattern	aptrepo.go	15;"	w	access:public	ctype:aptRepo	line:15	type:*regexp.Regexp
 PostAftpHook	aptserver.go	34;"	w	access:public	ctype:AptServer	line:34	type:HookRunner
 PostAftpHookOutput	aptserver.go	285;"	w	access:public	ctype:CompletedUpload	line:285	type:HookOutput
 PreAftpHook	aptserver.go	33;"	w	access:public	ctype:AptServer	line:33	type:HookRunner
@@ -122,7 +120,7 @@ Regenerate	aptgenerator.go	54;"	m	access:public	ctype:aptBlobArchiveGenerator	li
 Register	aptserver.go	52;"	m	access:public	ctype:AptServer	line:52	signature:(mux *http.ServeMux)
 Repo	aptgenerator.go	33;"	w	access:public	ctype:aptBlobArchiveGenerator	line:33	type:*aptRepo
 Repo	aptserver.go	28;"	w	access:public	ctype:AptServer	line:28	type:AptRepo
-RepoBase	aptrepo.go	20;"	w	access:public	ctype:aptRepo	line:20	type:*string
+RepoBase	aptrepo.go	14;"	w	access:public	ctype:aptRepo	line:14	type:*string
 Run	hooks.go	31;"	m	access:public	line:31	ntype:HookRunner	signature:()	type:HookOutput
 Run	hooks.go	45;"	m	access:public	ctype:hookRunnerCmdExec	line:45	signature:(args )	type:HookOutput
 Run	hooks.go	70;"	m	access:public	ctype:hookRunnerFuncExec	line:70	signature:(args )	type:HookOutput
@@ -202,7 +200,7 @@ WriteUnLock	governor.go	61;"	m	access:public	ctype:Governor	line:61	signature:()
 addItemMsg	upload_session.go	135;"	t	access:private	line:135	type:struct
 aptBlobArchiveGenerator	aptgenerator.go	32;"	t	access:private	line:32	type:struct
 aptLocks	aptserver.go	36;"	w	access:private	ctype:AptServer	line:36	type:*Governor
-aptRepo	aptrepo.go	19;"	t	access:private	line:19	type:struct
+aptRepo	aptrepo.go	13;"	t	access:private	line:13	type:struct
 aptServerResponse	aptserver.go	85;"	t	access:private	line:85	type:struct
 archive/tar	deb.go	4;"	i	line:4
 baseDir	store.go	35;"	w	access:private	ctype:sha1Store	line:35	type:string
@@ -265,7 +263,6 @@ encoding/json	upload_session.go	8;"	i	line:8
 err	hooks.go	11;"	w	access:private	ctype:HookOutput	line:11	type:error
 error	aptserver.go	82;"	e	access:private	line:82	ntype:AptServerResponder
 errors	aptgenerator.go	5;"	i	line:5
-errors	aptrepo.go	4;"	i	line:4
 errors	aptserver.go	5;"	i	line:5
 errors	changes.go	6;"	i	line:6
 errors	deb.go	12;"	i	line:12
@@ -351,7 +348,6 @@ net/http	main.go	13;"	i	line:13
 net/http	upload_manager.go	7;"	i	line:7
 net/http	upload_session.go	12;"	i	line:12
 os	aptgenerator.go	8;"	i	line:8
-os	aptrepo.go	5;"	i	line:5
 os	aptserver.go	9;"	i	line:9
 os	main.go	14;"	i	line:14
 os	store.go	11;"	i	line:11
@@ -363,13 +359,12 @@ parseDebPackage	deb.go	291;"	m	access:private	ctype:debPackage	line:291	signatur
 parseSigsFile	deb.go	81;"	f	access:private	ctype:debSigsFile	line:81	signature:(sig string, kr openpgp.EntityList)	type:*debSigsFile, error
 parsed	deb.go	64;"	w	access:private	ctype:debPackage	line:64	type:bool
 path/filepath	aptgenerator.go	9;"	i	line:9
-path/filepath	aptrepo.go	6;"	i	line:6
 path/filepath	store.go	12;"	i	line:12
 prefixDepth	store.go	36;"	w	access:private	ctype:sha1Store	line:36	type:int
 reader	deb.go	61;"	w	access:private	ctype:debPackage	line:61	type:io.Reader
 reflect	changes_test.go	4;"	i	line:4
 reflect	deb.go	15;"	i	line:15
-regexp	aptrepo.go	7;"	i	line:7
+regexp	aptrepo.go	3;"	i	line:3
 regexp	aptserver.go	10;"	i	line:10
 regexp	main.go	15;"	i	line:15
 req	governor.go	8;"	t	access:private	line:8	type:struct

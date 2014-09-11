@@ -1,18 +1,12 @@
 package main
 
-import (
-	"errors"
-	"os"
-	"path/filepath"
-	"regexp"
-)
+import "regexp"
 
 // AptRepo is an interface for desribing the disk layout
 // of a repository
 type AptRepo interface {
 	Base() string
 	PoolFilePath(string) string
-	FindReleaseBase() (string, error)
 }
 
 // Simple AptRepo implementation
@@ -38,29 +32,4 @@ func (a *aptRepo) PoolFilePath(filename string) (poolpath string) {
 	}
 
 	return
-}
-
-// Find the locatio to write a Releases file to, this assumes
-// an apt archive is already present
-func (a *aptRepo) FindReleaseBase() (string, error) {
-	releasePath := ""
-
-	visit := func(path string, f os.FileInfo, errIn error) (err error) {
-		switch {
-		case f.Name() == "Contents-all":
-			releasePath = filepath.Dir(path)
-			err = errors.New("Found file")
-		case f.Name() == "pool":
-			err = filepath.SkipDir
-		}
-		return err
-	}
-
-	filepath.Walk(*a.RepoBase, visit)
-
-	if releasePath == "" {
-		return releasePath, errors.New("Can't locate release base dir")
-	}
-
-	return releasePath, nil
 }
