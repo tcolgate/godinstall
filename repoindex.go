@@ -12,8 +12,16 @@ type RepoItem interface {
 	Type() RepoItem
 }
 
-type RepoItemBinary struct {
+type RepoItemBase struct {
 	RepoItem
+}
+
+func (r *RepoItemBase) Type() RepoItemType {
+	return UNKNOWN
+}
+
+type RepoItemBinary struct {
+	RepoItemBase
 }
 
 func (r *RepoItemBinary) Type() RepoItemType {
@@ -21,7 +29,7 @@ func (r *RepoItemBinary) Type() RepoItemType {
 }
 
 type RepoItemSources struct {
-	RepoItem
+	RepoItemBase
 }
 
 func (r *RepoItemSources) Type() RepoItemType {
