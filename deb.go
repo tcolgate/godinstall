@@ -22,11 +22,13 @@ import (
 	"github.com/stapelberg/godebiancontrol"
 )
 
+type DebVersion string
+
 // An interface for describing a debian package.
 type DebPackageInfoer interface {
 	Parse() error
 	Name() (string, error)
-	Version() (string, error)
+	Version() (DebVersion, error)
 	Description() (string, error)
 	Maintainer() (string, error)
 	Control() (map[string]string, error) // Map of all the package metadata
@@ -201,8 +203,9 @@ func (d *debPackage) Name() (string, error) {
 }
 
 // The package version string
-func (d *debPackage) Version() (string, error) {
-	return d.getMandatoryControl("Version")
+func (d *debPackage) Version() (DebVersion, error) {
+	verStr, err := d.getMandatoryControl("Version")
+	return DebVersion(verStr), err
 }
 
 // The package description
