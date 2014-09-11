@@ -94,7 +94,7 @@ func (usm *uploadSessionManager) AddDeb(upload *multipart.FileHeader) (resp AptS
 	)
 
 	reader, _ := upload.Open()
-	resp = s.AddItem(&UploadItem{
+	resp = s.AddItem(&ChangesItem{
 		Filename: upload.Filename,
 		data:     reader,
 	})
@@ -190,7 +190,7 @@ func (usm *uploadSessionManager) AddItems(
 	if len(otherParts) > 0 {
 		for _, f := range otherParts {
 			reader, _ := f.Open()
-			resp = session.AddItem(&UploadItem{
+			resp = session.AddItem(&ChangesItem{
 				Filename: f.Filename,
 				data:     reader,
 			})

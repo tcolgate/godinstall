@@ -11,7 +11,7 @@ import (
 var testParseDebianChanges = []struct {
 	s      string
 	krStr  string
-	expect map[string]UploadItem
+	expect map[string]ChangesItem
 	signed bool
 	valid  bool
 }{
@@ -127,15 +127,15 @@ uiTJMgKpAOxBFeEzO1quFyWnQePIjQ2zWVaTwqDPiZNQ6+377gCrC4Fu+SYdmlQ=
 =JixZ
 -----END PGP SIGNATURE-----
 `
-var testResult = map[string]UploadItem{
-	"collectd_5.4.0-3.dsc": UploadItem{
+var testResult = map[string]ChangesItem{
+	"collectd_5.4.0-3.dsc": ChangesItem{
 		Filename: "collectd_5.4.0-3.dsc",
 		Size:     2416,
 		Md5:      "cd9aa41b337352fd160f326523a9c3d8",
 		Sha1:     "7670839693da39075134c1a1f5faad6623df70af",
 		Sha256:   "c0679d60f28ceecd09b3c000361c691e373dba599e3878135bc36bede14e109d",
 	},
-	"collectd_5.4.0-3.diff.gz": UploadItem{
+	"collectd_5.4.0-3.diff.gz": ChangesItem{
 		Filename: "collectd_5.4.0-3.diff.gz",
 		Size:     76417,
 		Md5:      "d1270867f1c9517dd92016ea9f2d5afe",

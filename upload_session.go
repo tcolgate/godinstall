@@ -35,14 +35,14 @@ type UploadItem struct {
 
 // This defines an interface to an individual upload session
 type UploadSessioner interface {
-	SessionID() string                      // return the UUID for this session
-	Directory() string                      // returnt he base directory for the verified uploaded files
-	Items() map[string]*UploadItem          // return the changes file for this session
-	AddItem(*UploadItem) AptServerResponder // Add the given item to this session
-	Close()                                 // Close, and clear up, any remaining files
-	DoneChan() chan struct{}                // This returns a channel that anounces copletion
-	Status() AptServerResponder             // Return the status of this session
-	json.Marshaler                          // All session implementations should serialize to JSON
+	SessionID() string                       // return the UUID for this session
+	Directory() string                       // returnt he base directory for the verified uploaded files
+	Items() map[string]*ChangesItem          // return the changes file for this session
+	AddItem(*ChangesItem) AptServerResponder // Add the given item to this session
+	Close()                                  // Close, and clear up, any remaining files
+	DoneChan() chan struct{}                 // This returns a channel that anounces copletion
+	Status() AptServerResponder              // Return the status of this session
+	json.Marshaler                           // All session implementations should serialize to JSON
 }
 
 // Base session information
@@ -78,7 +78,7 @@ func (s *uploadSession) MarshalJSON() (j []byte, err error) {
 	return
 }
 
-func (s *uploadSession) Items() map[string]*UploadItem {
+func (s *uploadSession) Items() map[string]*ChangesItem {
 	return s.changes.Files
 }
 
@@ -133,7 +133,7 @@ func NewChangesSession(
 type closeMsg struct{}
 
 type addItemMsg struct {
-	file *UploadItem
+	file *ChangesItem
 	resp chan AptServerResponder
 }
 
@@ -224,7 +224,7 @@ func (s *changesSession) Status() AptServerResponder {
 	return resp
 }
 
-func (s *changesSession) AddItem(upload *UploadItem) AptServerResponder {
+func (s *changesSession) AddItem(upload *ChangesItem) AptServerResponder {
 	done := make(chan AptServerResponder)
 	go func() {
 		s.incoming <- addItemMsg{
@@ -236,7 +236,7 @@ func (s *changesSession) AddItem(upload *UploadItem) AptServerResponder {
 	return resp
 }
 
-func (s *changesSession) doAddItem(upload *UploadItem) (err error) {
+func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 	// Check that there is an upload slot
 	expectedFile, ok := s.changes.Files[upload.Filename]
 	if !ok {
@@ -373,12 +373,12 @@ func (s *loneDebSession) Status() AptServerResponder {
 	return AptServerMessage(http.StatusBadRequest, "Not done yet")
 }
 
-func (s *loneDebSession) AddItem(upload *UploadItem) (resp AptServerResponder) {
+func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) {
 	defer os.RemoveAll(s.dir)
 	storeFilename := s.dir + "/" + upload.Filename
 
 	var changes DebChanges
-	changes.Files = make(map[string]*UploadItem)
+	changes.Files = make(map[string]*ChangesItem)
 
 	md5er := md5.New()
 	sha1er := sha1.New()
