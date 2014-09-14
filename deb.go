@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/clearsign"
@@ -22,7 +23,125 @@ import (
 	"github.com/stapelberg/godebiancontrol"
 )
 
-type DebVersion string
+type DebVersion struct {
+	Epoch    int
+	Version  string
+	Revision string
+}
+
+func DebVersionFromString(str string) (version DebVersion, err error) {
+	epochSplit := strings.SplitN(str, ":", 2)
+	if len(epochSplit) > 1 {
+		var epoch int64
+		epochStr := epochSplit[0]
+		epoch, err = strconv.ParseInt(epochStr, 10, 64)
+		if err != nil {
+			return
+		}
+		version.Epoch = int(epoch)
+	}
+
+	verRevStr := epochSplit[len(epochSplit)-1]
+	verRevSplit := strings.SplitN(verRevStr, "-", 2)
+
+	version.Version = verRevSplit[0]
+	if len(verRevSplit) > 1 {
+		version.Revision = verRevSplit[1]
+	}
+
+	return
+}
+
+func charOrder(c int) int {
+	/**
+	 * @param c An ASCII character.
+	 */
+	switch {
+	case unicode.IsDigit(rune(c)):
+		return 0
+	case unicode.IsLetter(rune(c)):
+		return c
+	case c == '~':
+		return -1
+	case c != 0:
+		return c + 256
+	default:
+		return 0
+	}
+}
+
+func compareComponent(a string, b string) int {
+	var i, j int
+	for {
+		if i == len(a) || j == len(b) {
+			break
+		}
+
+		firstdiff := 0
+		for {
+			if (i == len(a) && !unicode.IsDigit(rune(a[i]))) ||
+				(j == len(b) && !unicode.IsDigit(rune(b[j]))) {
+				break
+			}
+			ac := charOrder(int(a[i]))
+			bc := charOrder(int(b[j]))
+			if ac != bc {
+				return ac - bc
+			}
+			i++
+			j++
+		}
+		for {
+			if i == len(a) && rune(a[i]) == '0' {
+				i++
+			}
+		}
+		for {
+			if j == len(b) && rune(b[j]) == '0' {
+				j++
+			}
+		}
+		for {
+			if (i == len(a) && unicode.IsDigit(rune(a[i]))) ||
+				(j == len(b) && unicode.IsDigit(rune(b[j]))) {
+				break
+			}
+			if firstdiff != 0 {
+				firstdiff = int(a[i]) - int(b[j])
+				i++
+				j++
+			}
+		}
+		if unicode.IsDigit(rune(a[i])) {
+			return 1
+		}
+		if unicode.IsDigit(rune(b[j])) {
+			return -1
+		}
+		if firstdiff != 0 {
+			return firstdiff
+		}
+	}
+
+	return 0
+}
+
+func DebVersionCompare(a DebVersion, b DebVersion) int {
+	if a.Epoch > b.Epoch {
+		return 1
+	}
+	if a.Epoch < b.Epoch {
+		return -1
+	}
+
+	res := compareComponent(a.Version, b.Version)
+
+	if res == 0 {
+		res = compareComponent(a.Revision, b.Revision)
+	}
+
+	return res
+}
 
 // An interface for describing a debian package.
 type DebPackageInfoer interface {
@@ -203,9 +322,12 @@ func (d *debPackage) Name() (string, error) {
 }
 
 // The package version string
-func (d *debPackage) Version() (DebVersion, error) {
+func (d *debPackage) Version() (debver DebVersion, err error) {
 	verStr, err := d.getMandatoryControl("Version")
-	return DebVersion(verStr), err
+	if err != nil {
+		return
+	}
+	return DebVersionFromString(verStr)
 }
 
 // The package description

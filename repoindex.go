@@ -11,7 +11,7 @@ const (
 )
 
 type RepoItem interface {
-	Type() RepoItem
+	Type() RepoItemType
 	Name() string
 	Version() DebVersion
 	Architecture() string
@@ -42,10 +42,20 @@ func (r *RepoItemBase) Architecture() string {
 
 type RepoItemBinary struct {
 	RepoItemBase
+	pkg DebPackageInfoer
 }
 
 func (r *RepoItemBinary) Type() RepoItemType {
 	return BINARY
+}
+
+func (r *RepoItemBinary) Architecture() string {
+	control, _ := r.pkg.Control()
+	arch, ok := control["Architecture"]
+	if !ok {
+		arch = "all"
+	}
+	return arch
 }
 
 type RepoItemSources struct {
@@ -56,28 +66,36 @@ func (r *RepoItemSources) Type() RepoItemType {
 	return SOURCE
 }
 
+func (r *RepoItemSources) Architecture() string {
+	return "source"
+}
+
 func RepoItemsFromChanges(changes *ChangesFile) ([]RepoItem, error) {
 	var err error
 
-	// Do some checks
-	for i := range changes.Files {
+	// Build repository items
+	result := make([]RepoItem, 0)
+	for i, file := range changes.Files {
 		switch {
 		case strings.HasSuffix(i, ".deb"):
-		case strings.HasSuffix(i, ".dsc"):
+			var item RepoItemBinary
+			pkg := NewDebPackage(file.data, nil)
+			err := pkg.Parse()
+			if err != nil {
+				break
+			}
+			item.pkg = pkg
+
+			result = append(result, &item)
+
+			//case strings.HasSuffix(i, ".dsc"):
+			//	var item RepoItemBinary
+			//	result = append(result, &item)
 		}
 	}
 
 	if err != nil {
 		return nil, err
-	}
-
-	// Build repository items
-	result := make([]RepoItem, 0)
-	for i := range changes.Files {
-		switch {
-		case strings.HasSuffix(i, ".deb"):
-		case strings.HasSuffix(i, ".dsc"):
-		}
 	}
 
 	return result, nil
