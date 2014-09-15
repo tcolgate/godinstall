@@ -61,6 +61,11 @@ var testDebVersionFromString = []struct {
 	out *DebVersion
 	err error
 }{
+	{"20a", &DebVersion{0, "20a", ""}, nil},
+	{"20a-1", &DebVersion{0, "20a", "1"}, nil},
+	{"2.01-1-1", &DebVersion{0, "2.01-1", "1"}, nil},
+	{"1:2.3-1", &DebVersion{1, "2.3", "1"}, nil},
+	{"1:2.3-1-1", &DebVersion{1, "2.3-1", "1"}, nil},
 	{"1:1:1.0-1-1~1", &DebVersion{1, "1:1.0-1", "1~1"}, nil},
 }
 
