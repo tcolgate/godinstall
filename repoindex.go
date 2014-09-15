@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"encoding/gob"
+	"strings"
+)
 
 type RepoItemType int
 
@@ -15,6 +18,7 @@ type RepoItem interface {
 	Name() string
 	Version() DebVersion
 	Architecture() string
+	StoreID() StoreID
 }
 
 type RepoItemBase struct {
@@ -22,6 +26,7 @@ type RepoItemBase struct {
 	name         string
 	version      DebVersion
 	architecture string
+	storeId      StoreID
 }
 
 func (r *RepoItemBase) Type() RepoItemType {
@@ -30,6 +35,10 @@ func (r *RepoItemBase) Type() RepoItemType {
 
 func (r *RepoItemBase) Name() string {
 	return r.name
+}
+
+func (r *RepoItemBase) StoreID() StoreID {
+	return r.storeId
 }
 
 func (r *RepoItemBase) Version() DebVersion {
@@ -99,4 +108,37 @@ func RepoItemsFromChanges(changes *ChangesFile) ([]RepoItem, error) {
 	}
 
 	return result, nil
+}
+
+type thing struct {
+}
+
+func RetrieveRepoItem(s Storer, id StoreID) (RepoItem, error) {
+	reader, err := s.Open(id)
+	if err != nil {
+		return nil, err
+	}
+
+	dec := gob.NewDecoder(reader)
+	var T thing
+	dec.Decode(&T)
+
+	return T, nil
+}
+
+func StoreRepoItem(s Storer, item RepoItem) (StoreID, error) {
+	writer, err := s.Store()
+	if err != nil {
+		return nil, err
+	}
+	enc := gob.NewEncoder(writer)
+
+	enc.Encode(item)
+	writer.Close()
+	id, err := writer.Identity()
+	if err != nil {
+		return nil, err
+	}
+
+	return id, nil
 }
