@@ -42,11 +42,14 @@ func DebVersionFromString(str string) (version DebVersion, err error) {
 	}
 
 	verRevStr := epochSplit[len(epochSplit)-1]
-	verRevSplit := strings.SplitN(verRevStr, "-", 2)
 
-	version.Version = verRevSplit[0]
+	verRevSplit := strings.Split(verRevStr, "-")
+
 	if len(verRevSplit) > 1 {
-		version.Revision = verRevSplit[1]
+		version.Version = strings.Join(verRevSplit[0:len(verRevSplit)-2], "-")
+		version.Revision = verRevSplit[len(verRevSplit)]
+	} else {
+		version.Version = verRevSplit[0]
 	}
 
 	return
@@ -79,43 +82,49 @@ func compareComponent(a string, b string) int {
 
 		firstdiff := 0
 		for {
-			if (i == len(a) && !unicode.IsDigit(rune(a[i]))) ||
-				(j == len(b) && !unicode.IsDigit(rune(b[j]))) {
-				break
-			}
-			ac := charOrder(int(a[i]))
-			bc := charOrder(int(b[j]))
-			if ac != bc {
-				return ac - bc
-			}
-			i++
-			j++
-		}
-		for {
-			if i == len(a) && rune(a[i]) == '0' {
-				i++
-			}
-		}
-		for {
-			if j == len(b) && rune(b[j]) == '0' {
-				j++
-			}
-		}
-		for {
-			if (i == len(a) && unicode.IsDigit(rune(a[i]))) ||
-				(j == len(b) && unicode.IsDigit(rune(b[j]))) {
-				break
-			}
-			if firstdiff != 0 {
-				firstdiff = int(a[i]) - int(b[j])
+			if (i < len(a) && !unicode.IsDigit(rune(a[i]))) ||
+				(j < len(b) && !unicode.IsDigit(rune(b[j]))) {
+				ac := charOrder(int(a[i]))
+				bc := charOrder(int(b[j]))
+				if ac != bc {
+					return ac - bc
+				}
 				i++
 				j++
+			} else {
+				break
 			}
 		}
-		if unicode.IsDigit(rune(a[i])) {
+		for {
+			if i < len(a) && rune(a[i]) == '0' {
+				i++
+			} else {
+				break
+			}
+		}
+		for {
+			if j < len(b) && rune(b[j]) == '0' {
+				j++
+			} else {
+				break
+			}
+		}
+		for {
+			if (i < len(a) && unicode.IsDigit(rune(a[i]))) &&
+				(j < len(b) && unicode.IsDigit(rune(b[j]))) {
+				if firstdiff != 0 {
+					firstdiff = int(a[i]) - int(b[j])
+				}
+				i++
+				j++
+			} else {
+				break
+			}
+		}
+		if i < len(a) && unicode.IsDigit(rune(a[i])) {
 			return 1
 		}
-		if unicode.IsDigit(rune(b[j])) {
+		if j < len(b) && unicode.IsDigit(rune(b[j])) {
 			return -1
 		}
 		if firstdiff != 0 {
