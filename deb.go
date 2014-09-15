@@ -76,59 +76,68 @@ func charOrder(c int) int {
 func compareComponent(a string, b string) int {
 	var i, j int
 	for {
-		if i == len(a) || j == len(b) {
+		if i < len(a) || j < len(b) {
+			firstdiff := 0
+			for {
+				if (i < len(a) && !unicode.IsDigit(rune(a[i]))) ||
+					(j < len(b) && !unicode.IsDigit(rune(b[j]))) {
+					var ac, bc int
+					if i >= len(a) {
+						ac = 0
+					} else {
+						ac = charOrder(int(a[i]))
+					}
+					if j >= len(b) {
+						bc = 0
+					} else {
+						bc = charOrder(int(b[j]))
+					}
+					if ac != bc {
+						return ac - bc
+					}
+					i++
+					j++
+				} else {
+					break
+				}
+			}
+			for {
+				if i < len(a) && rune(a[i]) == '0' {
+					i++
+				} else {
+					break
+				}
+			}
+			for {
+				if j < len(b) && rune(b[j]) == '0' {
+					j++
+				} else {
+					break
+				}
+			}
+			for {
+				if (i < len(a) && unicode.IsDigit(rune(a[i]))) &&
+					(j < len(b) && unicode.IsDigit(rune(b[j]))) {
+					if firstdiff != 0 {
+						firstdiff = int(a[i]) - int(b[j])
+					}
+					i++
+					j++
+				} else {
+					break
+				}
+			}
+			if i < len(a) && unicode.IsDigit(rune(a[i])) {
+				return 1
+			}
+			if j < len(b) && unicode.IsDigit(rune(b[j])) {
+				return -1
+			}
+			if firstdiff != 0 {
+				return firstdiff
+			}
+		} else {
 			break
-		}
-
-		firstdiff := 0
-		for {
-			if (i < len(a) && !unicode.IsDigit(rune(a[i]))) ||
-				(j < len(b) && !unicode.IsDigit(rune(b[j]))) {
-				ac := charOrder(int(a[i]))
-				bc := charOrder(int(b[j]))
-				if ac != bc {
-					return ac - bc
-				}
-				i++
-				j++
-			} else {
-				break
-			}
-		}
-		for {
-			if i < len(a) && rune(a[i]) == '0' {
-				i++
-			} else {
-				break
-			}
-		}
-		for {
-			if j < len(b) && rune(b[j]) == '0' {
-				j++
-			} else {
-				break
-			}
-		}
-		for {
-			if (i < len(a) && unicode.IsDigit(rune(a[i]))) &&
-				(j < len(b) && unicode.IsDigit(rune(b[j]))) {
-				if firstdiff != 0 {
-					firstdiff = int(a[i]) - int(b[j])
-				}
-				i++
-				j++
-			} else {
-				break
-			}
-		}
-		if i < len(a) && unicode.IsDigit(rune(a[i])) {
-			return 1
-		}
-		if j < len(b) && unicode.IsDigit(rune(b[j])) {
-			return -1
-		}
-		if firstdiff != 0 {
-			return firstdiff
 		}
 	}
 
