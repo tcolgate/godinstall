@@ -46,8 +46,8 @@ func DebVersionFromString(str string) (version DebVersion, err error) {
 	verRevSplit := strings.Split(verRevStr, "-")
 
 	if len(verRevSplit) > 1 {
-		version.Version = strings.Join(verRevSplit[0:len(verRevSplit)-2], "-")
-		version.Revision = verRevSplit[len(verRevSplit)]
+		version.Version = strings.Join(verRevSplit[:len(verRevSplit)-1], "-")
+		version.Revision = verRevSplit[len(verRevSplit)-1]
 	} else {
 		version.Version = verRevSplit[0]
 	}
@@ -82,14 +82,10 @@ func compareComponent(a string, b string) int {
 				if (i < len(a) && !unicode.IsDigit(rune(a[i]))) ||
 					(j < len(b) && !unicode.IsDigit(rune(b[j]))) {
 					var ac, bc int
-					if i >= len(a) {
-						ac = 0
-					} else {
+					if i < len(a) {
 						ac = charOrder(int(a[i]))
 					}
-					if j >= len(b) {
-						bc = 0
-					} else {
+					if j < len(b) {
 						bc = charOrder(int(b[j]))
 					}
 					if ac != bc {
