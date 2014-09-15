@@ -79,3 +79,25 @@ func TestDebVersionFromString(t *testing.T) {
 		}
 	}
 }
+
+var testDebVersionToString = []struct {
+	in  *DebVersion
+	out string
+}{
+	{&DebVersion{0, "20a", ""}, "20a"},
+	{&DebVersion{0, "20a", "1"}, "20a-1"},
+	{&DebVersion{0, "2.01-1", "1"}, "2.01-1-1"},
+	{&DebVersion{1, "2.3", "1"}, "1:2.3-1"},
+	{&DebVersion{1, "2.3-1", "1"}, "1:2.3-1-1"},
+	{&DebVersion{1, "1:1.0-1", "1~1"}, "1:1:1.0-1-1~1"},
+}
+
+func TestDebVersionToString(t *testing.T) {
+	for i, tt := range testDebVersionToString {
+		outStr := tt.in.String()
+
+		if outStr != tt.out {
+			t.Errorf("%d. failed: expected %s got %s\n", i, tt.out, outStr)
+		}
+	}
+}

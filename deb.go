@@ -29,6 +29,22 @@ type DebVersion struct {
 	Revision string
 }
 
+func (d *DebVersion) String() string {
+	output := ""
+
+	if d.Epoch != 0 {
+		output = strconv.FormatInt(int64(d.Epoch), 10) + ":"
+	}
+
+	output = output + d.Version
+
+	if d.Revision != "" {
+		output = output + "-" + d.Revision
+	}
+
+	return output
+}
+
 func DebVersionFromString(str string) (version DebVersion, err error) {
 	epochSplit := strings.SplitN(str, ":", 2)
 	if len(epochSplit) > 1 {
