@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -211,7 +212,24 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
 	respStatus = http.StatusOK
 
-	//tester, _ := RepoItemsFromChanges(session.Items(), a.blobStore)
+	items, err := RepoItemsFromChanges(session.Items(), a.blobStore)
+	if err != nil {
+		respStatus = http.StatusInternalServerError
+		respObj = "Collating repository items failed, " + err.Error()
+		return respStatus, respObj, err
+	}
+
+	itemIDs := make([]StoreID, 0)
+	for i := range items {
+		id, err := StoreRepoItem(a.blobStore, *items[i])
+		if err != nil {
+			respStatus = http.StatusInternalServerError
+			respObj = "Storing item failed, " + err.Error()
+			return respStatus, respObj, err
+		}
+		itemIDs = append(itemIDs, id)
+		log.Println(id.String())
+	}
 
 	//Move the files into the pool
 	for _, f := range session.Items() {
