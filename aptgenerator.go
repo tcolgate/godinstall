@@ -275,6 +275,11 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		}
 	}
 
+	err = a.Regenerate()
+	if err != nil {
+		respStatus = http.StatusInternalServerError
+		respObj = "File move failed, " + err.Error()
+	}
 	return
 }
 

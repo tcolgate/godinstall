@@ -325,7 +325,6 @@ func (a *AptServer) Updater() {
 
 				respStatus, respObj, err = a.AptGenerator.AddSession(session)
 
-				err = a.AptGenerator.Regenerate()
 				if err != nil {
 					respStatus = http.StatusInternalServerError
 					respObj = "Apt FTP Archive failed, " + err.Error()
