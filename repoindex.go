@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/stapelberg/godebiancontrol"
 )
@@ -19,20 +20,20 @@ const (
 	SOURCE  RepoItemType = 3
 )
 
-// A repo item is either deb, or a dsc, describing
+// A repo item is either deb, or a dsc describing
 // a set of files for a source archive
 type RepoItem struct {
 	Type         RepoItemType // The type of file
 	Name         string
 	Version      DebVersion
 	Architecture string
-	ID           StoreID
-	Files        []RepoItemFile
+	ControlID    StoreID        // StoreID for teh control data
+	Files        []RepoItemFile // This list of files that make up this item
 }
 
 type RepoItemFile struct {
-	Name string
-	ID   StoreID
+	Name string  // File name as it will appear in the repo
+	ID   StoreID // Store ID for the actual file
 }
 
 func RepoIndexDeb(file *ChangesItem, store Storer) (*RepoItem, error) {
@@ -66,7 +67,7 @@ func RepoIndexDeb(file *ChangesItem, store Storer) (*RepoItem, error) {
 	paragraphs := make(ControlData, 1)
 	paragraphs[0] = control
 
-	item.ID, err = StoreBinaryControlFile(store, paragraphs)
+	item.ControlID, err = StoreBinaryControlFile(store, paragraphs)
 	if err != nil {
 		return nil, err
 	}
@@ -219,4 +220,62 @@ func OpenRepoIndex(id StoreID, store Storer) (h repoIndexReaderHandle, err error
 func (r repoIndexReaderHandle) NextItem() (item RepoItem, err error) {
 	err = r.decoder.Decode(&item)
 	return
+}
+
+type RepoActionType int
+
+const (
+	ActionUNKNOWN RepoActionType = 1 << iota
+	ActionADD     RepoActionType = 2
+	ActionDELETE  RepoActionType = 3
+	ActionPURGE   RepoActionType = 4
+)
+
+type RepoAction struct {
+	Type        RepoActionType
+	Description string
+}
+
+type RepoCommit struct {
+	Parent      StoreID   // The previous commit we updated
+	Date        time.Time // Time of the update
+	Index       StoreID   // The item index in the blob store
+	PoolPattern string    // The pool pattern we used to reify the index files
+	Packages    StoreID   // StoreID for reified binary index
+	PackagesGz  StoreID   // StoreID for reified compressed binary index
+	Sources     StoreID   // StoreID for reified source index
+	SourcesGz   StoreID   // StoreID for reified compressed source index
+	Release     StoreID   // StoreID for reified release file
+	InRelease   StoreID   // StoreID for reified signed release file
+	Actions     []RepoAction
+}
+
+func RetrieveRepoCommit(s Storer, id StoreID) (*RepoCommit, error) {
+	var commit RepoCommit
+	reader, err := s.Open(id)
+	if err != nil {
+		return nil, err
+	}
+
+	dec := gob.NewDecoder(reader)
+	dec.Decode(&commit)
+
+	return &commit, nil
+}
+
+func StoreRepoCommit(s Storer, data RepoCommit) (StoreID, error) {
+	writer, err := s.Store()
+	if err != nil {
+		return nil, err
+	}
+	enc := gob.NewEncoder(writer)
+
+	enc.Encode(data)
+	writer.Close()
+	id, err := writer.Identity()
+	if err != nil {
+		return nil, err
+	}
+
+	return id, nil
 }
