@@ -330,3 +330,165 @@ func TestGarbageCollect(t *testing.T) {
 	s.GarbageCollect()
 	return
 }
+
+func TestReferences(t *testing.T) {
+	s, clean, _ := makeTestSha1Store(t)
+	defer clean()
+
+	writer, err := s.Store()
+
+	if err != nil {
+		t.Errorf("Call to store failed, %v", err)
+		return
+	}
+
+	writer.Write([]byte(storeTestString))
+	if err != nil {
+		t.Errorf("Call to Write failed, %v", err)
+		return
+	}
+
+	// Close with no additional reference
+	err = writer.Close()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	id, err := writer.Identity()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	if id.String() != storeTestStringHash {
+		t.Errorf("Incorrect hash, %v, expected %v", id, storeTestStringHash)
+		return
+	}
+
+	err = s.SetRef("myref", id)
+	if err != nil {
+		t.Errorf("Call to SetRef failed, %v", err)
+		return
+	}
+
+	refid, err := s.GetRef("myref")
+	if err != nil {
+		t.Errorf("Call to GetRef failed, %v", err)
+		return
+	}
+
+	if refid.String() != id.String() {
+		t.Errorf("Stored and retirnved references differ")
+		return
+	}
+
+	reader, err := s.Open(refid)
+	if err != nil {
+		t.Errorf("open blob by id failed, %v", err)
+		return
+	}
+
+	storedData := make([]byte, 1000)
+	n, err := io.ReadFull(reader, storedData)
+	if n == 0 {
+		t.Errorf("read from blob failed, %v", err)
+		return
+	}
+
+	if string(storedData[0:n]) != storeTestString {
+		t.Errorf("wrong data in  blob , %v", string(storedData[0:n]))
+		return
+	}
+
+	// Run a gc, the previous blob has no additional references
+	// so should disspear
+	s.GarbageCollect()
+
+	reader, err = s.Open(id)
+	if err == nil {
+		t.Errorf("open unref'd blob after GC succeeded")
+		return
+	}
+}
+
+func TestReferences2(t *testing.T) {
+	s, clean, _ := makeTestSha1Store(t)
+	defer clean()
+
+	writer, err := s.Store()
+
+	if err != nil {
+		t.Errorf("Call to store failed, %v", err)
+		return
+	}
+
+	writer.Write([]byte(storeTestString))
+	if err != nil {
+		t.Errorf("Call to Write failed, %v", err)
+		return
+	}
+
+	// Close with no additional reference
+	err = writer.Close()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	id, err := writer.Identity()
+	if err != nil {
+		t.Errorf("Call to Close failed, %v", err)
+		return
+	}
+
+	if id.String() != storeTestStringHash {
+		t.Errorf("Incorrect hash, %v, expected %v", id, storeTestStringHash)
+		return
+	}
+
+	err = s.SetRef("my/deep/ref", id)
+	if err != nil {
+		t.Errorf("Call to SetRef failed, %v", err)
+		return
+	}
+
+	refid, err := s.GetRef("my/deep/ref")
+	if err != nil {
+		t.Errorf("Call to GetRef failed, %v", err)
+		return
+	}
+
+	if refid.String() != id.String() {
+		t.Errorf("Stored and retirnved references differ")
+		return
+	}
+
+	reader, err := s.Open(refid)
+	if err != nil {
+		t.Errorf("open blob by id failed, %v", err)
+		return
+	}
+
+	storedData := make([]byte, 1000)
+	n, err := io.ReadFull(reader, storedData)
+	if n == 0 {
+		t.Errorf("read from blob failed, %v", err)
+		return
+	}
+
+	if string(storedData[0:n]) != storeTestString {
+		t.Errorf("wrong data in  blob , %v", string(storedData[0:n]))
+		return
+	}
+
+	// Run a gc, the previous blob has no additional references
+	// so should disspear
+	s.GarbageCollect()
+
+	reader, err = s.Open(id)
+	if err == nil {
+		t.Errorf("open unref'd blob after GC succeeded")
+		return
+	}
+}

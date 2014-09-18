@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -21,13 +22,20 @@ func (i StoreID) String() string {
 	return hex.EncodeToString(i)
 }
 
+func StoreIDFromString(str string) (StoreID, error) {
+	b, err := hex.DecodeString(str)
+	return StoreID(b), err
+}
+
 type Storer interface {
-	Store() (StoreWriteCloser, error) // Write something to the store
-	Open(StoreID) (io.Reader, error)  // Open a file by id
-	Size(StoreID) (int64, error)      // Open a file by id
-	Link(StoreID, ...string) error    // Link a file id to a given location
-	GarbageCollect()                  // Remove all files with no external links
-	EmptyFileID() StoreID             // Return the StoreID for an 0 byte object
+	Store() (StoreWriteCloser, error)     // Write something to the store
+	Open(StoreID) (io.Reader, error)      // Open a file by id
+	Size(StoreID) (int64, error)          // Open a file by id
+	Link(StoreID, ...string) error        // Link a file id to a given location
+	GarbageCollect()                      // Remove all files with no external links
+	EmptyFileID() StoreID                 // Return the StoreID for an 0 byte object
+	SetRef(name string, id StoreID) error // Set a reference
+	GetRef(name string) (StoreID, error)  // Get a reference
 }
 
 type sha1Store struct {
@@ -194,6 +202,49 @@ func (t *sha1Store) EmptyFileID() StoreID {
 	hasher := sha1.New()
 	id := hasher.Sum(nil)
 	return id
+}
+
+func (t *sha1Store) SetRef(name string, id StoreID) error {
+	refsPath := t.baseDir + "/refs/"
+	refDir := refsPath
+
+	prefix := strings.LastIndex(name, "/")
+	if prefix > -1 {
+		refDir = refDir + name[0:prefix+1]
+		name = name[prefix+1:]
+		if name == "" {
+			return errors.New("reference name cannot end in /")
+		}
+	}
+
+	refFile := refDir + name
+
+	err := os.MkdirAll(refDir, 0777)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(refFile, []byte(id.String()), 0777)
+	return err
+}
+
+func (t *sha1Store) GetRef(name string) (StoreID, error) {
+	refsPath := t.baseDir + "/refs"
+	refFile := refsPath + "/" + name
+
+	f, err := os.Open(refFile)
+	if err != nil {
+		return nil, err
+	}
+
+	refStr, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+
+	refid, err := StoreIDFromString(string(refStr))
+
+	return refid, err
 }
 
 // StoreWriterCloser is used to arite a file to the file store.
