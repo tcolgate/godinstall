@@ -145,16 +145,16 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 	packagesFile.Close()
 	commit.Packages, _ = packagesFile.Identity()
 	packagesSize, _ := a.blobStore.Size(commit.Packages)
-	//packagesMd5 := hex.EncodeToString(packagesMD5er.Sum(nil))
-	//packagesSha1 := hex.EncodeToString(packagesSHA1er.Sum(nil))
+	packagesMD5 := hex.EncodeToString(packagesMD5er.Sum(nil))
+	packagesSHA1 := hex.EncodeToString(packagesSHA1er.Sum(nil))
 	packagesSHA256 := hex.EncodeToString(packagesSHA256er.Sum(nil))
 
 	packagesGzWriter.Close()
 	packagesGzFile.Close()
 	commit.PackagesGz, _ = packagesGzFile.Identity()
 	packagesGzSize, _ := a.blobStore.Size(commit.PackagesGz)
-	//packagesGzMD5 := hex.EncodeToString(packagesGzMD5er.Sum(nil))
-	//packagesGzSHA1 := hex.EncodeToString(packagesGzSHA1er.Sum(nil))
+	packagesGzMD5 := hex.EncodeToString(packagesGzMD5er.Sum(nil))
+	packagesGzSHA1 := hex.EncodeToString(packagesGzSHA1er.Sum(nil))
 	packagesGzSHA256 := hex.EncodeToString(packagesGzSHA256er.Sum(nil))
 
 	/*
@@ -171,12 +171,20 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 	release[0]["Suite"] = "stable"
 	release[0]["Components"] = "main"
 	release[0]["Architectures"] = "amd64 all"
+	MD5Str :=
+		packagesMD5 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
+			" " + packagesGzMD5 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
+	SHA1Str :=
+		packagesSHA1 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
+			" " + packagesGzSHA1 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
 	SHA256Str :=
 		packagesSHA256 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
 			" " + packagesGzSHA256 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
 		//			" " + sourcesSHA256 + " " + strconv.FormatInt(sourcesInfo.Size(), 10) + " Sources\n" +
 		//			" " + sourcesGzSHA256 + " " + strconv.FormatInt(sourcesGzInfo.Size(), 10) + " Sources.gz\n"
 
+	release[0]["MD5Sum"] = MD5Str
+	release[0]["SHA1"] = SHA1Str
 	release[0]["SHA256"] = SHA256Str
 
 	releaseWriter, _ := a.blobStore.Store()
