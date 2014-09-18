@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/gob"
-	"io"
 	"log"
 	"strconv"
 	"strings"
@@ -171,8 +170,32 @@ func StoreBinaryControlFile(s Storer, data ControlData) (StoreID, error) {
 	return id, nil
 }
 
-func FormatControlData(ctrlWriter io.Writer, paragraphs ControlData) {
-	debStartFields := []string{"Package", "Version", "Filename", "Directory", "Size"}
-	debEndFields := []string{"MD5sum", "SHA1", "SHA256", "Description"}
-	WriteDebianControl(ctrlWriter, paragraphs, debStartFields, debEndFields)
+type repoIndexHandle struct {
+	handle  StoreWriteCloser
+	encoder *gob.Encoder
+}
+
+func NewRepoIndex(store Storer) (h repoIndexHandle, err error) {
+	h.handle, err = store.Store()
+	if err != nil {
+		return
+	}
+
+	h.encoder = gob.NewEncoder(h.handle)
+	return
+}
+
+func (r *repoIndexHandle) AddRepoItem(item *RepoItem) (err error) {
+	err = r.encoder.Encode(item)
+	return
+}
+
+func (r *repoIndexHandle) CloseRepoIndex() (id StoreID, err error) {
+	err = r.handle.Close()
+	if err != nil {
+		return
+	}
+
+	id, err = r.handle.Identity()
+	return
 }

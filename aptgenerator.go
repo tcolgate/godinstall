@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -219,17 +218,12 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		return respStatus, respObj, err
 	}
 
-	itemIDs := make([]StoreID, 0)
+	index, _ := NewRepoIndex(a.blobStore)
 	for i := range items {
-		id, err := StoreRepoItem(a.blobStore, *items[i])
-		if err != nil {
-			respStatus = http.StatusInternalServerError
-			respObj = "Storing item failed, " + err.Error()
-			return respStatus, respObj, err
-		}
-		itemIDs = append(itemIDs, id)
-		log.Println(id.String())
+		index.AddRepoItem(items[i])
 	}
+	id, err := index.CloseRepoIndex()
+	a.blobStore.SetRef("master", id)
 
 	//Move the files into the pool
 	for _, f := range session.Items() {

@@ -625,3 +625,9 @@ func WriteDebianControl(out io.Writer, paragraphs []godebiancontrol.Paragraph, s
 		}
 	}
 }
+
+func FormatControlData(ctrlWriter io.Writer, paragraphs ControlData) {
+	debStartFields := []string{"Package", "Version", "Filename", "Directory", "Size"}
+	debEndFields := []string{"MD5sum", "SHA1", "SHA256", "Description"}
+	WriteDebianControl(ctrlWriter, paragraphs, debStartFields, debEndFields)
+}
