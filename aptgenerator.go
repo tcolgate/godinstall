@@ -114,7 +114,9 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 		case BINARY:
 			control, _ := RetrieveBinaryControlFile(a.blobStore, item.ControlID)
 			poolpath := a.Repo.PoolFilePath(control[0]["Filename"])
-			control[0]["Filename"] = poolpath
+			path := poolpath[len(a.Repo.Base())+1:] + control[0]["Filename"]
+
+			control[0]["Filename"] = path
 			FormatControlData(packagesWriter, control)
 			packagesWriter.Write([]byte("\n"))
 			/*
