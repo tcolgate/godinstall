@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/gob"
+	"io"
 	"log"
 	"strconv"
 	"strings"
@@ -170,12 +171,12 @@ func StoreBinaryControlFile(s Storer, data ControlData) (StoreID, error) {
 	return id, nil
 }
 
-type repoIndexHandle struct {
+type repoIndexWriterHandle struct {
 	handle  StoreWriteCloser
 	encoder *gob.Encoder
 }
 
-func NewRepoIndex(store Storer) (h repoIndexHandle, err error) {
+func NewRepoIndex(store Storer) (h repoIndexWriterHandle, err error) {
 	h.handle, err = store.Store()
 	if err != nil {
 		return
@@ -185,17 +186,37 @@ func NewRepoIndex(store Storer) (h repoIndexHandle, err error) {
 	return
 }
 
-func (r *repoIndexHandle) AddRepoItem(item *RepoItem) (err error) {
+func (r *repoIndexWriterHandle) AddRepoItem(item *RepoItem) (err error) {
 	err = r.encoder.Encode(item)
 	return
 }
 
-func (r *repoIndexHandle) CloseRepoIndex() (id StoreID, err error) {
+func (r *repoIndexWriterHandle) Close() (id StoreID, err error) {
 	err = r.handle.Close()
 	if err != nil {
 		return
 	}
 
 	id, err = r.handle.Identity()
+	return
+}
+
+type repoIndexReaderHandle struct {
+	handle  io.Reader
+	decoder *gob.Decoder
+}
+
+func OpenRepoIndex(id StoreID, store Storer) (h repoIndexReaderHandle, err error) {
+	h.handle, err = store.Open(id)
+	if err != nil {
+		return
+	}
+
+	h.decoder = gob.NewDecoder(h.handle)
+	return
+}
+
+func (r repoIndexReaderHandle) NextItem() (item RepoItem, err error) {
+	err = r.decoder.Decode(&item)
 	return
 }

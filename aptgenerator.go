@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -52,6 +53,23 @@ func NewAptBlobArchiveGenerator(
 }
 
 func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
+
+	id, err := a.blobStore.GetRef("master")
+	newindex, err := OpenRepoIndex(id, a.blobStore)
+	if err != nil {
+		return
+	}
+
+	for {
+		item, err := newindex.NextItem()
+		if err != nil {
+			log.Println(err)
+			break
+		}
+
+		log.Println(item)
+	}
+
 	sourcesStartFields := []string{"Package"}
 	sourcesEndFields := []string{"Description"}
 
@@ -222,8 +240,7 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 	for i := range items {
 		index.AddRepoItem(items[i])
 	}
-	id, err := index.CloseRepoIndex()
-	a.blobStore.SetRef("master", id)
+	_, err = index.Close()
 
 	//Move the files into the pool
 	for _, f := range session.Items() {
