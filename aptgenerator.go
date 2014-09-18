@@ -7,9 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/stapelberg/godebiancontrol"
 
@@ -24,7 +22,7 @@ import (
 
 // Interface for any Apt repository generator
 type AptGenerator interface {
-	Regenerate() error // Regenerate the apt archive
+	GenerateCommit(*RepoCommit) (StoreID, error) // Regenerate the apt archive
 	AddSession(session UploadSessioner) (respStatus int, respObj string, err error)
 	AddFile(name string, r io.Reader) error // Add the content of the reader with the given filename
 }
@@ -52,54 +50,33 @@ func NewAptBlobArchiveGenerator(
 	}
 }
 
-func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
+func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid StoreID, err error) {
+	/*
+		sourcesFile, err := a.blobStore.Store()
+		sourcesMD5er := md5.New()
+		sourcesSHA1er := sha1.New()
+		sourcesSHA256er := sha256.New()
+		sourcesHashedWriter := io.MultiWriter(
+			sourcesFile,
+			sourcesMD5er,
+			sourcesSHA1er,
+			sourcesSHA256er)
 
-	id, err := a.blobStore.GetRef("master")
-	newindex, err := OpenRepoIndex(id, a.blobStore)
-	if err != nil {
-		return
-	}
+		sourcesGzFile, err := a.blobStore.Store()
+		sourcesGzMD5er := md5.New()
+		sourcesGzSHA1er := sha1.New()
+		sourcesGzSHA256er := sha256.New()
+		sourcesGzHashedWriter := io.MultiWriter(
+			sourcesGzFile,
+			sourcesGzMD5er,
+			sourcesGzSHA1er,
+			sourcesGzSHA256er)
+		sourcesGzWriter := gzip.NewWriter(sourcesGzHashedWriter)
 
-	for {
-		item, err := newindex.NextItem()
-		if err != nil {
-			log.Println(err)
-			break
-		}
+		sourcesWriter := io.MultiWriter(sourcesHashedWriter, sourcesGzWriter)
+	*/
 
-		log.Println(item)
-	}
-
-	sourcesStartFields := []string{"Package"}
-	sourcesEndFields := []string{"Description"}
-
-	sourcesFile, err := os.Create(*a.Repo.RepoBase + "/Sources")
-	sourcesMD5er := md5.New()
-	sourcesSHA1er := sha1.New()
-	sourcesSHA256er := sha256.New()
-	sourcesHashedWriter := io.MultiWriter(
-		sourcesFile,
-		sourcesMD5er,
-		sourcesSHA1er,
-		sourcesSHA256er)
-
-	sourcesGzFile, err := os.Create(*a.Repo.RepoBase + "/Sources.gz")
-	sourcesGzMD5er := md5.New()
-	sourcesGzSHA1er := sha1.New()
-	sourcesGzSHA256er := sha256.New()
-	sourcesGzHashedWriter := io.MultiWriter(
-		sourcesGzFile,
-		sourcesGzMD5er,
-		sourcesGzSHA1er,
-		sourcesGzSHA256er)
-	sourcesGzWriter := gzip.NewWriter(sourcesGzHashedWriter)
-
-	sourcesWriter := io.MultiWriter(sourcesHashedWriter, sourcesGzWriter)
-
-	packagesStartFields := []string{"Package", "Version", "Filename", "Size"}
-	packagesEndFields := []string{"MD5sum", "SHA1", "SHA256", "Description"}
-
-	packagesFile, err := os.Create(*a.Repo.RepoBase + "/Packages")
+	packagesFile, err := a.blobStore.Store()
 	packagesMD5er := md5.New()
 	packagesSHA1er := sha1.New()
 	packagesSHA256er := sha256.New()
@@ -109,7 +86,7 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 		packagesSHA1er,
 		packagesSHA256er)
 
-	packagesGzFile, err := os.Create(*a.Repo.RepoBase + "/Packages.gz")
+	packagesGzFile, err := a.blobStore.Store()
 	packagesGzMD5er := md5.New()
 	packagesGzSHA1er := sha1.New()
 	packagesGzSHA256er := sha256.New()
@@ -122,51 +99,49 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 
 	packagesWriter := io.MultiWriter(packagesHashedWriter, packagesGzWriter)
 
-	f := func(path string, info os.FileInfo, err error) error {
-		var reterr error
+	newindex, err := OpenRepoIndex(commit.Index, a.blobStore)
+	if err != nil {
+		return
+	}
 
-		switch {
-		case info.IsDir():
-			return reterr
-		case strings.HasSuffix(path, ".deb"):
-			reader, _ := os.Open(path)
-			pkg := NewDebPackage(reader, nil)
-			controlData, _ := pkg.Control()
-			controlData["Filename"] = path[len(*a.Repo.RepoBase)+1:]
-			controlData["Size"] = strconv.FormatInt(info.Size(), 10)
-			md5, _ := pkg.Md5()
-			controlData["MD5sum"] = hex.EncodeToString(md5)
-			sha1, _ := pkg.Sha1()
-			controlData["SHA1"] = hex.EncodeToString(sha1)
-			sha256, _ := pkg.Sha256()
-			controlData["SHA256"] = hex.EncodeToString(sha256)
-			paragraphs := make([]godebiancontrol.Paragraph, 1)
-			paragraphs[0] = controlData
-			WriteDebianControl(packagesWriter, paragraphs, packagesStartFields, packagesEndFields)
-			packagesWriter.Write([]byte("\n"))
-		case strings.HasSuffix(path, ".dsc"):
-			reader, _ := os.Open(path)
-			paragraphs, _ := godebiancontrol.Parse(reader)
-			paragraphs[0]["Package"] = paragraphs[0]["Source"]
-			delete(paragraphs[0], "Source")
-
-			WriteDebianControl(sourcesWriter, paragraphs, sourcesStartFields, sourcesEndFields)
-			sourcesWriter.Write([]byte("\n"))
+	for {
+		item, err := newindex.NextItem()
+		if err != nil {
+			log.Println(err)
+			break
 		}
 
-		return reterr
+		log.Println(item)
+
+		switch item.Type {
+		case BINARY:
+			control, _ := RetrieveBinaryControlFile(a.blobStore, item.ControlID)
+			poolpath := a.Repo.PoolFilePath(control[0]["Filename"])
+			control[0]["Filename"] = poolpath
+			FormatControlData(packagesWriter, control)
+			packagesWriter.Write([]byte("\n"))
+			/*
+				case SOURCE:
+					control, _ := RetrieveSourceControlFile(a.blobStore, item.ControlID)
+					control[0]["Package"] = control[0]["Source"]
+					delete(control[0], "Source")
+					FormatControlData(sourcesWriter, control)
+					sourcesWriter.Write([]byte("\n"))
+			*/
+		}
 	}
-	filepath.Walk(a.Repo.PoolFilePath(""), f)
 
-	sourcesFile.Close()
-	//sourcesMD5 := hex.EncodeToString(sourcesMD5er.Sum(nil))
-	//sourcesSHA1 := hex.EncodeToString(sourcesSHA1er.Sum(nil))
-	sourcesSHA256 := hex.EncodeToString(sourcesSHA256er.Sum(nil))
+	/*
+		sourcesFile.Close()
+		//sourcesMD5 := hex.EncodeToString(sourcesMD5er.Sum(nil))
+		//sourcesSHA1 := hex.EncodeToString(sourcesSHA1er.Sum(nil))
+		sourcesSHA256 := hex.EncodeToString(sourcesSHA256er.Sum(nil))
 
-	sourcesGzWriter.Close()
-	//sourcesGzMD5 := hex.EncodeToString(sourcesGzMD5er.Sum(nil))
-	//sourcesGzSHA1 := hex.EncodeToString(sourcesGzSHA1er.Sum(nil))
-	sourcesGzSHA256 := hex.EncodeToString(sourcesGzSHA256er.Sum(nil))
+		sourcesGzWriter.Close()
+		//sourcesGzMD5 := hex.EncodeToString(sourcesGzMD5er.Sum(nil))
+		//sourcesGzSHA1 := hex.EncodeToString(sourcesGzSHA1er.Sum(nil))
+		sourcesGzSHA256 := hex.EncodeToString(sourcesGzSHA256er.Sum(nil))
+	*/
 
 	packagesFile.Close()
 	//packagesMd5 := hex.EncodeToString(packagesMD5er.Sum(nil))
@@ -178,8 +153,10 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 	//packagesGzSHA1 := hex.EncodeToString(packagesGzSHA1er.Sum(nil))
 	packagesGzSHA256 := hex.EncodeToString(packagesGzSHA256er.Sum(nil))
 
-	sourcesInfo, _ := os.Stat(*a.Repo.RepoBase + "/Sources")
-	sourcesGzInfo, _ := os.Stat(*a.Repo.RepoBase + "/Sources.gz")
+	/*
+		sourcesInfo, _ := os.Stat(*a.Repo.RepoBase + "/Sources")
+		sourcesGzInfo, _ := os.Stat(*a.Repo.RepoBase + "/Sources.gz")
+	*/
 	packagesInfo, _ := os.Stat(*a.Repo.RepoBase + "/Packages")
 	packagesGzInfo, _ := os.Stat(*a.Repo.RepoBase + "/Packages.gz")
 
@@ -194,9 +171,9 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 	release[0]["Architectures"] = "amd64 all"
 	SHA256Str :=
 		packagesSHA256 + " " + strconv.FormatInt(packagesInfo.Size(), 10) + " Packages\n" +
-			" " + packagesGzSHA256 + " " + strconv.FormatInt(packagesGzInfo.Size(), 10) + " Packages.gz\n" +
-			" " + sourcesSHA256 + " " + strconv.FormatInt(sourcesInfo.Size(), 10) + " Sources\n" +
-			" " + sourcesGzSHA256 + " " + strconv.FormatInt(sourcesGzInfo.Size(), 10) + " Sources.gz\n"
+			" " + packagesGzSHA256 + " " + strconv.FormatInt(packagesGzInfo.Size(), 10) + " Packages.gz\n"
+		//			" " + sourcesSHA256 + " " + strconv.FormatInt(sourcesInfo.Size(), 10) + " Sources\n" +
+		//			" " + sourcesGzSHA256 + " " + strconv.FormatInt(sourcesGzInfo.Size(), 10) + " Sources.gz\n"
 
 	release[0]["SHA256"] = SHA256Str
 
@@ -209,7 +186,7 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 		signedReleaseFile, err := os.Create(*a.Repo.RepoBase + "/InRelease")
 		signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, a.SignerId.PrivateKey, nil)
 		if err != nil {
-			return errors.New("Error InRelease clear-signer, " + err.Error())
+			return nil, errors.New("Error InRelease clear-signer, " + err.Error())
 		}
 		releaseWriter = io.MultiWriter(unsignedReleaseFile, signedReleaseWriter)
 	} else {
@@ -228,6 +205,7 @@ func (a *aptBlobArchiveGenerator) Regenerate() (err error) {
 
 func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
 	respStatus = http.StatusOK
+	respObj = "Index committed" + err.Error()
 
 	items, err := RepoItemsFromChanges(session.Items(), a.blobStore)
 	if err != nil {
@@ -240,46 +218,20 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 	for i := range items {
 		index.AddRepoItem(items[i])
 	}
-	_, err = index.Close()
-
-	//Move the files into the pool
-	for _, f := range session.Items() {
-		dstdir := a.Repo.PoolFilePath(f.Filename)
-		stat, err := os.Lstat(dstdir)
-
-		if err != nil {
-			if os.IsNotExist(err) {
-				err = os.MkdirAll(dstdir, 0777)
-				if err != nil {
-					respStatus = http.StatusInternalServerError
-					respObj = "File move failed, " + err.Error()
-				}
-			} else {
-				respStatus = http.StatusInternalServerError
-				respObj = "File move failed, "
-			}
-		} else {
-			if !stat.IsDir() {
-				respStatus = http.StatusInternalServerError
-				respObj = "Destinatio path, " + dstdir + " is not a directory"
-			}
-		}
-
-		//err = os.Rename(f.Filename, dstdir+f.Filename)
-		// This should really be a re-linking
-		reader, _ := os.Open(f.Filename)
-		err = a.AddFile(dstdir+f.Filename, reader)
-		if err != nil {
-			respStatus = http.StatusInternalServerError
-			respObj = "File move failed, " + err.Error()
-		}
-	}
-
-	err = a.Regenerate()
+	indexId, err := index.Close()
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "File move failed, " + err.Error()
 	}
+
+	var commit RepoCommit
+	commit.Index = indexId
+	_, err = a.GenerateCommit(&commit)
+	if err != nil {
+		respStatus = http.StatusInternalServerError
+		respObj = "File move failed, " + err.Error()
+	}
+
 	return
 }
 
