@@ -2,11 +2,9 @@ package main
 
 import (
 	"encoding/hex"
-	"errors"
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/stapelberg/godebiancontrol"
@@ -17,7 +15,6 @@ import (
 	"crypto/sha256"
 
 	"code.google.com/p/go.crypto/openpgp"
-	"code.google.com/p/go.crypto/openpgp/clearsign"
 )
 
 // Interface for any Apt repository generator
@@ -144,11 +141,15 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 	*/
 
 	packagesFile.Close()
+	commit.Packages, _ = packagesFile.Identity()
+	packagesSize, _ := a.blobStore.Size(commit.Packages)
 	//packagesMd5 := hex.EncodeToString(packagesMD5er.Sum(nil))
 	//packagesSha1 := hex.EncodeToString(packagesSHA1er.Sum(nil))
 	packagesSHA256 := hex.EncodeToString(packagesSHA256er.Sum(nil))
 
 	packagesGzWriter.Close()
+	commit.PackagesGz, _ = packagesFile.Identity()
+	packagesGzSize, _ := a.blobStore.Size(commit.PackagesGz)
 	//packagesGzMD5 := hex.EncodeToString(packagesGzMD5er.Sum(nil))
 	//packagesGzSHA1 := hex.EncodeToString(packagesGzSHA1er.Sum(nil))
 	packagesGzSHA256 := hex.EncodeToString(packagesGzSHA256er.Sum(nil))
@@ -157,8 +158,6 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 		sourcesInfo, _ := os.Stat(*a.Repo.RepoBase + "/Sources")
 		sourcesGzInfo, _ := os.Stat(*a.Repo.RepoBase + "/Sources.gz")
 	*/
-	packagesInfo, _ := os.Stat(*a.Repo.RepoBase + "/Packages")
-	packagesGzInfo, _ := os.Stat(*a.Repo.RepoBase + "/Packages.gz")
 
 	release := make([]godebiancontrol.Paragraph, 1)
 	release[0] = make(godebiancontrol.Paragraph)
@@ -170,42 +169,48 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 	release[0]["Components"] = "main"
 	release[0]["Architectures"] = "amd64 all"
 	SHA256Str :=
-		packagesSHA256 + " " + strconv.FormatInt(packagesInfo.Size(), 10) + " Packages\n" +
-			" " + packagesGzSHA256 + " " + strconv.FormatInt(packagesGzInfo.Size(), 10) + " Packages.gz\n"
+		packagesSHA256 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
+			" " + packagesGzSHA256 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
 		//			" " + sourcesSHA256 + " " + strconv.FormatInt(sourcesInfo.Size(), 10) + " Sources\n" +
 		//			" " + sourcesGzSHA256 + " " + strconv.FormatInt(sourcesGzInfo.Size(), 10) + " Sources.gz\n"
 
 	release[0]["SHA256"] = SHA256Str
 
-	unsignedReleaseFile, err := os.Create(*a.Repo.RepoBase + "/Release")
+	releaseWriter, _ := a.blobStore.Store()
+	/*
+		var signedReleaseWriter StoreWriteCloser
 
-	var releaseWriter io.Writer
-	var signedReleaseWriter io.WriteCloser
-
-	if a.SignerId != nil {
-		signedReleaseFile, err := os.Create(*a.Repo.RepoBase + "/InRelease")
-		signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, a.SignerId.PrivateKey, nil)
-		if err != nil {
-			return nil, errors.New("Error InRelease clear-signer, " + err.Error())
+		if a.SignerId != nil {
+			signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, a.SignerId.PrivateKey, nil)
+			if err != nil {
+				return nil, errors.New("Error InRelease clear-signer, " + err.Error())
+			}
+			releaseWriter = io.MultiWriter(unsignedReleaseFile, signedReleaseWriter)
+		} else {
+			releaseWriter = unsignedReleaseFile
 		}
-		releaseWriter = io.MultiWriter(unsignedReleaseFile, signedReleaseWriter)
-	} else {
-		releaseWriter = unsignedReleaseFile
-	}
+	*/
 
 	WriteDebianControl(releaseWriter, release, releaseStartFields, releaseEndFields)
 
-	unsignedReleaseFile.Close()
-	if a.SignerId != nil {
-		signedReleaseWriter.Close()
-	}
+	releaseWriter.Close()
+	commit.Release, _ = releaseWriter.Identity()
+	/*
+		if a.SignerId != nil {
+			signedReleaseWriter.Close()
+			commit.InRelease, _ = signedReleasesFile.Identity()
+		}
+	*/
 
+	log.Println(*commit)
+
+	commitid, _ = StoreRepoCommit(a.blobStore, *commit)
 	return
 }
 
 func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
 	respStatus = http.StatusOK
-	respObj = "Index committed" + err.Error()
+	respObj = "Index committed"
 
 	items, err := RepoItemsFromChanges(session.Items(), a.blobStore)
 	if err != nil {
