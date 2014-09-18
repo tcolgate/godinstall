@@ -150,7 +150,8 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 	packagesSHA256 := hex.EncodeToString(packagesSHA256er.Sum(nil))
 
 	packagesGzWriter.Close()
-	commit.PackagesGz, _ = packagesFile.Identity()
+	packagesGzFile.Close()
+	commit.PackagesGz, _ = packagesGzFile.Identity()
 	packagesGzSize, _ := a.blobStore.Size(commit.PackagesGz)
 	//packagesGzMD5 := hex.EncodeToString(packagesGzMD5er.Sum(nil))
 	//packagesGzSHA1 := hex.EncodeToString(packagesGzSHA1er.Sum(nil))
