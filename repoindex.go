@@ -116,36 +116,6 @@ func RepoItemsFromChanges(files map[string]*ChangesItem, store Storer) ([]*RepoI
 	return result, nil
 }
 
-func RetrieveRepoItem(s Storer, id StoreID) (*RepoItem, error) {
-	reader, err := s.Open(id)
-	if err != nil {
-		return nil, err
-	}
-
-	dec := gob.NewDecoder(reader)
-	var item RepoItem
-	dec.Decode(&item)
-
-	return &item, nil
-}
-
-func StoreRepoItem(s Storer, item RepoItem) (StoreID, error) {
-	writer, err := s.Store()
-	if err != nil {
-		return nil, err
-	}
-	enc := gob.NewEncoder(writer)
-
-	enc.Encode(item)
-	writer.Close()
-	id, err := writer.Identity()
-	if err != nil {
-		return nil, err
-	}
-
-	return id, nil
-}
-
 func RetrieveBinaryControlFile(s Storer, id StoreID) (ControlData, error) {
 	reader, err := s.Open(id)
 	if err != nil {
