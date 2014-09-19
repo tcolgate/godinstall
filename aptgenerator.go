@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/stapelberg/godebiancontrol"
 
@@ -223,13 +224,61 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid Comm
 		commit.InRelease, _ = signedReleaseFile.Identity()
 	}
 
+	commit.Date = time.Now()
 	log.Println(*commit)
 
 	commitid, _ = a.store.AddCommit(commit)
 	return
 }
 
-func (a *aptBlobArchiveGenerator) ReifyCommit(commit CommitID) (err error) {
+func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
+	commit, err := a.store.GetCommit(id)
+	indexId := commit.Index
+	index, err := a.store.OpenIndex(indexId)
+
+	clearRepo := func() {
+		os.Remove(a.Repo.Base() + "/Packages")
+		os.Remove(a.Repo.Base() + "/Packages.gz")
+		os.Remove(a.Repo.Base() + "/Release")
+		os.Remove(a.Repo.Base() + "/InRelease")
+		os.RemoveAll(a.Repo.Base() + "/pool")
+	}
+
+	clearRepo()
+	defer func() {
+		if err != nil {
+			clearRepo()
+		}
+	}()
+
+	for {
+		item, err := index.NextItem()
+		if err != nil {
+			if err != io.EOF {
+				return err
+			}
+			break
+		}
+		for i := range item.Files {
+			file := item.Files[i]
+			path := a.Repo.PoolFilePath(file.Name)
+			filepath := path + file.Name
+			err = a.store.Link(file.ID, filepath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	err = a.store.Link(commit.Packages, a.Repo.Base()+"/Packages")
+	err = a.store.Link(commit.PackagesGz, a.Repo.Base()+"/Packages.gz")
+	//err = a.store.Link(commit.Sources, a.Repo.Base()+"/Sources")
+	//err = a.store.Link(commit.SourcesGz, a.Repo.Base()+"/Sources.gz")
+	err = a.store.Link(commit.Release, a.Repo.Base()+"/Release")
+	if a.SignerId != nil {
+		err = a.store.Link(commit.InRelease, a.Repo.Base()+"/InRelease")
+	}
+
 	return
 }
 

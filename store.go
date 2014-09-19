@@ -149,9 +149,37 @@ func (t *sha1Store) Link(id StoreID, targets ...string) error {
 	var err error
 
 	for t := range targets {
-		err = os.Link(name, targets[t])
-		if err != nil {
-			break
+		target := targets[t]
+		prefix := strings.LastIndex(target, "/")
+		if prefix > -1 {
+			linkDir := target[0 : prefix+1]
+			linkName := target[prefix+1:]
+			if linkName == "" {
+				return errors.New("reference name cannot end in /")
+			}
+			err = os.MkdirAll(linkDir, 0777)
+			if err != nil {
+				if os.IsExist(err) {
+					break
+				} else {
+					return err
+				}
+			}
+		}
+
+		linkerr := os.Link(name, targets[t])
+		if linkerr != nil {
+			if os.IsExist(linkerr) {
+				var f1, f2 os.FileInfo
+				f1, err = os.Stat(name)
+				f2, err = os.Stat(targets[t])
+				if os.SameFile(f1, f2) {
+					break
+				}
+				return errors.New("File associated with differet hashes")
+			} else {
+				return err
+			}
 		}
 	}
 	return err
