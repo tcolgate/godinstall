@@ -25,7 +25,6 @@ type AptGenerator interface {
 	GenerateCommit(IndexID) (CommitID, error) // Regenerate the apt archive
 	ReifyCommit(CommitID) error               // Reify the commit into  the archive
 	AddSession(session UploadSessioner) (respStatus int, respObj string, err error)
-	AddFile(name string, r io.Reader) error // Add the content of the reader with the given filename
 }
 
 // An AptGenerator that uses a version historied blob store
@@ -289,16 +288,5 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		return respStatus, respObj, err
 	}
 
-	return
-}
-
-func (a *aptBlobArchiveGenerator) AddFile(filename string, data io.Reader) (err error) {
-	store, err := a.store.Store()
-	if err != nil {
-		return err
-	}
-
-	io.Copy(store, data)
-	err = store.CloseAndLink(filename)
 	return
 }
