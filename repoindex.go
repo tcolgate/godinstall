@@ -176,6 +176,32 @@ func StoreBinaryControlFile(s Storer, data ControlData) (StoreID, error) {
 	return id, nil
 }
 
+// ByIndexOrder implements sort.Interface for []RepoItem.
+// Packages are sorted by:
+//  - Alphabetical package name
+//  - Alphabetical architecture
+//  - Reverse Version
+
+type ByIndexOrder []*RepoItem
+
+func (a ByIndexOrder) Len() int      { return len(a) }
+func (a ByIndexOrder) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByIndexOrder) Less(i, j int) bool {
+	switch {
+	case a[i].Name < a[j].Name:
+		return true
+	case a[i].Name == a[j].Name &&
+		a[i].Architecture < a[j].Architecture:
+		return true
+	case a[i].Name == a[j].Name &&
+		a[i].Architecture == a[j].Architecture &&
+		a[i].Version == a[j].Version:
+		return true
+	default:
+		return false
+	}
+}
+
 // Used for tracking the state of reads from an Index
 type repoIndexWriterHandle struct {
 	handle  StoreWriteCloser

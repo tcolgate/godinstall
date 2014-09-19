@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/hex"
+	"errors"
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/stapelberg/godebiancontrol"
@@ -15,6 +17,7 @@ import (
 	"crypto/sha256"
 
 	"code.google.com/p/go.crypto/openpgp"
+	"code.google.com/p/go.crypto/openpgp/clearsign"
 )
 
 // Interface for any Apt repository generator
@@ -171,47 +174,52 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 	release[0]["Suite"] = "stable"
 	release[0]["Components"] = "main"
 	release[0]["Architectures"] = "amd64 all"
-	MD5Str :=
-		packagesMD5 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
-			" " + packagesGzMD5 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
-	SHA1Str :=
-		packagesSHA1 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
-			" " + packagesGzSHA1 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
-	SHA256Str :=
-		packagesSHA256 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
-			" " + packagesGzSHA256 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
-		//			" " + sourcesSHA256 + " " + strconv.FormatInt(sourcesInfo.Size(), 10) + " Sources\n" +
-		//			" " + sourcesGzSHA256 + " " + strconv.FormatInt(sourcesGzInfo.Size(), 10) + " Sources.gz\n"
+	MD5Str := "\n" +
+		" " + packagesMD5 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
+		" " + packagesGzMD5 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
+	SHA1Str := "\n" +
+		" " + packagesSHA1 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
+		" " + packagesGzSHA1 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
+	SHA256Str := "\n" +
+		" " + packagesSHA256 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
+		" " + packagesGzSHA256 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
+	//			" " + sourcesSHA256 + " " + strconv.FormatInt(sourcesInfo.Size(), 10) + " Sources\n" +
+	//			" " + sourcesGzSHA256 + " " + strconv.FormatInt(sourcesGzInfo.Size(), 10) + " Sources.gz\n"
 
 	release[0]["MD5Sum"] = MD5Str
 	release[0]["SHA1"] = SHA1Str
 	release[0]["SHA256"] = SHA256Str
 
-	releaseWriter, _ := a.blobStore.Store()
-	/*
-		var signedReleaseWriter StoreWriteCloser
+	// This is a little convoluted. We'll ultimately write to this, but it may be
+	// writing to unsigned and signed releases, or just the unsigned, depending
+	// on user options
+	var releaseWriter io.Writer
+	unsignedReleaseFile, _ := a.blobStore.Store()
 
-		if a.SignerId != nil {
-			signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, a.SignerId.PrivateKey, nil)
-			if err != nil {
-				return nil, errors.New("Error InRelease clear-signer, " + err.Error())
-			}
-			releaseWriter = io.MultiWriter(unsignedReleaseFile, signedReleaseWriter)
-		} else {
-			releaseWriter = unsignedReleaseFile
+	var signedReleaseFile StoreWriteCloser
+	var signedReleaseWriter io.WriteCloser
+
+	if a.SignerId != nil {
+		signedReleaseFile, err = a.blobStore.Store()
+		signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, a.SignerId.PrivateKey, nil)
+		if err != nil {
+			return nil, errors.New("Error InRelease clear-signer, " + err.Error())
 		}
-	*/
+		releaseWriter = io.MultiWriter(unsignedReleaseFile, signedReleaseWriter)
+	} else {
+		releaseWriter = unsignedReleaseFile
+	}
 
 	WriteDebianControl(releaseWriter, release, releaseStartFields, releaseEndFields)
 
-	releaseWriter.Close()
-	commit.Release, _ = releaseWriter.Identity()
-	/*
-		if a.SignerId != nil {
-			signedReleaseWriter.Close()
-			commit.InRelease, _ = signedReleasesFile.Identity()
-		}
-	*/
+	unsignedReleaseFile.Close()
+	commit.Release, _ = unsignedReleaseFile.Identity()
+
+	if a.SignerId != nil {
+		signedReleaseWriter.Close()
+		signedReleaseFile.Close()
+		commit.InRelease, _ = signedReleaseFile.Identity()
+	}
 
 	log.Println(*commit)
 
@@ -229,6 +237,8 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		respObj = "Collating repository items failed, " + err.Error()
 		return respStatus, respObj, err
 	}
+
+	sort.Sort(ByIndexOrder(items))
 
 	index, _ := NewRepoIndex(a.blobStore)
 	for i := range items {
