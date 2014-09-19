@@ -23,6 +23,7 @@ import (
 // Interface for any Apt repository generator
 type AptGenerator interface {
 	GenerateCommit(IndexID) (CommitID, error) // Regenerate the apt archive
+	ReifyCommit(CommitID) error               // Reify the commit into  the archive
 	AddSession(session UploadSessioner) (respStatus int, respObj string, err error)
 	AddFile(name string, r io.Reader) error // Add the content of the reader with the given filename
 }
@@ -229,6 +230,10 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid Comm
 	return
 }
 
+func (a *aptBlobArchiveGenerator) ReifyCommit(commit CommitID) (err error) {
+	return
+}
+
 func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
 	respStatus = http.StatusOK
 	respObj = "Index committed"
@@ -276,6 +281,14 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		return respStatus, respObj, err
 	}
 	a.store.SetHead("master", newhead)
+
+	err = a.ReifyCommit(newhead)
+	if err != nil {
+		respStatus = http.StatusInternalServerError
+		respObj = "Repopulating the archive directory failed," + err.Error()
+		return respStatus, respObj, err
+	}
+
 	return
 }
 
