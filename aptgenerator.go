@@ -22,7 +22,7 @@ import (
 
 // Interface for any Apt repository generator
 type AptGenerator interface {
-	GenerateCommit(StoreID) (StoreID, error) // Regenerate the apt archive
+	GenerateCommit(IndexID) (CommitID, error) // Regenerate the apt archive
 	AddSession(session UploadSessioner) (respStatus int, respObj string, err error)
 	AddFile(name string, r io.Reader) error // Add the content of the reader with the given filename
 }
@@ -50,7 +50,7 @@ func NewAptBlobArchiveGenerator(
 	}
 }
 
-func (a *aptBlobArchiveGenerator) GenerateCommit(indexid StoreID) (commitid StoreID, err error) {
+func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid CommitID, err error) {
 	commit := &RepoCommit{}
 	commit.Index = indexid
 	/*
@@ -240,7 +240,7 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		return respStatus, respObj, err
 	}
 
-	head, err := a.store.GetRef("master")
+	head, err := a.store.GetHead("master")
 	if os.IsNotExist(err) {
 		// We need to setup the initial commit
 	}

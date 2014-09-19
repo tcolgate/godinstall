@@ -11,14 +11,16 @@ import (
 )
 
 type RepoStorer interface {
+	GetHead(string) (CommitID, error)
+	SetHead(string, CommitID) error
 	AddDeb(file *ChangesItem) (*RepoItem, error)
-	GetCommit(id StoreID) (*RepoCommit, error)
-	AddCommit(data *RepoCommit) (StoreID, error)
+	GetCommit(id CommitID) (*RepoCommit, error)
+	AddCommit(data *RepoCommit) (CommitID, error)
 	AddBinaryControlFile(data ControlData) (StoreID, error)
 	GetBinaryControlFile(id StoreID) (ControlData, error)
-	OpenIndex(id StoreID) (h repoIndexReaderHandle, err error)
+	OpenIndex(id IndexID) (h repoIndexReaderHandle, err error)
 	ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoItem, error)
-	MergeItemsIntoCommit(parentid StoreID, items []*RepoItem) (result StoreID, err error)
+	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, err error)
 	Storer
 }
 
@@ -30,6 +32,15 @@ func NewRepoBlobStore(storeDir string, tmpDir string) RepoStorer {
 	return &repoBlobStore{
 		Sha1Store(storeDir, tmpDir, 3),
 	}
+}
+
+func (r repoBlobStore) GetHead(name string) (CommitID, error) {
+	id, err := r.GetRef("heads/" + name)
+	return CommitID(id), err
+}
+
+func (r repoBlobStore) SetHead(name string, id CommitID) error {
+	return r.SetRef("heads/"+name, StoreID(id))
 }
 
 type RepoItemType int
@@ -132,8 +143,6 @@ func (r repoBlobStore) ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoI
 		return nil, err
 	}
 
-	sort.Sort(ByIndexOrder(result))
-
 	return result, nil
 }
 
@@ -199,9 +208,11 @@ type repoIndexWriterHandle struct {
 	encoder *gob.Encoder
 }
 
+type IndexID StoreID
+
 // RepoIndex represent a complete list of packages that will make
 // up a full release.
-func (r repoBlobStore) NewIndex() (h repoIndexWriterHandle, err error) {
+func (r repoBlobStore) AddIndex() (h repoIndexWriterHandle, err error) {
 	h.handle, err = r.Store()
 	if err != nil {
 		return
@@ -231,8 +242,8 @@ type repoIndexReaderHandle struct {
 	decoder *gob.Decoder
 }
 
-func (r repoBlobStore) OpenIndex(id StoreID) (h repoIndexReaderHandle, err error) {
-	h.handle, err = r.Open(id)
+func (r repoBlobStore) OpenIndex(id IndexID) (h repoIndexReaderHandle, err error) {
+	h.handle, err = r.Open(StoreID(id))
 	if err != nil {
 		return
 	}
@@ -261,11 +272,13 @@ type RepoAction struct {
 	Description string
 }
 
+type CommitID StoreID
+
 // RepoCommit represents an actual complete repository state
 type RepoCommit struct {
-	Parent      StoreID      // The previous commit we updated
+	Parent      CommitID     // The previous commit we updated
 	Date        time.Time    // Time of the update
-	Index       StoreID      // The item index in the blob store
+	Index       IndexID      // The item index in the blob store
 	PoolPattern string       // The pool pattern we used to reify the index files
 	Packages    StoreID      // StoreID for reified binary index
 	PackagesGz  StoreID      // StoreID for reified compressed binary index
@@ -276,9 +289,9 @@ type RepoCommit struct {
 	Actions     []RepoAction // List of all actions that were performed for this commit
 }
 
-func (r repoBlobStore) GetCommit(id StoreID) (*RepoCommit, error) {
+func (r repoBlobStore) GetCommit(id CommitID) (*RepoCommit, error) {
 	var commit RepoCommit
-	reader, err := r.Open(id)
+	reader, err := r.Open(StoreID(id))
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +302,7 @@ func (r repoBlobStore) GetCommit(id StoreID) (*RepoCommit, error) {
 	return &commit, nil
 }
 
-func (r repoBlobStore) AddCommit(data *RepoCommit) (StoreID, error) {
+func (r repoBlobStore) AddCommit(data *RepoCommit) (CommitID, error) {
 	writer, err := r.Store()
 	if err != nil {
 		return nil, err
@@ -303,18 +316,28 @@ func (r repoBlobStore) AddCommit(data *RepoCommit) (StoreID, error) {
 		return nil, err
 	}
 
-	return id, nil
+	return CommitID(id), nil
 }
 
-// Merge the content of index into the parent commit and return a new commit
-func (r repoBlobStore) MergeItemsIntoCommit(parentid StoreID, items []*RepoItem) (result StoreID, err error) {
-	//parent, _ := GetRepoCommit(r.store, parentid)
-	//parentidx, _ := OpenRepoIndex(parent.Index, r.store)
-	//parentidx, _ := OpenRepoIndex(parent.Index, r.store)
+// Merge the content of index into the parent commit and return a new index
+func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, err error) {
+	sort.Sort(ByIndexOrder(items))
+	parent, _ := r.GetCommit(parentid)
+	parentidx, _ := r.OpenIndex(parent.Index)
+	mergedidx, _ := r.AddIndex()
 
-	commit := &RepoCommit{}
-	commit.Parent = parentid
+	for {
+		item, err := parentidx.NextItem()
+		if err != nil {
+			break
+		}
+		mergedidx.AddItem(&item)
+	}
 
-	result, _ = r.AddCommit(commit)
-	return
+	for i := range items {
+		mergedidx.AddItem(items[i])
+	}
+
+	id, err := mergedidx.Close()
+	return IndexID(id), err
 }
