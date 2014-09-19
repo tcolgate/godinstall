@@ -4,14 +4,33 @@ import (
 	"encoding/gob"
 	"io"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/stapelberg/godebiancontrol"
 )
 
-type ControlData []godebiancontrol.Paragraph
+type RepoStorer interface {
+	AddDeb(file *ChangesItem) (*RepoItem, error)
+	GetCommit(id StoreID) (*RepoCommit, error)
+	AddCommit(data *RepoCommit) (StoreID, error)
+	AddBinaryControlFile(data ControlData) (StoreID, error)
+	GetBinaryControlFile(id StoreID) (ControlData, error)
+	OpenIndex(id StoreID) (h repoIndexReaderHandle, err error)
+	ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoItem, error)
+	MergeItemsIntoCommit(parentid StoreID, items []*RepoItem) (result StoreID, err error)
+	Storer
+}
+
+type repoBlobStore struct {
+	Storer
+}
+
+func NewRepoBlobStore(storeDir string, tmpDir string) RepoStorer {
+	return &repoBlobStore{
+		Sha1Store(storeDir, tmpDir, 3),
+	}
+}
 
 type RepoItemType int
 
@@ -40,11 +59,11 @@ type RepoItemFile struct {
 	ID   StoreID // Store ID for the actual file
 }
 
-func RepoIndexDeb(file *ChangesItem, store Storer) (*RepoItem, error) {
+func (r repoBlobStore) AddDeb(file *ChangesItem) (*RepoItem, error) {
 	var item RepoItem
 	item.Type = BINARY
 
-	pkgReader, err := store.Open(file.StoreID)
+	pkgReader, err := r.Open(file.StoreID)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +90,7 @@ func RepoIndexDeb(file *ChangesItem, store Storer) (*RepoItem, error) {
 	paragraphs := make(ControlData, 1)
 	paragraphs[0] = control
 
-	item.ControlID, err = StoreBinaryControlFile(store, paragraphs)
+	item.ControlID, err = r.AddBinaryControlFile(paragraphs)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +107,7 @@ func RepoIndexDeb(file *ChangesItem, store Storer) (*RepoItem, error) {
 	return &item, nil
 }
 
-func RepoItemsFromChanges(files map[string]*ChangesItem, store Storer) ([]*RepoItem, error) {
+func (r repoBlobStore) ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoItem, error) {
 	var err error
 
 	// Build repository items
@@ -96,7 +115,7 @@ func RepoItemsFromChanges(files map[string]*ChangesItem, store Storer) ([]*RepoI
 	for i, file := range files {
 		switch {
 		case strings.HasSuffix(i, ".deb"):
-			item, err := RepoIndexDeb(file, store)
+			item, err := r.AddDeb(file)
 			if err != nil {
 				log.Println(err)
 				return nil, err
@@ -113,11 +132,13 @@ func RepoItemsFromChanges(files map[string]*ChangesItem, store Storer) ([]*RepoI
 		return nil, err
 	}
 
+	sort.Sort(ByIndexOrder(result))
+
 	return result, nil
 }
 
-func RetrieveBinaryControlFile(s Storer, id StoreID) (ControlData, error) {
-	reader, err := s.Open(id)
+func (r repoBlobStore) GetBinaryControlFile(id StoreID) (ControlData, error) {
+	reader, err := r.Open(id)
 	if err != nil {
 		return nil, err
 	}
@@ -129,8 +150,8 @@ func RetrieveBinaryControlFile(s Storer, id StoreID) (ControlData, error) {
 	return item, nil
 }
 
-func StoreBinaryControlFile(s Storer, data ControlData) (StoreID, error) {
-	writer, err := s.Store()
+func (r repoBlobStore) AddBinaryControlFile(data ControlData) (StoreID, error) {
+	writer, err := r.Store()
 	if err != nil {
 		return nil, err
 	}
@@ -180,8 +201,8 @@ type repoIndexWriterHandle struct {
 
 // RepoIndex represent a complete list of packages that will make
 // up a full release.
-func NewRepoIndex(store Storer) (h repoIndexWriterHandle, err error) {
-	h.handle, err = store.Store()
+func (r repoBlobStore) NewIndex() (h repoIndexWriterHandle, err error) {
+	h.handle, err = r.Store()
 	if err != nil {
 		return
 	}
@@ -190,7 +211,7 @@ func NewRepoIndex(store Storer) (h repoIndexWriterHandle, err error) {
 	return
 }
 
-func (r *repoIndexWriterHandle) AddRepoItem(item *RepoItem) (err error) {
+func (r *repoIndexWriterHandle) AddItem(item *RepoItem) (err error) {
 	err = r.encoder.Encode(item)
 	return
 }
@@ -210,8 +231,8 @@ type repoIndexReaderHandle struct {
 	decoder *gob.Decoder
 }
 
-func OpenRepoIndex(id StoreID, store Storer) (h repoIndexReaderHandle, err error) {
-	h.handle, err = store.Open(id)
+func (r repoBlobStore) OpenIndex(id StoreID) (h repoIndexReaderHandle, err error) {
+	h.handle, err = r.Open(id)
 	if err != nil {
 		return
 	}
@@ -255,9 +276,9 @@ type RepoCommit struct {
 	Actions     []RepoAction // List of all actions that were performed for this commit
 }
 
-func RetrieveRepoCommit(s Storer, id StoreID) (*RepoCommit, error) {
+func (r repoBlobStore) GetCommit(id StoreID) (*RepoCommit, error) {
 	var commit RepoCommit
-	reader, err := s.Open(id)
+	reader, err := r.Open(id)
 	if err != nil {
 		return nil, err
 	}
@@ -268,8 +289,8 @@ func RetrieveRepoCommit(s Storer, id StoreID) (*RepoCommit, error) {
 	return &commit, nil
 }
 
-func StoreRepoCommit(s Storer, data RepoCommit) (StoreID, error) {
-	writer, err := s.Store()
+func (r repoBlobStore) AddCommit(data *RepoCommit) (StoreID, error) {
+	writer, err := r.Store()
 	if err != nil {
 		return nil, err
 	}
@@ -283,4 +304,17 @@ func StoreRepoCommit(s Storer, data RepoCommit) (StoreID, error) {
 	}
 
 	return id, nil
+}
+
+// Merge the content of index into the parent commit and return a new commit
+func (r repoBlobStore) MergeItemsIntoCommit(parentid StoreID, items []*RepoItem) (result StoreID, err error) {
+	//parent, _ := GetRepoCommit(r.store, parentid)
+	//parentidx, _ := OpenRepoIndex(parent.Index, r.store)
+	//parentidx, _ := OpenRepoIndex(parent.Index, r.store)
+
+	commit := &RepoCommit{}
+	commit.Parent = parentid
+
+	result, _ = r.AddCommit(commit)
+	return
 }

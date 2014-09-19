@@ -53,7 +53,7 @@ type uploadSession struct {
 	dir          string             // Temporary directory for storage
 	uploadHook   HookRunner         // A hook to run after a successful upload
 	requireSig   bool               // Check debian package signatures
-	store        Storer             // Blob store to keep files in
+	store        RepoStorer         // Blob store to keep files in
 	finished     chan UpdateRequest // A channel to anounce completion and trigger a repo update
 	changes      *ChangesFile       // The changes file for this session
 }
@@ -102,7 +102,7 @@ func NewChangesSession(
 	validateDebs bool,
 	keyRing openpgp.EntityList,
 	tmpDirBase *string,
-	store Storer,
+	store RepoStorer,
 	uploadHook HookRunner,
 	done chan struct{},
 	finished chan UpdateRequest,
@@ -340,7 +340,7 @@ func NewLoneDebSession(
 	validateDebs bool,
 	keyRing openpgp.EntityList,
 	tmpDirBase *string,
-	store Storer,
+	store RepoStorer,
 	uploadHook HookRunner,
 	finished chan UpdateRequest,
 ) UploadSessioner {

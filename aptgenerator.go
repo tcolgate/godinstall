@@ -6,7 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"sort"
+	"os"
 	"strconv"
 
 	"github.com/stapelberg/godebiancontrol"
@@ -22,17 +22,17 @@ import (
 
 // Interface for any Apt repository generator
 type AptGenerator interface {
-	GenerateCommit(*RepoCommit) (StoreID, error) // Regenerate the apt archive
+	GenerateCommit(StoreID) (StoreID, error) // Regenerate the apt archive
 	AddSession(session UploadSessioner) (respStatus int, respObj string, err error)
 	AddFile(name string, r io.Reader) error // Add the content of the reader with the given filename
 }
 
 // An AptGenerator that uses a version historied blob store
 type aptBlobArchiveGenerator struct {
-	Repo      *aptRepo        // The repo to update
-	PrivRing  openpgp.KeyRing // Private keyring cotaining singing key
-	SignerId  *openpgp.Entity // The key to sign release file with
-	blobStore Storer          // The blob store to use
+	Repo     *aptRepo        // The repo to update
+	PrivRing openpgp.KeyRing // Private keyring cotaining singing key
+	SignerId *openpgp.Entity // The key to sign release file with
+	store    RepoStorer      // The blob store to use
 }
 
 // Create a new AptGenerator that uses apt-ftparchive
@@ -40,19 +40,21 @@ func NewAptBlobArchiveGenerator(
 	repo *aptRepo,
 	privRing openpgp.KeyRing,
 	signerId *openpgp.Entity,
-	blobStore Storer,
+	store RepoStorer,
 ) AptGenerator {
 	return &aptBlobArchiveGenerator{
 		repo,
 		privRing,
 		signerId,
-		blobStore,
+		store,
 	}
 }
 
-func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid StoreID, err error) {
+func (a *aptBlobArchiveGenerator) GenerateCommit(indexid StoreID) (commitid StoreID, err error) {
+	commit := &RepoCommit{}
+	commit.Index = indexid
 	/*
-		sourcesFile, err := a.blobStore.Store()
+		sourcesFile, err := a.store.Store()
 		sourcesMD5er := md5.New()
 		sourcesSHA1er := sha1.New()
 		sourcesSHA256er := sha256.New()
@@ -62,7 +64,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 			sourcesSHA1er,
 			sourcesSHA256er)
 
-		sourcesGzFile, err := a.blobStore.Store()
+		sourcesGzFile, err := a.store.Store()
 		sourcesGzMD5er := md5.New()
 		sourcesGzSHA1er := sha1.New()
 		sourcesGzSHA256er := sha256.New()
@@ -76,7 +78,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 		sourcesWriter := io.MultiWriter(sourcesHashedWriter, sourcesGzWriter)
 	*/
 
-	packagesFile, err := a.blobStore.Store()
+	packagesFile, err := a.store.Store()
 	packagesMD5er := md5.New()
 	packagesSHA1er := sha1.New()
 	packagesSHA256er := sha256.New()
@@ -86,7 +88,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 		packagesSHA1er,
 		packagesSHA256er)
 
-	packagesGzFile, err := a.blobStore.Store()
+	packagesGzFile, err := a.store.Store()
 	packagesGzMD5er := md5.New()
 	packagesGzSHA1er := sha1.New()
 	packagesGzSHA256er := sha256.New()
@@ -99,7 +101,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 
 	packagesWriter := io.MultiWriter(packagesHashedWriter, packagesGzWriter)
 
-	newindex, err := OpenRepoIndex(commit.Index, a.blobStore)
+	newindex, err := a.store.OpenIndex(commit.Index)
 	if err != nil {
 		return
 	}
@@ -115,7 +117,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 
 		switch item.Type {
 		case BINARY:
-			control, _ := RetrieveBinaryControlFile(a.blobStore, item.ControlID)
+			control, _ := a.store.GetBinaryControlFile(item.ControlID)
 			poolpath := a.Repo.PoolFilePath(control[0]["Filename"])
 			path := poolpath[len(a.Repo.Base())+1:] + control[0]["Filename"]
 
@@ -124,7 +126,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 			packagesWriter.Write([]byte("\n"))
 			/*
 				case SOURCE:
-					control, _ := RetrieveSourceControlFile(a.blobStore, item.ControlID)
+					control, _ := RetrieveSourceControlFile(a.store, item.ControlID)
 					control[0]["Package"] = control[0]["Source"]
 					delete(control[0], "Source")
 					FormatControlData(sourcesWriter, control)
@@ -147,7 +149,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 
 	packagesFile.Close()
 	commit.Packages, _ = packagesFile.Identity()
-	packagesSize, _ := a.blobStore.Size(commit.Packages)
+	packagesSize, _ := a.store.Size(commit.Packages)
 	packagesMD5 := hex.EncodeToString(packagesMD5er.Sum(nil))
 	packagesSHA1 := hex.EncodeToString(packagesSHA1er.Sum(nil))
 	packagesSHA256 := hex.EncodeToString(packagesSHA256er.Sum(nil))
@@ -155,7 +157,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 	packagesGzWriter.Close()
 	packagesGzFile.Close()
 	commit.PackagesGz, _ = packagesGzFile.Identity()
-	packagesGzSize, _ := a.blobStore.Size(commit.PackagesGz)
+	packagesGzSize, _ := a.store.Size(commit.PackagesGz)
 	packagesGzMD5 := hex.EncodeToString(packagesGzMD5er.Sum(nil))
 	packagesGzSHA1 := hex.EncodeToString(packagesGzSHA1er.Sum(nil))
 	packagesGzSHA256 := hex.EncodeToString(packagesGzSHA256er.Sum(nil))
@@ -194,13 +196,13 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 	// writing to unsigned and signed releases, or just the unsigned, depending
 	// on user options
 	var releaseWriter io.Writer
-	unsignedReleaseFile, _ := a.blobStore.Store()
+	unsignedReleaseFile, _ := a.store.Store()
 
 	var signedReleaseFile StoreWriteCloser
 	var signedReleaseWriter io.WriteCloser
 
 	if a.SignerId != nil {
-		signedReleaseFile, err = a.blobStore.Store()
+		signedReleaseFile, err = a.store.Store()
 		signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, a.SignerId.PrivateKey, nil)
 		if err != nil {
 			return nil, errors.New("Error InRelease clear-signer, " + err.Error())
@@ -223,7 +225,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(commit *RepoCommit) (commitid S
 
 	log.Println(*commit)
 
-	commitid, _ = StoreRepoCommit(a.blobStore, *commit)
+	commitid, _ = a.store.AddCommit(commit)
 	return
 }
 
@@ -231,28 +233,19 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 	respStatus = http.StatusOK
 	respObj = "Index committed"
 
-	items, err := RepoItemsFromChanges(session.Items(), a.blobStore)
+	items, err := a.store.ItemsFromChanges(session.Items())
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "Collating repository items failed, " + err.Error()
 		return respStatus, respObj, err
 	}
 
-	sort.Sort(ByIndexOrder(items))
-
-	index, _ := NewRepoIndex(a.blobStore)
-	for i := range items {
-		index.AddRepoItem(items[i])
-	}
-	indexId, err := index.Close()
-	if err != nil {
-		respStatus = http.StatusInternalServerError
-		respObj = "File move failed, " + err.Error()
+	head, err := a.store.GetRef("master")
+	if os.IsNotExist(err) {
+		// We need to setup the initial commit
 	}
 
-	var commit RepoCommit
-	commit.Index = indexId
-	_, err = a.GenerateCommit(&commit)
+	_, err = a.store.MergeItemsIntoCommit(head, items)
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "File move failed, " + err.Error()
@@ -262,7 +255,7 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 }
 
 func (a *aptBlobArchiveGenerator) AddFile(filename string, data io.Reader) (err error) {
-	store, err := a.blobStore.Store()
+	store, err := a.store.Store()
 	if err != nil {
 		return err
 	}
