@@ -189,18 +189,31 @@ type ByIndexOrder []*RepoItem
 func (a ByIndexOrder) Len() int      { return len(a) }
 func (a ByIndexOrder) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByIndexOrder) Less(i, j int) bool {
-	switch {
-	case a[i].Name < a[j].Name:
+	res := IndexOrder(a[i], a[j])
+	if res < 0 {
 		return true
-	case a[i].Name == a[j].Name &&
-		a[i].Architecture < a[j].Architecture:
-		return true
-	case a[i].Name == a[j].Name &&
-		a[i].Architecture == a[j].Architecture &&
-		a[i].Version == a[j].Version:
-		return true
-	default:
+	} else {
 		return false
+	}
+}
+
+func IndexOrder(a, b *RepoItem) int {
+	switch {
+	case a.Name < b.Name:
+		return -1
+	case a.Name == b.Name &&
+		a.Architecture < b.Architecture:
+		return -1
+	case a.Name == b.Name &&
+		a.Architecture == b.Architecture &&
+		DebVersionCompare(a.Version, b.Version) < 0:
+		return -1
+	case a.Name == b.Name &&
+		a.Architecture == b.Architecture &&
+		DebVersionCompare(a.Version, b.Version) == 0:
+		return 0
+	default:
+		return 1
 	}
 }
 
@@ -338,9 +351,23 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 		if err != nil {
 			break
 		}
-		mergedidx.AddItem(&item)
+		if len(items) > 0 {
+			if IndexOrder(&item, items[0]) < 0 { // New item not in index
+				mergedidx.AddItem(&item)
+				break
+			} else if IndexOrder(&item, items[0]) == 0 { // New item identical to existing
+				// should do more checks here
+				mergedidx.AddItem(items[0])
+				items = items[1:]
+				continue
+			} else {
+				mergedidx.AddItem(items[0])
+				items = items[1:]
+			}
+		}
 	}
 
+	// output any items that are left
 	for i := range items {
 		mergedidx.AddItem(items[i])
 	}
