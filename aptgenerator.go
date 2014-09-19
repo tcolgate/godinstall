@@ -241,16 +241,41 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 	}
 
 	head, err := a.store.GetHead("master")
-	if os.IsNotExist(err) {
-		// We need to setup the initial commit
+	if err != nil {
+		if os.IsNotExist(err) {
+			emptyidx, err := a.store.EmptyIndex()
+			if err != nil {
+				respStatus = http.StatusInternalServerError
+				respObj = "Creating empty index failed, " + err.Error()
+				return respStatus, respObj, err
+			}
+			head, err = a.GenerateCommit(emptyidx)
+			if err != nil {
+				respStatus = http.StatusInternalServerError
+				respObj = "Creating empty commit failed, " + err.Error()
+				return respStatus, respObj, err
+			}
+			a.store.SetHead("master", head)
+		} else {
+			respStatus = http.StatusInternalServerError
+			respObj = "Opening repo head failed, " + err.Error()
+			return respStatus, respObj, err
+		}
 	}
 
-	_, err = a.store.MergeItemsIntoCommit(head, items)
+	newidx, err := a.store.MergeItemsIntoCommit(head, items)
 	if err != nil {
 		respStatus = http.StatusInternalServerError
-		respObj = "File move failed, " + err.Error()
+		respObj = "Creating new index failed, " + err.Error()
 	}
 
+	newhead, err := a.GenerateCommit(newidx)
+	if err != nil {
+		respStatus = http.StatusInternalServerError
+		respObj = "Creating updated commit failed, " + err.Error()
+		return respStatus, respObj, err
+	}
+	a.store.SetHead("master", newhead)
 	return
 }
 

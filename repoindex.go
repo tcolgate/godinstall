@@ -18,6 +18,8 @@ type RepoStorer interface {
 	AddCommit(data *RepoCommit) (CommitID, error)
 	AddBinaryControlFile(data ControlData) (StoreID, error)
 	GetBinaryControlFile(id StoreID) (ControlData, error)
+	AddIndex() (h repoIndexWriterHandle, err error)
+	EmptyIndex() (IndexID, error)
 	OpenIndex(id IndexID) (h repoIndexReaderHandle, err error)
 	ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoItem, error)
 	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, err error)
@@ -227,14 +229,19 @@ func (r *repoIndexWriterHandle) AddItem(item *RepoItem) (err error) {
 	return
 }
 
-func (r *repoIndexWriterHandle) Close() (id StoreID, err error) {
-	err = r.handle.Close()
+func (r *repoIndexWriterHandle) Close() (IndexID, error) {
+	err := r.handle.Close()
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	id, err = r.handle.Identity()
-	return
+	id, err := r.handle.Identity()
+	return IndexID(id), err
+}
+
+func (r repoBlobStore) EmptyIndex() (id IndexID, err error) {
+	idx, err := r.AddIndex()
+	return idx.Close()
 }
 
 type repoIndexReaderHandle struct {
