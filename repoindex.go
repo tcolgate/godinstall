@@ -1,9 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/gob"
 	"io"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -108,6 +108,7 @@ func (r repoBlobStore) AddDeb(file *ChangesItem) (*RepoItem, error) {
 		return nil, err
 	}
 
+	item.Name, _ = pkg.Name()
 	item.Version, _ = pkg.Version()
 
 	fileSlice := make([]RepoItemFile, 1)
@@ -130,7 +131,6 @@ func (r repoBlobStore) ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoI
 		case strings.HasSuffix(i, ".deb"):
 			item, err := r.AddDeb(file)
 			if err != nil {
-				log.Println(err)
 				return nil, err
 			}
 			result = append(result, item)
@@ -248,23 +248,19 @@ func (a ByIndexOrder) Less(i, j int) bool {
 }
 
 func IndexOrder(a, b *RepoItem) int {
-	switch {
-	case a.Name < b.Name:
-		return -1
-	case a.Name == b.Name &&
-		a.Architecture < b.Architecture:
-		return -1
-	case a.Name == b.Name &&
-		a.Architecture == b.Architecture &&
-		DebVersionCompare(a.Version, b.Version) < 0:
-		return -1
-	case a.Name == b.Name &&
-		a.Architecture == b.Architecture &&
-		DebVersionCompare(a.Version, b.Version) == 0:
-		return 0
-	default:
-		return 1
+	nameCmp := bytes.Compare([]byte(a.Name), []byte(b.Name))
+	if nameCmp != 0 {
+		return nameCmp
 	}
+
+	archCmp := bytes.Compare([]byte(a.Architecture), []byte(b.Architecture))
+	if archCmp != 0 {
+		return archCmp
+	}
+
+	debCmp := DebVersionCompare(a.Version, b.Version)
+
+	return debCmp
 }
 
 // Used for tracking the state of reads from an Index
@@ -391,35 +387,44 @@ func (r repoBlobStore) AddCommit(data *RepoCommit) (CommitID, error) {
 
 // Merge the content of index into the parent commit and return a new index
 func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, err error) {
-	sort.Sort(ByIndexOrder(items))
 	parent, _ := r.GetCommit(parentid)
 	parentidx, _ := r.OpenIndex(parent.Index)
 	mergedidx, _ := r.AddIndex()
+	left, err := parentidx.NextItem()
+	right := items
+	sort.Sort(ByIndexOrder(right))
 
 	for {
-		item, err := parentidx.NextItem()
 		if err != nil {
 			break
 		}
-		if len(items) > 0 {
-			if IndexOrder(&item, items[0]) < 0 { // New item not in index
-				mergedidx.AddItem(&item)
-				break
-			} else if IndexOrder(&item, items[0]) == 0 { // New item identical to existing
-				// should do more checks here
-				mergedidx.AddItem(items[0])
-				items = items[1:]
+
+		if len(right) > 0 {
+			cmpItems := IndexOrder(&left, right[0])
+			if cmpItems < 0 { // New item not needed yet
+				mergedidx.AddItem(&left)
+				left, err = parentidx.NextItem()
+				continue
+			} else if cmpItems == 0 { // New item identical to existing
+				mergedidx.AddItem(&left)
+				left, err = parentidx.NextItem()
+				right = right[1:]
 				continue
 			} else {
-				mergedidx.AddItem(items[0])
-				items = items[1:]
+				mergedidx.AddItem(right[0])
+				right = right[1:]
+				continue
 			}
+		} else {
+			mergedidx.AddItem(&left)
+			left, err = parentidx.NextItem()
+			continue
 		}
 	}
 
 	// output any items that are left
-	for i := range items {
-		mergedidx.AddItem(items[i])
+	for i := range right {
+		mergedidx.AddItem(right[i])
 	}
 
 	id, err := mergedidx.Close()
