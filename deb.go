@@ -72,6 +72,24 @@ func DebVersionFromString(str string) (version DebVersion, err error) {
 	return
 }
 
+// Annoyingly 'subtle' code, poached from
+// http://anonscm.debian.org/cgit/dpkg/dpkg.git/tree/lib/dpkg/version.c?h=wheezy
+func DebVersionCompare(a DebVersion, b DebVersion) int {
+	if a.Epoch > b.Epoch {
+		return 1
+	}
+	if a.Epoch < b.Epoch {
+		return -1
+	}
+
+	res := compareComponent(a.Version, b.Version)
+
+	if res == 0 {
+		res = compareComponent(a.Revision, b.Revision)
+	}
+
+	return res
+}
 func charOrder(c int) int {
 	/**
 	 * @param c An ASCII character.
@@ -96,6 +114,7 @@ func compareComponent(a string, b string) int {
 		if i < len(a) || j < len(b) {
 			firstdiff := 0
 			for {
+				//log.Printf("i: %v a: %c k: %v b: %c", i, rune(a[i]), j, rune(b[j]))
 				if (i < len(a) && !unicode.IsDigit(rune(a[i]))) ||
 					(j < len(b) && !unicode.IsDigit(rune(b[j]))) {
 					var ac, bc int
@@ -131,7 +150,7 @@ func compareComponent(a string, b string) int {
 			for {
 				if (i < len(a) && unicode.IsDigit(rune(a[i]))) &&
 					(j < len(b) && unicode.IsDigit(rune(b[j]))) {
-					if firstdiff != 0 {
+					if firstdiff == 0 {
 						firstdiff = int(a[i]) - int(b[j])
 					}
 					i++
@@ -155,23 +174,6 @@ func compareComponent(a string, b string) int {
 	}
 
 	return 0
-}
-
-func DebVersionCompare(a DebVersion, b DebVersion) int {
-	if a.Epoch > b.Epoch {
-		return 1
-	}
-	if a.Epoch < b.Epoch {
-		return -1
-	}
-
-	res := compareComponent(a.Version, b.Version)
-
-	if res == 0 {
-		res = compareComponent(a.Revision, b.Revision)
-	}
-
-	return res
 }
 
 // An interface for describing a debian package.

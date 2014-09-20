@@ -32,7 +32,8 @@ var testDebVersionComparison = []struct {
 	{"1.0-1~1", "1.0-1", -1},
 	{"1.0-1", "1.0~1", 1},
 
-	{"1:1:1.0-1-1~1", "1.0-1", 1},
+	{"2.3~pre1003.wheezy1", "2.3~pre1002.wheezy1", 1},
+	{"2.3~pre1003.wheezy1", "2.30~pre1002.wheezy1", -1},
 }
 
 func TestDebVersionComparison(t *testing.T) {
@@ -73,6 +74,7 @@ var testDebVersionFromString = []struct {
 	{"1:2.3-1", &DebVersion{1, "2.3", "1"}, nil},
 	{"1:2.3-1-1", &DebVersion{1, "2.3-1", "1"}, nil},
 	{"1:1:1.0-1-1~1", &DebVersion{1, "1:1.0-1", "1~1"}, nil},
+	{"2.3~pre13.wheezy1", &DebVersion{0, "2.3~pre13.wheezy1", ""}, nil},
 }
 
 func TestDebVersionFromString(t *testing.T) {
