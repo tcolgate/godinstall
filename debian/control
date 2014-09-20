@@ -7,7 +7,7 @@ Standards-Version: 3.8.3
 
 Package: godinstall
 Architecture: amd64
-Depends: debhelper (>= 7), apt-ftparchive, libc6
+Depends: debhelper (>= 7), libc6
 Description: HTTP managable apt-server
  GoDInstall is an APT archive manager which
  can receive uploaded files via HTTP

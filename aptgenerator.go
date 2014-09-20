@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -36,7 +35,7 @@ type aptBlobArchiveGenerator struct {
 	store    RepoStorer      // The blob store to use
 }
 
-// Create a new AptGenerator that uses apt-ftparchive
+// Create a new AptGenerator that uses a version historied blob store
 func NewAptBlobArchiveGenerator(
 	repo *aptRepo,
 	privRing openpgp.KeyRing,
@@ -110,11 +109,8 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid Comm
 	for {
 		item, err := newindex.NextItem()
 		if err != nil {
-			log.Println(err)
 			break
 		}
-
-		log.Println(item)
 
 		switch item.Type {
 		case BINARY:
@@ -225,7 +221,6 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid Comm
 	}
 
 	commit.Date = time.Now()
-	log.Println(*commit)
 
 	commitid, _ = a.store.AddCommit(commit)
 	return

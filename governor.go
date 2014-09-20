@@ -8,7 +8,7 @@ import (
 type req struct{}
 
 // The governor is used for rate liiting requests, and for locking
-// the repository from new requests when an apt-ftparchive run is
+// the repository from new requests when an regeneration is
 // occuring
 type Governor struct {
 	Max    int          // Maximum number of concurrent requests

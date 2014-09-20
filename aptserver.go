@@ -30,8 +30,8 @@ type AptServer struct {
 	SessionManager UploadSessionManager // The session manager
 	UpdateChannel  chan UpdateRequest   // A channel to recieve update requests
 
-	PreAftpHook  HookRunner // A hook to run before we run the genrator
-	PostAftpHook HookRunner // A hooke to run after successful regeneration
+	PreGenHook  HookRunner // A hook to run before we run the genrator
+	PostGenHook HookRunner // A hooke to run after successful regeneration
 
 	aptLocks *Governor // Locks to ensure the repo update is atomic
 
@@ -280,20 +280,20 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 // the apt regeneration
 
 type CompletedUpload struct {
-	Session            UploadSessioner
-	PreAftpHookOutput  HookOutput
-	PostAftpHookOutput HookOutput
+	Session           UploadSessioner
+	PreGenHookOutput  HookOutput
+	PostGenHookOutput HookOutput
 }
 
 func (s CompletedUpload) MarshalJSON() (j []byte, err error) {
 	resp := struct {
-		Session            UploadSessioner
-		PreAftpHookOutput  HookOutput
-		PostAftpHookOutput HookOutput
+		Session           UploadSessioner
+		PreGenHookOutput  HookOutput
+		PostGenHookOutput HookOutput
 	}{
 		s.Session,
-		s.PreAftpHookOutput,
-		s.PostAftpHookOutput,
+		s.PreGenHookOutput,
+		s.PostGenHookOutput,
 	}
 	j, err = json.Marshal(resp)
 	return
@@ -315,22 +315,21 @@ func (a *AptServer) Updater() {
 
 				a.aptLocks.WriteLock()
 
-				hookResult := a.PreAftpHook.Run(session.SessionID())
+				hookResult := a.PreGenHook.Run(session.SessionID())
 				if hookResult.err != nil {
 					respStatus = http.StatusBadRequest
-					respObj = "Pre apt-ftparchive " + hookResult.Error()
+					respObj = "Pre gen hook failed " + hookResult.Error()
 				} else {
-					completedsession.PreAftpHookOutput = hookResult
+					completedsession.PreGenHookOutput = hookResult
 				}
 
 				respStatus, respObj, err = a.AptGenerator.AddSession(session)
-
 				if err != nil {
 					respStatus = http.StatusInternalServerError
-					respObj = "Apt FTP Archive failed, " + err.Error()
+					respObj = "Archive regeneration failed, " + err.Error()
 				} else {
-					hookResult := a.PostAftpHook.Run(session.SessionID())
-					completedsession.PostAftpHookOutput = hookResult
+					hookResult := a.PostGenHook.Run(session.SessionID())
+					completedsession.PostGenHookOutput = hookResult
 				}
 
 				a.aptLocks.WriteUnLock()

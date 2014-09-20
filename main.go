@@ -44,10 +44,10 @@ func main() {
 	repoBase := flag.String("repo-base", "/tmp/myrepo", "Location of repository root")
 	tmpDir := flag.String("tmp-dir", "/tmp/up", "Location for temporary storage")
 	storeDir := flag.String("store-dir", "/tmp/store", "Location for persitant storage")
-	cookieName := flag.String("cookie-name", "godinstall-sess", "Name for the sessio ookie")
+	cookieName := flag.String("cookie-name", "godinstall-sess", "Name for the sessio cookie")
 	uploadHook := flag.String("upload-hook", "", "Script to run after for each uploaded file")
-	preAftpHook := flag.String("pre-aftp-hook", "", "Script to run before apt-ftparchive")
-	postAftpHook := flag.String("post-aftp-hook", "", "Script to run after apt-ftparchive")
+	preGenHook := flag.String("pre-gen-hook", "", "Script to run before archive regeneration")
+	postGenHook := flag.String("post-gen-hook", "", "Script to run after archive regeneration")
 	poolPattern := flag.String("pool-pattern", "[a-z]|lib[a-z]", "A pattern to match package prefixes to split into directories in the pool")
 	validateChanges := flag.Bool("validate-changes", true, "Validate signatures on changes files")
 	validateChangesSufficient := flag.Bool("validate-changes-sufficient", true, "If we are given a signed chnages file, we wont validate individual debs")
@@ -155,8 +155,8 @@ func main() {
 	server := &AptServer{
 		MaxReqs:        *maxReqs,
 		CookieName:     *cookieName,
-		PreAftpHook:    NewScriptHook(preAftpHook),
-		PostAftpHook:   NewScriptHook(postAftpHook),
+		PreGenHook:     NewScriptHook(preGenHook),
+		PostGenHook:    NewScriptHook(postGenHook),
 		AcceptLoneDebs: *acceptLoneDebs,
 
 		Repo:           &aptRepo,
