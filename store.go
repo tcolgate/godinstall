@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"syscall"
 )
@@ -46,6 +47,7 @@ type sha1Store struct {
 
 func (t *sha1Store) storeIdToPathName(id StoreID) (string, string, error) {
 	if len(id) != sha1.Size {
+		debug.PrintStack()
 		return "", "", errors.New("invalid StoreID " + string(id))
 	}
 	idStr := id.String()

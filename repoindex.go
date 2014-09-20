@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"io"
 	"sort"
 	"strconv"
@@ -397,24 +398,21 @@ func (r repoBlobStore) AddCommit(data *RepoCommit) (CommitID, error) {
 func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, err error) {
 	parent, err := r.GetCommit(parentid)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("error getting parent commit, " + err.Error())
 	}
 
 	parentidx, err := r.OpenIndex(parent.Index)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("error getting parent commit index, " + err.Error())
 	}
 	defer parentidx.Close()
 
 	mergedidx, err := r.AddIndex()
 	if err != nil {
-		return nil, err
+		return nil, errors.New("error adding new index, " + err.Error())
 	}
 
 	left, err := parentidx.NextItem()
-	if err != nil {
-		return nil, err
-	}
 
 	right := items
 	sort.Sort(ByIndexOrder(right))
