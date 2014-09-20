@@ -148,27 +148,69 @@ func (r repoBlobStore) ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoI
 	return result, nil
 }
 
-func (r repoBlobStore) GetBinaryControlFile(id StoreID) (ControlData, error) {
+// We can't serialize a map, as the key order is not
+// guaranteed, which will result in inconsistant
+// hashes for the same data.
+type consistantControlData []struct {
+	Keys   []string
+	Values []string
+}
+
+func (r repoBlobStore) GetDebianControlFile(id StoreID) (ControlData, error) {
 	reader, err := r.Open(id)
 	if err != nil {
 		return nil, err
 	}
 
 	dec := gob.NewDecoder(reader)
-	var item ControlData
-	dec.Decode(&item)
+	var item consistantControlData
+	err = dec.Decode(&item)
+	if err != nil {
+		return nil, err
+	}
 
-	return item, nil
+	result := make(ControlData, len(item))
+	for i := range item {
+		result[i] = make(map[string]string, 0)
+		for j := range item[i].Keys {
+			result[i][item[i].Keys[j]] = item[i].Values[j]
+		}
+	}
+
+	return result, nil
 }
 
-func (r repoBlobStore) AddBinaryControlFile(data ControlData) (StoreID, error) {
+func (r repoBlobStore) AddDebianControlFile(item ControlData) (StoreID, error) {
+	data := make(consistantControlData, len(item))
+
+	for i := range item {
+		data[i].Keys = make([]string, len(item[i]))
+		data[i].Values = make([]string, len(item[i]))
+
+		j := 0
+		for s := range item[i] {
+			data[i].Keys[j] = s
+			j++
+		}
+		sort.Strings(data[i].Keys)
+
+		for j = range data[i].Keys {
+			key := data[i].Keys[j]
+			data[i].Values[j] = item[i][key]
+		}
+	}
+
 	writer, err := r.Store()
 	if err != nil {
 		return nil, err
 	}
 	enc := gob.NewEncoder(writer)
 
-	enc.Encode(data)
+	err = enc.Encode(data)
+	if err != nil {
+		return nil, err
+	}
+
 	writer.Close()
 	id, err := writer.Identity()
 	if err != nil {
@@ -176,6 +218,14 @@ func (r repoBlobStore) AddBinaryControlFile(data ControlData) (StoreID, error) {
 	}
 
 	return id, nil
+}
+
+func (r repoBlobStore) GetBinaryControlFile(id StoreID) (ControlData, error) {
+	return r.GetDebianControlFile(id)
+}
+
+func (r repoBlobStore) AddBinaryControlFile(data ControlData) (StoreID, error) {
+	return r.AddDebianControlFile(data)
 }
 
 // ByIndexOrder implements sort.Interface for []RepoItem.

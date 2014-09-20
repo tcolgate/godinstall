@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -568,7 +569,7 @@ func (d *debPackage) parseDebPackage() (err error) {
 }
 
 // Attempt to format a debian control file
-func WriteDebianControl(out io.Writer, paragraphs []godebiancontrol.Paragraph, start []string, end []string) {
+func WriteDebianControl(out io.Writer, paragraphs ControlData, start []string, end []string) {
 	for p := range paragraphs {
 		fields := paragraphs[p]
 		orderedMap := make(map[string]bool, len(fields))
@@ -594,16 +595,23 @@ func WriteDebianControl(out io.Writer, paragraphs []godebiancontrol.Paragraph, s
 			}
 		}
 
-		// Output any fields not in the start and end list
+		// Collate the remaining fields
+		middle := make([]string, 0)
 		for fieldName := range fields {
 			if !orderedMap[fieldName] {
-				value, ok := fields[fieldName]
-				if !strings.HasSuffix(value, "\n") {
-					value = value + "\n"
-				}
-				if ok {
-					out.Write([]byte(fieldName + ": " + value))
-				}
+				middle = append(middle, fieldName)
+			}
+		}
+
+		sort.Strings(middle)
+		for i := range middle {
+			fieldName := middle[i]
+			value, ok := fields[fieldName]
+			if !strings.HasSuffix(value, "\n") {
+				value = value + "\n"
+			}
+			if ok {
+				out.Write([]byte(fieldName + ": " + value))
 			}
 		}
 

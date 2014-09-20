@@ -1,6 +1,12 @@
 package main
 
-import "testing"
+import (
+	"bytes"
+	"strings"
+	"testing"
+
+	"github.com/stapelberg/godebiancontrol"
+)
 
 var testDebVersionComparison = []struct {
 	a      string
@@ -99,5 +105,29 @@ func TestDebVersionToString(t *testing.T) {
 		if outStr != tt.out {
 			t.Errorf("%d. failed: expected %s got %s\n", i, tt.out, outStr)
 		}
+	}
+}
+
+var testDebControlPersist = []string{
+	"fielda: with a",
+	"fieldb: bit of stuff",
+	"fieldc: and other stuff",
+	"Description: thingy",
+}
+
+// Check that we output unknown fields in a consistant order
+func TestDebControlPersist(t *testing.T) {
+	inStr := strings.Join(testDebControlPersist, "\n") + "\n"
+
+	paragraphs, err := godebiancontrol.Parse(strings.NewReader(inStr))
+	if err != nil {
+		t.Errorf("godebiancontrol.Parse failure: %a", inStr)
+	}
+
+	var buf bytes.Buffer
+	FormatControlData(&buf, paragraphs)
+	outStr := string(buf.Bytes())
+	if outStr != inStr {
+		t.Errorf("\nExpected:\n%s\nGot:\n%s", inStr, outStr)
 	}
 }
