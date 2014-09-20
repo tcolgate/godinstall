@@ -10,12 +10,13 @@ availability), along with optional validation of signed changes and debs.
 - Synchronous confirmation of repository regeneration.
 - Instant feedback on all failures
 - Files can be uploaded a few at a time, or all in one go
-- Signing of Packages and InReleases files
+- Signing of InReleases files
 - Verification of hashes and signatures in changes files
 - Optional verification of debsigs signed packages
 - Allow upload of lone deb packages, without changes file
 - Optionally only verify debsigs signatures on lone uploads
 - Run scripts on package upload, and pre/post repository regeneration
+- pool layout is used, with configurable groupings
 - A git-inspired sha1 object store is used on the backend, with
   hard links to keep disk usage down
 - Seems fast so far
@@ -23,13 +24,15 @@ availability), along with optional validation of signed changes and debs.
 
 ## Mis(sing)-Features
 
-- Sources and Content-? not  currently handled
+- Sources, Content-?, Trnslations not  currently handled
+- Only a single release is supported
 - All versions are currently kept, (this will be configurable)
-- Garbage collection on the store need re-implementing
+- Garbage collection on the store needs re-implementing, failed
+  and timeout out upload will leak garbage to disk
 - The objects in the blob store are likely to change
 - Cacheing into the blob store may be a bit agressive, extra
   copies of the metadata can be avoided.
-- No current means of reviewin ghte logs
+- No current means of reviewin the logs
 
 ## Example
 
