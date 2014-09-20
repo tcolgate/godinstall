@@ -1,3 +1,10 @@
+godinstall (0.3) unstable; urgency=medium
+
+  * Drop apt-ftparchive requirement
+  * Change of repository format
+
+ -- Tristan Colgate-McFarlane  <tristan@localhost>  Sat, 20 Sep 2014 20:15:32 +0100
+
 godinstall (0.2) unstable; urgency=medium
 
   * Upload url moved to /upload
