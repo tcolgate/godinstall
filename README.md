@@ -18,6 +18,18 @@ availability), along with optional validation of signed changes and debs.
 - Run scripts on package upload, and pre/post repository regeneration
 - A git-inspired sha1 object store is used on the backend, with
   hard links to keep disk usage down
+- Seems fast so far
+- See the github issues list for future plans
+
+## Mis(sing)-Features
+
+- Sources and Content-? not  currently handled
+- All versions are currently kept, (this will be configurable)
+- Garbage collection on the store need re-implementing
+- The objects in the blob store are likely to change
+- Cacheing into the blob store may be a bit agressive, extra
+  copies of the metadata can be avoided.
+- No current means of reviewin ghte logs
 
 ## Example
 
