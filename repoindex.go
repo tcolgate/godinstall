@@ -263,7 +263,7 @@ func IndexOrder(a, b *RepoItem) int {
 
 	debCmp := DebVersionCompare(a.Version, b.Version)
 
-	return debCmp
+	return debCmp * -1
 }
 
 // Used for tracking the state of reads from an Index
