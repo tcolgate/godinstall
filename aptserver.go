@@ -6,7 +6,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"regexp"
 
 	"strings"
@@ -311,11 +310,9 @@ func (a *AptServer) Updater() {
 				session := msg.session
 				completedsession := CompletedUpload{Session: session}
 
-				os.Chdir(session.Directory()) // Chdir may be bad here
-
 				a.aptLocks.WriteLock()
 
-				hookResult := a.PreGenHook.Run(session.SessionID())
+				hookResult := a.PreGenHook.Run(session.Directory())
 				if hookResult.err != nil {
 					respStatus = http.StatusBadRequest
 					respObj = "Pre gen hook failed " + hookResult.Error()

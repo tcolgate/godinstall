@@ -44,9 +44,7 @@ deb http://localhost:3000/repo /
 To start godinstall:
 
 ```
-$ godinstall -repo-base /home/tristan/testrepo \
-           -tmp-dir ~/tmp \
-           -store-dir ~/repostore \
+$ godinstall -repo-base ./testrepo \
            -gpg-privring ~/.gnupg/secring.gpg \
            -gpg-pubring ~/.gnupg/pubring.gpg \
            -signer-email tcolgate@gmail.com \
@@ -57,9 +55,7 @@ If you do not want package validation, or repository signing, you can
 ignore the gpg settings
 
 ```
-$ godinstall -repo-base /home/tristan/testrepo \ 
-             -tmp-dir ~/tmp \
-             -store-dir ~/repostore \
+$ godinstall -repo-base ./testrepo \
              -validate-changes=false \
              -validate-debs=false
 ```

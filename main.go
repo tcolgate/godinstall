@@ -41,9 +41,7 @@ func main() {
 	listenAddress := flag.String("listen", ":3000", "ip:port to listen on")
 	ttl := flag.String("ttl", "60s", "Session life time")
 	maxReqs := flag.Int("max-requests", 4, "Maximum concurrent requests")
-	repoBase := flag.String("repo-base", "/tmp/myrepo", "Location of repository root")
-	tmpDir := flag.String("tmp-dir", "/tmp/up", "Location for temporary storage")
-	storeDir := flag.String("store-dir", "/tmp/store", "Location for persitant storage")
+	repoBase := flag.String("repo-base", "", "Location of repository root")
 	cookieName := flag.String("cookie-name", "godinstall-sess", "Name for the sessio cookie")
 	uploadHook := flag.String("upload-hook", "", "Script to run after for each uploaded file")
 	preGenHook := flag.String("pre-gen-hook", "", "Script to run before archive regeneration")
@@ -58,6 +56,11 @@ func main() {
 	signerEmail := flag.String("signer-email", "", "Key Email to use for signing releases")
 
 	flag.Parse()
+
+	if *repoBase == "" {
+		log.Println("You must pass --repo-base")
+		return
+	}
 
 	expire, err := time.ParseDuration(*ttl)
 	if err != nil {
@@ -126,12 +129,42 @@ func main() {
 
 	updateChan := make(chan UpdateRequest)
 
+	base := *repoBase + "/archive"
+	storeDir := *repoBase + "/store"
+	tmpDir := *repoBase + "/tmp"
+
+	_, patherr := os.Stat(base)
+	if os.IsNotExist(patherr) {
+		err = os.Mkdir(base, 0777)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+	}
+	_, patherr = os.Stat(storeDir)
+	if os.IsNotExist(patherr) {
+		err = os.Mkdir(storeDir, 0777)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+	}
+
+	_, patherr = os.Stat(tmpDir)
+	if os.IsNotExist(patherr) {
+		err = os.Mkdir(tmpDir, 0777)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+	}
+
 	aptRepo := aptRepo{
-		repoBase,
+		&base,
 		poolRegexp,
 	}
 
-	repoStore := NewRepoBlobStore(*storeDir, *tmpDir)
+	repoStore := NewRepoBlobStore(storeDir, tmpDir)
 
 	aptGenerator := NewAptBlobArchiveGenerator(
 		&aptRepo,
@@ -142,7 +175,7 @@ func main() {
 
 	uploadSessionManager := NewUploadSessionManager(
 		expire,
-		tmpDir,
+		&tmpDir,
 		repoStore,
 		NewScriptHook(uploadHook),
 		*validateChanges,
