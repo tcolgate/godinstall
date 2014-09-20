@@ -16,6 +16,8 @@ availability), along with optional validation of signed changes and debs.
 - Allow upload of lone deb packages, without changes file
 - Optionally only verify debsigs signatures on lone uploads
 - Run scripts on package upload, and pre/post repository regeneration
+- A git-inspired sha1 object store is used on the backend, with
+  hard links to keep disk usage down
 
 ## Example
 
