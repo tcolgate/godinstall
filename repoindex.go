@@ -250,6 +250,7 @@ func (a ByIndexOrder) Less(i, j int) bool {
 	}
 }
 
+// Define the order we want items to appear in the index
 func IndexOrder(a, b *RepoItem) int {
 	nameCmp := bytes.Compare([]byte(a.Name), []byte(b.Name))
 	if nameCmp != 0 {
@@ -261,9 +262,11 @@ func IndexOrder(a, b *RepoItem) int {
 		return archCmp
 	}
 
-	debCmp := DebVersionCompare(a.Version, b.Version)
+	// We'll use reverse order for the version, to make pruning
+	// a touch easier
+	debCmp := DebVersionCompare(b.Version, a.Version)
 
-	return debCmp * -1
+	return debCmp
 }
 
 // Used for tracking the state of reads from an Index
