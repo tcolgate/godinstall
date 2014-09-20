@@ -80,6 +80,7 @@ func (r repoBlobStore) AddDeb(file *ChangesItem) (*RepoItem, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer pkgReader.Close()
 
 	pkg := NewDebPackage(pkgReader, nil)
 	err = pkg.Parse()
@@ -161,6 +162,7 @@ func (r repoBlobStore) GetDebianControlFile(id StoreID) (ControlData, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer reader.Close()
 
 	dec := gob.NewDecoder(reader)
 	var item consistantControlData
@@ -304,7 +306,7 @@ func (r repoBlobStore) EmptyIndex() (id IndexID, err error) {
 }
 
 type repoIndexReaderHandle struct {
-	handle  io.Reader
+	handle  io.ReadCloser
 	decoder *gob.Decoder
 }
 
@@ -321,6 +323,11 @@ func (r repoBlobStore) OpenIndex(id IndexID) (h repoIndexReaderHandle, err error
 func (r repoIndexReaderHandle) NextItem() (item RepoItem, err error) {
 	err = r.decoder.Decode(&item)
 	return
+}
+
+func (r *repoIndexReaderHandle) Close() error {
+	err := r.handle.Close()
+	return err
 }
 
 type RepoActionType int
@@ -361,6 +368,7 @@ func (r repoBlobStore) GetCommit(id CommitID) (*RepoCommit, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer reader.Close()
 
 	dec := gob.NewDecoder(reader)
 	dec.Decode(&commit)
@@ -387,10 +395,27 @@ func (r repoBlobStore) AddCommit(data *RepoCommit) (CommitID, error) {
 
 // Merge the content of index into the parent commit and return a new index
 func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, err error) {
-	parent, _ := r.GetCommit(parentid)
-	parentidx, _ := r.OpenIndex(parent.Index)
-	mergedidx, _ := r.AddIndex()
+	parent, err := r.GetCommit(parentid)
+	if err != nil {
+		return nil, err
+	}
+
+	parentidx, err := r.OpenIndex(parent.Index)
+	if err != nil {
+		return nil, err
+	}
+	defer parentidx.Close()
+
+	mergedidx, err := r.AddIndex()
+	if err != nil {
+		return nil, err
+	}
+
 	left, err := parentidx.NextItem()
+	if err != nil {
+		return nil, err
+	}
+
 	right := items
 	sort.Sort(ByIndexOrder(right))
 

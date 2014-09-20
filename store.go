@@ -29,7 +29,7 @@ func StoreIDFromString(str string) (StoreID, error) {
 
 type Storer interface {
 	Store() (StoreWriteCloser, error)     // Write something to the store
-	Open(StoreID) (io.Reader, error)      // Open a file by id
+	Open(StoreID) (io.ReadCloser, error)  // Open a file by id
 	Size(StoreID) (int64, error)          // Open a file by id
 	Link(StoreID, ...string) error        // Link a file id to a given location
 	GarbageCollect()                      // Remove all files with no external links
@@ -44,7 +44,10 @@ type sha1Store struct {
 	prefixDepth int
 }
 
-func (t *sha1Store) storeIdToPathName(id StoreID) (string, string) {
+func (t *sha1Store) storeIdToPathName(id StoreID) (string, string, error) {
+	if len(id) != sha1.Size {
+		return "", "", errors.New("invalid StoreID " + string(id))
+	}
 	idStr := id.String()
 	prefix := idStr[0:t.prefixDepth]
 
@@ -55,7 +58,7 @@ func (t *sha1Store) storeIdToPathName(id StoreID) (string, string) {
 
 	fileName := filePath + idStr
 
-	return fileName, filePath
+	return fileName, filePath, nil
 }
 
 func (t *sha1Store) Store() (StoreWriteCloser, error) {
@@ -83,10 +86,23 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 		// to the calling channel. Should probably rewrite this
 
 		extraLink := <-doneChan
-		id, _ := writer.Identity()
-		name, path := t.storeIdToPathName(id)
+		id, err := writer.Identity()
+		if err != nil {
+			err = errors.New("failed to rewtrieve hash of blob, " + err.Error())
+			os.Remove(file.Name())
+			writer.complete <- err
+			return
+		}
 
-		err := os.MkdirAll(path, 0755)
+		name, path, err := t.storeIdToPathName(id)
+		if err != nil {
+			err = errors.New("Failed to translate id to path " + err.Error())
+			os.Remove(file.Name())
+			writer.complete <- err
+			return
+		}
+
+		err = os.MkdirAll(path, 0755)
 		if err != nil {
 			err = errors.New("Failed to create blob directory " + err.Error())
 			os.Remove(file.Name())
@@ -129,24 +145,35 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 	return writer, nil
 }
 
-func (t *sha1Store) Open(id StoreID) (io.Reader, error) {
-	name, _ := t.storeIdToPathName(id)
-	reader, err := os.Open(name)
+func (t *sha1Store) Open(id StoreID) (reader io.ReadCloser, err error) {
+	name, _, err := t.storeIdToPathName(id)
+	if err != nil {
+		err = errors.New("Failed to translate id to path " + err.Error())
+		return nil, err
+	}
+	reader, err = os.Open(name)
 
 	return reader, err
 }
 
-func (t *sha1Store) Size(id StoreID) (int64, error) {
-	name, _ := t.storeIdToPathName(id)
+func (t *sha1Store) Size(id StoreID) (size int64, err error) {
+	name, _, err := t.storeIdToPathName(id)
+	if err != nil {
+		err = errors.New("Failed to translate id to path " + err.Error())
+		return 0, err
+	}
 	info, err := os.Stat(name)
-	size := info.Size()
+	size = info.Size()
 
 	return size, err
 }
 
-func (t *sha1Store) Link(id StoreID, targets ...string) error {
-	name, _ := t.storeIdToPathName(id)
-	var err error
+func (t *sha1Store) Link(id StoreID, targets ...string) (err error) {
+	name, _, err := t.storeIdToPathName(id)
+	if err != nil {
+		err = errors.New("Failed to translate id to path " + err.Error())
+		return err
+	}
 
 	for t := range targets {
 		target := targets[t]
@@ -264,6 +291,7 @@ func (t *sha1Store) GetRef(name string) (StoreID, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 
 	refStr, err := ioutil.ReadAll(f)
 	if err != nil {

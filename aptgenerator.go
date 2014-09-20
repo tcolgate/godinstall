@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -105,6 +106,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid Comm
 	if err != nil {
 		return
 	}
+	defer newindex.Close()
 
 	for {
 		item, err := newindex.NextItem()
@@ -114,7 +116,12 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid Comm
 
 		switch item.Type {
 		case BINARY:
-			control, _ := a.store.GetBinaryControlFile(item.ControlID)
+			control, err := a.store.GetBinaryControlFile(item.ControlID)
+			if err != nil {
+				log.Println("Error retrieving control file for ", item, err)
+				continue
+			}
+
 			poolpath := a.Repo.PoolFilePath(control[0]["Filename"])
 			path := poolpath[len(a.Repo.Base())+1:] + control[0]["Filename"]
 
@@ -230,6 +237,7 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 	commit, err := a.store.GetCommit(id)
 	indexId := commit.Index
 	index, err := a.store.OpenIndex(indexId)
+	defer index.Close()
 
 	clearRepo := func() {
 		os.Remove(a.Repo.Base() + "/Packages")
