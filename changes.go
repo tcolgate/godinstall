@@ -12,7 +12,6 @@ import (
 
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/clearsign"
-	"github.com/stapelberg/godebiancontrol"
 )
 
 // ChangesFile represents a debian changes file. A changes file
@@ -86,7 +85,7 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err
 		c.validated = false
 	}
 
-	paragraphs, err := godebiancontrol.Parse(br)
+	paragraphs, err := ParseControlFile(br)
 
 	if err != nil {
 		return &c, err

@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"strings"
 	"testing"
-
-	"github.com/stapelberg/godebiancontrol"
 )
 
 var testDebVersionComparison = []struct {
@@ -121,13 +119,13 @@ var testDebControlPersist = []string{
 func TestDebControlPersist(t *testing.T) {
 	inStr := strings.Join(testDebControlPersist, "\n") + "\n"
 
-	paragraphs, err := godebiancontrol.Parse(strings.NewReader(inStr))
+	paragraphs, err := ParseDebianControl(strings.NewReader(inStr))
 	if err != nil {
-		t.Errorf("godebiancontrol.Parse failure: %a", inStr)
+		t.Errorf("ParseDebianControl failure: %a", inStr)
 	}
 
 	var buf bytes.Buffer
-	FormatControlData(&buf, paragraphs)
+	FormatControlFile(&buf, paragraphs)
 	outStr := string(buf.Bytes())
 	if outStr != inStr {
 		t.Errorf("\nExpected:\n%s\nGot:\n%s", inStr, outStr)

@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/stapelberg/godebiancontrol"
-
 	"compress/gzip"
 	"crypto/md5"
 	"crypto/sha1"
@@ -126,14 +124,14 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid Comm
 			path := poolpath[len(a.Repo.Base())+1:] + control[0]["Filename"]
 
 			control[0]["Filename"] = path
-			FormatControlData(packagesWriter, control)
+			FormatControlFile(packagesWriter, control)
 			packagesWriter.Write([]byte("\n"))
 			/*
 				case SOURCE:
 					control, _ := RetrieveSourceControlFile(a.store, item.ControlID)
 					control[0]["Package"] = control[0]["Source"]
 					delete(control[0], "Source")
-					FormatControlData(sourcesWriter, control)
+					FormatControlFile(sourcesWriter, control)
 					sourcesWriter.Write([]byte("\n"))
 			*/
 		}
@@ -171,8 +169,8 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid Comm
 		sourcesGzInfo, _ := os.Stat(*a.Repo.RepoBase + "/Sources.gz")
 	*/
 
-	release := make([]godebiancontrol.Paragraph, 1)
-	release[0] = make(godebiancontrol.Paragraph)
+	release := make(ControlParagraph, 1)
+	release[0] = make(ControlFile)
 
 	releaseStartFields := []string{"Origin", "Suite", "Codename"}
 	releaseEndFields := []string{"SHA256"}

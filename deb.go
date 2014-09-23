@@ -21,7 +21,6 @@ import (
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/clearsign"
 	"github.com/blakesmith/ar"
-	"github.com/stapelberg/godebiancontrol"
 )
 
 type DebVersion struct {
@@ -246,7 +245,7 @@ func parseSigsFile(sig string, kr openpgp.EntityList) (*debSigsFile, error) {
 	result.signedBy, _ = openpgp.CheckDetachedSignature(kr, bsig, msg.ArmoredSignature.Body)
 
 	sigDataReader := bytes.NewReader(msg.Plaintext)
-	paragraphs, _ := godebiancontrol.Parse(sigDataReader)
+	paragraphs, _ := ParseDebianControl(sigDataReader)
 
 	result.version, _ = strconv.Atoi(paragraphs[0]["Version"])
 
@@ -537,7 +536,7 @@ func (d *debPackage) parseDebPackage() (err error) {
 	}
 
 	controlReader = bytes.NewReader(control.Bytes())
-	paragraphs, err := godebiancontrol.Parse(controlReader)
+	paragraphs, err := ParseDebianControl(controlReader)
 	if err != nil {
 		return errors.New("parsing control failed, " + err.Error())
 	}
@@ -570,8 +569,15 @@ func (d *debPackage) parseDebPackage() (err error) {
 	return nil
 }
 
+type ControlFile []ControlParagraph
+type ControlParagraph map[string][]string
+
+func ParseDebianControl(in io.Reader) (ControlFile, error) {
+	return nil, nil
+}
+
 // Attempt to format a debian control file
-func WriteDebianControl(out io.Writer, paragraphs ControlData, start []string, end []string) {
+func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, end []string) {
 	for p := range paragraphs {
 		fields := paragraphs[p]
 		orderedMap := make(map[string]bool, len(fields))
@@ -636,9 +642,7 @@ func WriteDebianControl(out io.Writer, paragraphs ControlData, start []string, e
 	}
 }
 
-type ControlData []godebiancontrol.Paragraph
-
-func FormatControlData(ctrlWriter io.Writer, paragraphs ControlData) {
+func FormatControlParagraph(ctrlWriter io.Writer, paragraphs ControlParagraph) {
 	debStartFields := []string{"Package", "Version", "Filename", "Directory", "Size"}
 	debEndFields := []string{"MD5Sum", "MD5sum", "SHA1", "SHA256", "Description"}
 	WriteDebianControl(ctrlWriter, paragraphs, debStartFields, debEndFields)

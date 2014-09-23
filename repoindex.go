@@ -17,8 +17,8 @@ type RepoStorer interface {
 	AddDeb(file *ChangesItem) (*RepoItem, error)
 	GetCommit(id CommitID) (*RepoCommit, error)
 	AddCommit(data *RepoCommit) (CommitID, error)
-	AddBinaryControlFile(data ControlData) (StoreID, error)
-	GetBinaryControlFile(id StoreID) (ControlData, error)
+	AddBinaryControlFile(data ControlFile) (StoreID, error)
+	GetBinaryControlFile(id StoreID) (ControlFile, error)
 	AddIndex() (h repoIndexWriterHandle, err error)
 	EmptyIndex() (IndexID, error)
 	OpenIndex(id IndexID) (h repoIndexReaderHandle, err error)
@@ -102,7 +102,7 @@ func (r repoBlobStore) AddDeb(file *ChangesItem) (*RepoItem, error) {
 	control["SHA1"] = file.Sha1
 	control["SHA256"] = file.Sha256
 
-	paragraphs := make(ControlData, 1)
+	paragraphs := make(ControlFile, 1)
 	paragraphs[0] = control
 
 	item.ControlID, err = r.AddBinaryControlFile(paragraphs)
@@ -153,12 +153,12 @@ func (r repoBlobStore) ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoI
 // We can't serialize a map, as the key order is not
 // guaranteed, which will result in inconsistant
 // hashes for the same data.
-type consistantControlData []struct {
+type consistantControlFile []struct {
 	Keys   []string
 	Values []string
 }
 
-func (r repoBlobStore) GetDebianControlFile(id StoreID) (ControlData, error) {
+func (r repoBlobStore) GetDebianControlFile(id StoreID) (ControlFile, error) {
 	reader, err := r.Open(id)
 	if err != nil {
 		return nil, err
@@ -166,13 +166,13 @@ func (r repoBlobStore) GetDebianControlFile(id StoreID) (ControlData, error) {
 	defer reader.Close()
 
 	dec := gob.NewDecoder(reader)
-	var item consistantControlData
+	var item consistantControlFile
 	err = dec.Decode(&item)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make(ControlData, len(item))
+	result := make(ControlFile, len(item))
 	for i := range item {
 		result[i] = make(map[string]string, 0)
 		for j := range item[i].Keys {
@@ -183,8 +183,8 @@ func (r repoBlobStore) GetDebianControlFile(id StoreID) (ControlData, error) {
 	return result, nil
 }
 
-func (r repoBlobStore) AddDebianControlFile(item ControlData) (StoreID, error) {
-	data := make(consistantControlData, len(item))
+func (r repoBlobStore) AddDebianControlFile(item ControlFile) (StoreID, error) {
+	data := make(consistantControlFile, len(item))
 
 	for i := range item {
 		data[i].Keys = make([]string, len(item[i]))
@@ -223,11 +223,11 @@ func (r repoBlobStore) AddDebianControlFile(item ControlData) (StoreID, error) {
 	return id, nil
 }
 
-func (r repoBlobStore) GetBinaryControlFile(id StoreID) (ControlData, error) {
+func (r repoBlobStore) GetBinaryControlFile(id StoreID) (ControlFile, error) {
 	return r.GetDebianControlFile(id)
 }
 
-func (r repoBlobStore) AddBinaryControlFile(data ControlData) (StoreID, error) {
+func (r repoBlobStore) AddBinaryControlFile(data ControlFile) (StoreID, error) {
 	return r.AddDebianControlFile(data)
 }
 
