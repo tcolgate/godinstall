@@ -113,7 +113,6 @@ func compareComponent(a string, b string) int {
 		if i < len(a) || j < len(b) {
 			firstdiff := 0
 			for {
-				//log.Printf("i: %v a: %c k: %v b: %c", i, rune(a[i]), j, rune(b[j]))
 				if (i < len(a) && !unicode.IsDigit(rune(a[i]))) ||
 					(j < len(b) && !unicode.IsDigit(rune(b[j]))) {
 					var ac, bc int

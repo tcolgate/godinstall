@@ -30,6 +30,8 @@ var testDebVersionComparison = []struct {
 	{"1.0-1~1", "1.0-1", -1},
 	{"1.0-1", "1.0~1", 1},
 
+	{"1.0-7+bbm+b9.g24102c6.wheezy1", "1.0-6+bbm-b6.g442cbf8.wheezy1", -1},
+
 	{"2.3~pre1003.wheezy1", "2.3~pre1002.wheezy1", 1},
 	{"2.3~pre1003.wheezy1", "2.30~pre1002.wheezy1", -1},
 }
