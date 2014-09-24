@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"reflect"
 	"sort"
 	"strconv"
@@ -182,7 +183,7 @@ type DebPackageInfoer interface {
 	Version() (DebVersion, error)
 	Description() (string, error)
 	Maintainer() (string, error)
-	Control() (map[string]string, error) // Map of all the package metadata
+	Control() (ControlParagraph, error) // Map of all the package metadata
 
 	IsSigned() (bool, error)            // This package contains a dpkg-sig signature
 	IsValidated() (bool, error)         // The signature has been validated against provided keyring
@@ -226,7 +227,7 @@ type debPackage struct {
 	sha1   []byte // Package sha1
 	sha256 []byte // Package sha256
 
-	controlMap map[string]string // This content of the debian/control file
+	controlMap ControlParagraph // This content of the debian/control file
 }
 
 // This parses a dpkg-deb signature file. These are files named _gpg.*
@@ -247,16 +248,14 @@ func parseSigsFile(sig string, kr openpgp.EntityList) (*debSigsFile, error) {
 	sigDataReader := bytes.NewReader(msg.Plaintext)
 	paragraphs, _ := ParseDebianControl(sigDataReader)
 
-	result.version, _ = strconv.Atoi(paragraphs[0]["Version"])
+	result.version, _ = strconv.Atoi(paragraphs[0]["Version"][0])
 
 	fileData := paragraphs[0]["Files"]
-	fdLineReader := strings.NewReader(fileData)
+	for i := range fileData {
 
-	scanner := bufio.NewScanner(fdLineReader)
-	for scanner.Scan() {
 		fields := strings.Fields(
 			strings.TrimSpace(
-				scanner.Text()))
+				paragraphs[0]["Files"][i]))
 
 		md5 := fields[0]
 		sha1 := fields[1]
@@ -335,7 +334,7 @@ func (d *debPackage) SignedBy() (*openpgp.Entity, error) {
 }
 
 // Generic access to the metadata for the package
-func (d *debPackage) Control() (map[string]string, error) {
+func (d *debPackage) Control() (ControlParagraph, error) {
 	var err error
 
 	if !d.parsed {
@@ -396,7 +395,12 @@ func (d *debPackage) getControl(key string) (string, bool, error) {
 		}
 	}
 
-	result, ok := d.controlMap[key]
+	vals, ok := d.controlMap[key]
+	var result string
+
+	if ok {
+		result = vals[0]
+	}
 
 	return result, ok, nil
 }
@@ -572,8 +576,16 @@ func (d *debPackage) parseDebPackage() (err error) {
 type ControlFile []ControlParagraph
 type ControlParagraph map[string][]string
 
-func ParseDebianControl(in io.Reader) (ControlFile, error) {
-	return nil, nil
+func ParseDebianControl(rawin io.Reader) (ControlFile, error) {
+	var paras ControlFile
+	scanner := bufio.NewScanner(rawin)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		log.Println(line)
+	}
+
+	return paras, nil
 }
 
 // Attempt to format a debian control file
@@ -594,12 +606,13 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 		// Output first fields
 		for i := range start {
 			fieldName := start[i]
-			value, ok := fields[fieldName]
-			if !strings.HasSuffix(value, "\n") {
-				value = value + "\n"
-			}
+			lines, ok := fields[fieldName]
 			if ok {
-				out.Write([]byte(fieldName + ": " + value))
+				out.Write([]byte(fieldName + ": " + lines[0] + "\n"))
+				rest := lines[1:]
+				for j := range rest {
+					out.Write([]byte(" " + rest[j] + "\n"))
+				}
 			}
 		}
 
@@ -614,24 +627,26 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 		sort.Strings(middle)
 		for i := range middle {
 			fieldName := middle[i]
-			value, ok := fields[fieldName]
-			if !strings.HasSuffix(value, "\n") {
-				value = value + "\n"
-			}
+			lines, ok := fields[fieldName]
 			if ok {
-				out.Write([]byte(fieldName + ": " + value))
+				out.Write([]byte(fieldName + ": " + lines[0] + "\n"))
+				rest := lines[1:]
+				for j := range rest {
+					out.Write([]byte(" " + rest[j] + "\n"))
+				}
 			}
 		}
 
 		// Output final fields
 		for i := range end {
 			fieldName := end[i]
-			value, ok := fields[fieldName]
-			if !strings.HasSuffix(value, "\n") {
-				value = value + "\n"
-			}
+			lines, ok := fields[fieldName]
 			if ok {
-				out.Write([]byte(fieldName + ": " + value))
+				out.Write([]byte(fieldName + ": " + lines[0] + "\n"))
+				rest := lines[1:]
+				for j := range rest {
+					out.Write([]byte(" " + rest[j] + "\n"))
+				}
 			}
 		}
 
@@ -642,7 +657,7 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 	}
 }
 
-func FormatControlParagraph(ctrlWriter io.Writer, paragraphs ControlParagraph) {
+func FormatControlFile(ctrlWriter io.Writer, paragraphs ControlFile) {
 	debStartFields := []string{"Package", "Version", "Filename", "Directory", "Size"}
 	debEndFields := []string{"MD5Sum", "MD5sum", "SHA1", "SHA256", "Description"}
 	WriteDebianControl(ctrlWriter, paragraphs, debStartFields, debEndFields)
