@@ -183,7 +183,7 @@ type DebPackageInfoer interface {
 	Version() (DebVersion, error)
 	Description() (string, error)
 	Maintainer() (string, error)
-	Control() (ControlParagraph, error) // Map of all the package metadata
+	Control() (*ControlParagraph, error) // Map of all the package metadata
 
 	IsSigned() (bool, error)            // This package contains a dpkg-sig signature
 	IsValidated() (bool, error)         // The signature has been validated against provided keyring
@@ -227,7 +227,7 @@ type debPackage struct {
 	sha1   []byte // Package sha1
 	sha256 []byte // Package sha256
 
-	controlMap ControlParagraph // This content of the debian/control file
+	controlMap *ControlParagraph // This content of the debian/control file
 }
 
 // This parses a dpkg-deb signature file. These are files named _gpg.*
@@ -248,14 +248,15 @@ func parseSigsFile(sig string, kr openpgp.EntityList) (*debSigsFile, error) {
 	sigDataReader := bytes.NewReader(msg.Plaintext)
 	paragraphs, _ := ParseDebianControl(sigDataReader)
 
-	result.version, _ = strconv.Atoi(paragraphs[0]["Version"][0])
+	strVersion, _ := paragraphs[0].GetValue("Version")
+	result.version, _ = strconv.Atoi(strVersion)
 
-	fileData := paragraphs[0]["Files"]
+	fileData, _ := paragraphs[0].GetValues("Files")
 	for i := range fileData {
 
 		fields := strings.Fields(
 			strings.TrimSpace(
-				paragraphs[0]["Files"][i]))
+				fileData[i]))
 
 		md5 := fields[0]
 		sha1 := fields[1]
@@ -334,7 +335,7 @@ func (d *debPackage) SignedBy() (*openpgp.Entity, error) {
 }
 
 // Generic access to the metadata for the package
-func (d *debPackage) Control() (ControlParagraph, error) {
+func (d *debPackage) Control() (*ControlParagraph, error) {
 	var err error
 
 	if !d.parsed {
@@ -395,12 +396,8 @@ func (d *debPackage) getControl(key string) (string, bool, error) {
 		}
 	}
 
-	vals, ok := d.controlMap[key]
-	var result string
-
-	if ok {
-		result = vals[0]
-	}
+	ctrl, err := d.Control()
+	result, ok := ctrl.GetValue(key)
 
 	return result, ok, nil
 }
@@ -573,16 +570,59 @@ func (d *debPackage) parseDebPackage() (err error) {
 	return nil
 }
 
-type ControlFile []ControlParagraph
-type ControlParagraph map[string][]string
+type ControlFile []*ControlParagraph
+type ControlParagraph map[string][]*string
+
+func (ctrl *ControlParagraph) GetValues(item string) ([]string, bool) {
+	v, ok := ctrl.GetValues(item)
+	return v, ok
+}
+
+func (ctrl *ControlParagraph) GetValue(item string) (string, bool) {
+	v, ok := ctrl.GetValues(item)
+	return v[0], ok
+}
+
+func (ctrl *ControlParagraph) AddValue(item string, val string) {
+	field, ok := (*ctrl)[item]
+	if ok {
+		(*ctrl)[item] = append(field, &val)
+	} else {
+		(*ctrl)[item] = []*string{&val}
+	}
+	return
+}
 
 func ParseDebianControl(rawin io.Reader) (ControlFile, error) {
-	var paras ControlFile
+	var paras = make(ControlFile, 1)
+	var newpara = make(ControlParagraph)
+	paras[0] = &newpara
 	scanner := bufio.NewScanner(rawin)
 
 	for scanner.Scan() {
+		currpara := paras[len(paras)-1]
+		var currfield string
+
 		line := scanner.Text()
-		log.Println(line)
+		switch {
+		case line == "":
+			{
+				var newp ControlParagraph
+				paras = append(paras, &newp)
+			}
+		case line[0] == ' ', line[0] == '\t':
+			{
+				currpara.AddValue(currfield, line)
+			}
+		default:
+			{
+				vs := strings.SplitN(line, ":", 2)
+				currfield = vs[0]
+				currpara.AddValue(currfield, vs[1])
+			}
+		}
+
+		log.Println(currpara)
 	}
 
 	return paras, nil
@@ -592,7 +632,7 @@ func ParseDebianControl(rawin io.Reader) (ControlFile, error) {
 func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, end []string) {
 	for p := range paragraphs {
 		fields := paragraphs[p]
-		orderedMap := make(map[string]bool, len(fields))
+		orderedMap := make(map[string]bool, len(*fields))
 
 		// We don't want to repeat fields used in the start and
 		// end lists, so track which ones we will output there
@@ -606,7 +646,7 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 		// Output first fields
 		for i := range start {
 			fieldName := start[i]
-			lines, ok := fields[fieldName]
+			lines, ok := fields.GetValues(fieldName)
 			if ok {
 				out.Write([]byte(fieldName + ": " + lines[0] + "\n"))
 				rest := lines[1:]
@@ -618,7 +658,7 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 
 		// Collate the remaining fields
 		middle := make([]string, 0)
-		for fieldName := range fields {
+		for fieldName := range *fields {
 			if !orderedMap[fieldName] {
 				middle = append(middle, fieldName)
 			}
@@ -627,7 +667,7 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 		sort.Strings(middle)
 		for i := range middle {
 			fieldName := middle[i]
-			lines, ok := fields[fieldName]
+			lines, ok := fields.GetValues(fieldName)
 			if ok {
 				out.Write([]byte(fieldName + ": " + lines[0] + "\n"))
 				rest := lines[1:]
@@ -640,7 +680,7 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 		// Output final fields
 		for i := range end {
 			fieldName := end[i]
-			lines, ok := fields[fieldName]
+			lines, ok := fields.GetValues(fieldName)
 			if ok {
 				out.Write([]byte(fieldName + ": " + lines[0] + "\n"))
 				rest := lines[1:]
