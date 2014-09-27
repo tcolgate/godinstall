@@ -252,6 +252,9 @@ func parseSigsFile(sig string, kr openpgp.EntityList) (*debSigsFile, error) {
 
 	fileData, _ := paragraphs[0].GetValues("Files")
 	for i := range fileData {
+		if *fileData[i] == "" {
+			continue
+		}
 
 		fields := strings.Fields(
 			strings.TrimSpace(
