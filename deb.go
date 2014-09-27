@@ -256,7 +256,7 @@ func parseSigsFile(sig string, kr openpgp.EntityList) (*debSigsFile, error) {
 
 		fields := strings.Fields(
 			strings.TrimSpace(
-				fileData[i]))
+				*fileData[i]))
 
 		md5 := fields[0]
 		sha1 := fields[1]
@@ -573,52 +573,55 @@ func (d *debPackage) parseDebPackage() (err error) {
 type ControlFile []*ControlParagraph
 type ControlParagraph map[string][]*string
 
-func (ctrl *ControlParagraph) GetValues(item string) ([]string, bool) {
-	v, ok := ctrl.GetValues(item)
+func MakeControlParagraph() ControlParagraph {
+	return make(ControlParagraph)
+}
+
+func (ctrl ControlParagraph) GetValues(item string) ([]*string, bool) {
+	v, ok := ctrl[item]
 	return v, ok
 }
 
-func (ctrl *ControlParagraph) GetValue(item string) (string, bool) {
+func (ctrl ControlParagraph) GetValue(item string) (string, bool) {
 	v, ok := ctrl.GetValues(item)
-	return v[0], ok
+	return *v[0], ok
 }
 
-func (ctrl *ControlParagraph) AddValue(item string, val string) {
-	field, ok := (*ctrl)[item]
+func (ctrl ControlParagraph) AddValue(item string, val string) {
+	field, ok := ctrl[item]
 	if ok {
-		(*ctrl)[item] = append(field, &val)
+		ctrl[item] = append(field, &val)
 	} else {
-		(*ctrl)[item] = []*string{&val}
+		ctrl[item] = []*string{&val}
 	}
 	return
 }
 
 func ParseDebianControl(rawin io.Reader) (ControlFile, error) {
 	var paras = make(ControlFile, 1)
-	var newpara = make(ControlParagraph)
+	var newpara = MakeControlParagraph()
 	paras[0] = &newpara
 	scanner := bufio.NewScanner(rawin)
+	var currfield string
 
 	for scanner.Scan() {
 		currpara := paras[len(paras)-1]
-		var currfield string
-
 		line := scanner.Text()
 		switch {
 		case line == "":
 			{
-				var newp ControlParagraph
+				var newp = MakeControlParagraph()
 				paras = append(paras, &newp)
 			}
 		case line[0] == ' ', line[0] == '\t':
 			{
-				currpara.AddValue(currfield, line)
+				currpara.AddValue(currfield, strings.TrimSpace(line))
 			}
 		default:
 			{
 				vs := strings.SplitN(line, ":", 2)
 				currfield = vs[0]
-				currpara.AddValue(currfield, vs[1])
+				currpara.AddValue(currfield, strings.TrimSpace(vs[1]))
 			}
 		}
 
@@ -648,10 +651,10 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 			fieldName := start[i]
 			lines, ok := fields.GetValues(fieldName)
 			if ok {
-				out.Write([]byte(fieldName + ": " + lines[0] + "\n"))
+				out.Write([]byte(fieldName + ": " + *lines[0] + "\n"))
 				rest := lines[1:]
 				for j := range rest {
-					out.Write([]byte(" " + rest[j] + "\n"))
+					out.Write([]byte(" " + *rest[j] + "\n"))
 				}
 			}
 		}
@@ -669,10 +672,10 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 			fieldName := middle[i]
 			lines, ok := fields.GetValues(fieldName)
 			if ok {
-				out.Write([]byte(fieldName + ": " + lines[0] + "\n"))
+				out.Write([]byte(fieldName + ": " + *lines[0] + "\n"))
 				rest := lines[1:]
 				for j := range rest {
-					out.Write([]byte(" " + rest[j] + "\n"))
+					out.Write([]byte(" " + *rest[j] + "\n"))
 				}
 			}
 		}
@@ -682,10 +685,10 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 			fieldName := end[i]
 			lines, ok := fields.GetValues(fieldName)
 			if ok {
-				out.Write([]byte(fieldName + ": " + lines[0] + "\n"))
+				out.Write([]byte(fieldName + ": " + *lines[0] + "\n"))
 				rest := lines[1:]
 				for j := range rest {
-					out.Write([]byte(" " + rest[j] + "\n"))
+					out.Write([]byte(" " + *rest[j] + "\n"))
 				}
 			}
 		}
