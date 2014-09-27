@@ -95,10 +95,6 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err
 		return nil, errors.New("No valid paragraphs in changes")
 	}
 
-	if len(paragraphs) > 1 {
-		log.Println("Only first section of the changes file will be parsed")
-	}
-
 	files, ok := paragraphs[0].GetValues("Files")
 
 	if !ok {
