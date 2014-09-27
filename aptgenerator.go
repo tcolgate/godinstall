@@ -120,10 +120,15 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid Comm
 				continue
 			}
 
-			poolpath := a.Repo.PoolFilePath(control[0]["Filename"])
-			path := poolpath[len(a.Repo.Base())+1:] + control[0]["Filename"]
+			filename, ok := control[0].GetValue("Filename")
+			if !ok {
+				log.Println("control file does not contain filename")
+				continue
+			}
+			poolpath := a.Repo.PoolFilePath(filename)
+			path := poolpath[len(a.Repo.Base())+1:] + filename
 
-			control[0]["Filename"] = path
+			control[0].SetValue("Filename", path)
 			FormatControlFile(packagesWriter, control)
 			packagesWriter.Write([]byte("\n"))
 			/*
@@ -169,15 +174,16 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid Comm
 		sourcesGzInfo, _ := os.Stat(*a.Repo.RepoBase + "/Sources.gz")
 	*/
 
-	release := make(ControlParagraph, 1)
-	release[0] = make(ControlFile)
+	release := make(ControlFile, 1)
+	para := MakeControlParagraph()
+	release[0] = &para
 
 	releaseStartFields := []string{"Origin", "Suite", "Codename"}
 	releaseEndFields := []string{"SHA256"}
-	release[0]["Origin"] = "godinstall"
-	release[0]["Suite"] = "stable"
-	release[0]["Components"] = "main"
-	release[0]["Architectures"] = "amd64 all"
+	release[0].SetValue("Origin", "godinstall")
+	release[0].SetValue("Suite", "stable")
+	release[0].SetValue("Components", "main")
+	release[0].SetValue("Architectures", "amd64 all")
 	MD5Str := "\n" +
 		" " + packagesMD5 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
 		" " + packagesGzMD5 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
@@ -190,9 +196,9 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid Comm
 	//			" " + sourcesSHA256 + " " + strconv.FormatInt(sourcesInfo.Size(), 10) + " Sources\n" +
 	//			" " + sourcesGzSHA256 + " " + strconv.FormatInt(sourcesGzInfo.Size(), 10) + " Sources.gz\n"
 
-	release[0]["MD5Sum"] = MD5Str
-	release[0]["SHA1"] = SHA1Str
-	release[0]["SHA256"] = SHA256Str
+	release[0].SetValue("MD5Sum", MD5Str)
+	release[0].SetValue("SHA1", SHA1Str)
+	release[0].SetValue("SHA256", SHA256Str)
 
 	// This is a little convoluted. We'll ultimately write to this, but it may be
 	// writing to unsigned and signed releases, or just the unsigned, depending

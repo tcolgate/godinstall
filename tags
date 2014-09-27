@@ -27,31 +27,31 @@ A1	build/src/code.google.com/p/go.tools/refactor/eg/testdata/A1.go	3;"	p	line:3
 A2	build/src/code.google.com/p/go.tools/refactor/eg/testdata/A2.go	3;"	p	line:3
 Absolute	build/src/code.google.com/p/go.tools/dashboard/app/build/perf_graph.go	277;"	w	access:public	ctype:perfGraphData	line:277	type:bool
 AcceptLoneDebs	aptserver.go	25;"	w	access:public	ctype:AptServer	line:25	type:bool
-ActionADD	repoindex.go	341;"	c	access:public	line:341	type:RepoActionType
-ActionDELETE	repoindex.go	342;"	c	access:public	line:342	type:RepoActionType
-ActionPURGE	repoindex.go	343;"	c	access:public	line:343	type:RepoActionType
-ActionUNKNOWN	repoindex.go	340;"	c	access:public	line:340	type:RepoActionType
-Actions	repoindex.go	366;"	w	access:public	ctype:RepoCommit	line:366	type:[]RepoAction
+ActionADD	repoindex.go	350;"	c	access:public	line:350	type:RepoActionType
+ActionDELETE	repoindex.go	351;"	c	access:public	line:351	type:RepoActionType
+ActionPURGE	repoindex.go	352;"	c	access:public	line:352	type:RepoActionType
+ActionUNKNOWN	repoindex.go	349;"	c	access:public	line:349	type:RepoActionType
+Actions	repoindex.go	375;"	w	access:public	ctype:RepoCommit	line:375	type:[]RepoAction
 AdHocTypeSwitch	build/src/code.google.com/p/go.tools/go/ssa/ssautil/testdata/switches.go	344;"	f	access:public	line:344	signature:(x interface{})
 AddBinaryControlFile	repoindex.go	20;"	m	access:public	line:20	ntype:RepoStorer	signature:(data ControlFile)	type:StoreID, error
-AddBinaryControlFile	repoindex.go	230;"	m	access:public	ctype:repoBlobStore	line:230	signature:(data ControlFile)	type:StoreID, error
+AddBinaryControlFile	repoindex.go	239;"	m	access:public	ctype:repoBlobStore	line:239	signature:(data ControlFile)	type:StoreID, error
 AddChangesSession	upload_manager.go	107;"	m	access:public	ctype:uploadSessionManager	line:107	signature:(changesReader io.Reader)	type:string, error
 AddChangesSession	upload_manager.go	18;"	m	access:public	line:18	ntype:UploadSessionManager	signature:(io.Reader)	type:string, error
 AddCommit	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	294;"	m	access:public	ctype:CommitRun	line:294	signature:(c appengine.Context, com *Commit)	type:error
 AddCommit	repoindex.go	19;"	m	access:public	line:19	ntype:RepoStorer	signature:(data *RepoCommit)	type:CommitID, error
-AddCommit	repoindex.go	383;"	m	access:public	ctype:repoBlobStore	line:383	signature:(data *RepoCommit)	type:CommitID, error
+AddCommit	repoindex.go	392;"	m	access:public	ctype:repoBlobStore	line:392	signature:(data *RepoCommit)	type:CommitID, error
 AddCommitToPerfTodo	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	723;"	f	access:public	line:723	signature:(c appengine.Context, com *Commit)	type:error
 AddDeb	repoindex.go	17;"	m	access:public	line:17	ntype:RepoStorer	signature:(file *ChangesItem)	type:*RepoItem, error
 AddDeb	repoindex.go	76;"	m	access:public	ctype:repoBlobStore	line:76	signature:(file *ChangesItem)	type:*RepoItem, error
 AddDeb	upload_manager.go	17;"	m	access:public	line:17	ntype:UploadSessionManager	signature:(*multipart.FileHeader)	type:AptServerResponder
 AddDeb	upload_manager.go	86;"	m	access:public	ctype:uploadSessionManager	line:86	signature:(upload *multipart.FileHeader)	type:AptServerResponder
-AddDebianControlFile	repoindex.go	186;"	m	access:public	ctype:repoBlobStore	line:186	signature:(item ControlFile)	type:StoreID, error
+AddDebianControlFile	repoindex.go	190;"	m	access:public	ctype:repoBlobStore	line:190	signature:(item ControlFile)	type:StoreID, error
 AddEdge	build/src/code.google.com/p/go.tools/go/callgraph/callgraph.go	104;"	f	access:public	line:104	signature:(caller *Node, site ssa.CallInstruction, callee *Node)
 AddImport	build/src/code.google.com/p/go.tools/astutil/imports.go	23;"	f	access:public	line:23	signature:(fset *token.FileSet, f *ast.File, ipath string)	type:bool
 AddIndex	repoindex.go	22;"	m	access:public	line:22	ntype:RepoStorer	signature:()	type:repoIndexWriterHandle, error
-AddIndex	repoindex.go	282;"	m	access:public	ctype:repoBlobStore	line:282	signature:()	type:repoIndexWriterHandle, error
+AddIndex	repoindex.go	291;"	m	access:public	ctype:repoBlobStore	line:291	signature:()	type:repoIndexWriterHandle, error
 AddIndirectQuery	build/src/code.google.com/p/go.tools/go/pointer/api.go	92;"	m	access:public	ctype:Config	line:92	signature:(v ssa.Value)
-AddItem	repoindex.go	292;"	m	access:public	ctype:repoIndexWriterHandle	line:292	signature:(item *RepoItem)	type:error
+AddItem	repoindex.go	301;"	m	access:public	ctype:repoIndexWriterHandle	line:301	signature:(item *RepoItem)	type:error
 AddItem	upload_session.go	227;"	m	access:public	ctype:changesSession	line:227	signature:(upload *ChangesItem)	type:AptServerResponder
 AddItem	upload_session.go	376;"	m	access:public	ctype:loneDebSession	line:376	signature:(upload *ChangesItem)	type:AptServerResponder
 AddItem	upload_session.go	41;"	m	access:public	line:41	ntype:UploadSessioner	signature:(*ChangesItem)	type:AptServerResponder
@@ -65,7 +65,8 @@ AddQuery	build/src/code.google.com/p/go.tools/go/pointer/api.go	80;"	m	access:pu
 AddResult	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	144;"	m	access:public	ctype:Commit	line:144	signature:(c appengine.Context, r *Result)	type:error
 AddResult	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	426;"	m	access:public	ctype:PerfResult	line:426	signature:(req *PerfRequest)	type:bool
 AddSession	aptgenerator.go	26;"	m	access:public	line:26	ntype:AptGenerator	signature:(session UploadSessioner)	type:int, string, error
-AddSession	aptgenerator.go	286;"	m	access:public	ctype:aptBlobArchiveGenerator	line:286	signature:(session UploadSessioner)	type:int, string, error
+AddSession	aptgenerator.go	292;"	m	access:public	ctype:aptBlobArchiveGenerator	line:292	signature:(session UploadSessioner)	type:int, string, error
+AddValue	deb.go	595;"	m	access:public	ctype:ControlParagraph	line:595	signature:(item string, val string)
 Addr	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	1171;"	w	access:public	ctype:Store	line:1171	type:Value
 AdjustPageInfoMode	build/src/code.google.com/p/go.tools/godoc/pres.go	64;"	w	access:public	ctype:Presentation	line:64	type:func(req *http.Request, mode PageInfoMode) PageInfoMode
 After	build/src/code.google.com/p/go.tools/cmd/benchcmp/compare.go	15;"	w	access:public	ctype:BenchCmp	line:15	type:*Bench
@@ -262,7 +263,7 @@ ByDeltaAllocsOp	build/src/code.google.com/p/go.tools/cmd/benchcmp/compare.go	144
 ByDeltaBOp	build/src/code.google.com/p/go.tools/cmd/benchcmp/compare.go	136;"	t	access:public	line:136	type:[]BenchCmp
 ByDeltaMbS	build/src/code.google.com/p/go.tools/cmd/benchcmp/compare.go	128;"	t	access:public	line:128	type:[]BenchCmp
 ByDeltaNsOp	build/src/code.google.com/p/go.tools/cmd/benchcmp/compare.go	120;"	t	access:public	line:120	type:[]BenchCmp
-ByIndexOrder	repoindex.go	240;"	t	access:public	line:240	type:[]*RepoItem
+ByIndexOrder	repoindex.go	249;"	t	access:public	line:249	type:[]*RepoItem
 ByKind	build/src/code.google.com/p/go.tools/godoc/analysis/json.go	28;"	w	access:public	ctype:implFactJSON	line:28	type:string
 ByParseOrder	build/src/code.google.com/p/go.tools/cmd/benchcmp/compare.go	101;"	t	access:public	line:101	type:[]BenchCmp
 Byte	build/src/code.google.com/p/go.tools/go/types/type.go	57;"	c	access:public	line:57
@@ -382,8 +383,8 @@ Close	build/src/code.google.com/p/go.tools/godoc/vfs/httpfs/httpfs.go	47;"	m	acc
 Close	build/src/code.google.com/p/go.tools/godoc/vfs/mapfs/mapfs.go	152;"	m	access:public	ctype:nopCloser	line:152	signature:()	type:error
 Close	build/src/code.google.com/p/go.tools/godoc/vfs/mapfs/mapfs.go	32;"	m	access:public	ctype:mapFS	line:32	signature:()	type:error
 Close	build/src/code.google.com/p/go.tools/godoc/vfs/zipfs/zipfs.go	84;"	m	access:public	ctype:zipFS	line:84	signature:()	type:error
-Close	repoindex.go	297;"	m	access:public	ctype:repoIndexWriterHandle	line:297	signature:()	type:IndexID, error
-Close	repoindex.go	332;"	m	access:public	ctype:repoIndexReaderHandle	line:332	signature:()	type:error
+Close	repoindex.go	306;"	m	access:public	ctype:repoIndexWriterHandle	line:306	signature:()	type:IndexID, error
+Close	repoindex.go	341;"	m	access:public	ctype:repoIndexReaderHandle	line:341	signature:()	type:error
 Close	store.go	333;"	m	access:public	ctype:hashedStoreWriter	line:333	signature:()	type:error
 Close	upload_session.go	208;"	m	access:public	ctype:changesSession	line:208	signature:()
 Close	upload_session.go	362;"	m	access:public	ctype:loneDebSession	line:362	signature:()
@@ -415,7 +416,7 @@ Commit	build/src/code.google.com/p/go.tools/dashboard/app/build/ui.go	207;"	w	ac
 Commit0	build/src/code.google.com/p/go.tools/dashboard/app/build/perf_detail.go	188;"	w	access:public	ctype:uiPerfDetailTemplateData	line:188	type:*Commit
 Commit1	build/src/code.google.com/p/go.tools/dashboard/app/build/perf_detail.go	189;"	w	access:public	ctype:uiPerfDetailTemplateData	line:189	type:*Commit
 CommitHash	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	402;"	w	access:public	ctype:PerfResult	line:402	type:string
-CommitID	repoindex.go	352;"	t	access:public	line:352	type:StoreID
+CommitID	repoindex.go	361;"	t	access:public	line:361	type:StoreID
 CommitNum	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	403;"	w	access:public	ctype:PerfResult	line:403	type:int
 CommitNum	build/src/code.google.com/p/go.tools/dashboard/app/build/perf_graph.go	276;"	w	access:public	ctype:perfGraphData	line:276	type:int
 CommitNums	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	713;"	w	access:public	ctype:PerfTodo	line:713	type:[]int
@@ -471,11 +472,11 @@ Contents	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/opaque
 Contents	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/userattribute.go	22;"	w	access:public	ctype:UserAttribute	line:22	type:[]*OpaqueSubpacket
 Context	build/src/code.google.com/p/go.tools/dashboard/app/build/dash.go	33;"	m	access:public	ctype:Dashboard	line:33	signature:(c appengine.Context)	type:appengine.Context
 Context	build/src/code.google.com/p/go.tools/present/parse.go	231;"	t	access:public	line:231	type:struct
-Control	deb.go	185;"	m	access:public	line:185	ntype:DebPackageInfoer	signature:()	type:map[string]string, error
-Control	deb.go	338;"	m	access:public	ctype:debPackage	line:338	signature:()	type:map[string]string, error
-ControlFile	deb.go	572;"	t	access:public	line:572	type:[]ControlParagraph
+Control	deb.go	186;"	m	access:public	line:186	ntype:DebPackageInfoer	signature:()	type:*ControlParagraph, error
+Control	deb.go	338;"	m	access:public	ctype:debPackage	line:338	signature:()	type:*ControlParagraph, error
+ControlFile	deb.go	573;"	t	access:public	line:573	type:[]*ControlParagraph
 ControlID	repoindex.go	64;"	w	access:public	ctype:RepoItem	line:64	type:StoreID
-ControlParagraph	deb.go	573;"	t	access:public	line:573	type:map[string][]string
+ControlParagraph	deb.go	574;"	t	access:public	line:574	type:map[string][]*string
 Convert	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	627;"	t	access:public	line:627	type:struct
 ConvertibleTo	build/src/code.google.com/p/go.tools/go/types/api.go	257;"	f	access:public	line:257	signature:(V, T Type)	type:bool
 CookieName	aptserver.go	22;"	w	access:public	ctype:AptServer	line:22	type:string
@@ -534,12 +535,12 @@ Data	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	394;"	m	a
 Data	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	404;"	w	access:public	ctype:PerfResult	line:404	type:[]string
 Data	build/src/code.google.com/p/go.tools/dashboard/app/build/handler.go	170;"	w	access:public	ctype:Todo	line:170	type:interface{}
 Date	build/src/code.google.com/p/go.tools/dashboard/builder/vcs.go	185;"	w	access:public	ctype:HgLog	line:185	type:string
-Date	repoindex.go	357;"	w	access:public	ctype:RepoCommit	line:357	type:time.Time
+Date	repoindex.go	366;"	w	access:public	ctype:RepoCommit	line:366	type:time.Time
 DaysToExpire	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/public_key_v3.go	28;"	w	access:public	ctype:PublicKeyV3	line:28	type:uint16
-DebPackageInfoer	deb.go	179;"	n	access:public	line:179	type:interface
-DebVersion	deb.go	26;"	t	access:public	line:26	type:struct
-DebVersionCompare	deb.go	76;"	f	access:public	line:76	signature:(a DebVersion, b DebVersion)	type:int
-DebVersionFromString	deb.go	48;"	f	access:public	ctype:DebVersion	line:48	signature:(str string)	type:DebVersion, error
+DebPackageInfoer	deb.go	180;"	n	access:public	line:180	type:interface
+DebVersion	deb.go	27;"	t	access:public	line:27	type:struct
+DebVersionCompare	deb.go	77;"	f	access:public	line:77	signature:(a DebVersion, b DebVersion)	type:int
+DebVersionFromString	deb.go	49;"	f	access:public	ctype:DebVersion	line:49	signature:(str string)	type:DebVersion, error
 DebugNode	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	873;"	w	access:public	ctype:SelectState	line:873	type:ast.Node
 DebugRef	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	1226;"	t	access:public	line:1226	type:struct
 DeclLinks	build/src/code.google.com/p/go.tools/godoc/pres.go	50;"	w	access:public	ctype:Presentation	line:50	type:bool
@@ -607,9 +608,9 @@ DescribeType	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	188;"	
 DescribeValue	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	175;"	t	access:public	line:175	type:struct
 Description	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	1357;"	m	access:public	ctype:CallCommon	line:1357	signature:()	type:string
 Description	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	125;"	w	access:public	ctype:SyntaxNode	line:125	type:string
-Description	deb.go	183;"	m	access:public	line:183	ntype:DebPackageInfoer	signature:()	type:string, error
+Description	deb.go	184;"	m	access:public	line:184	ntype:DebPackageInfoer	signature:()	type:string, error
 Description	deb.go	366;"	m	access:public	ctype:debPackage	line:366	signature:()	type:string, error
-Description	repoindex.go	349;"	w	access:public	ctype:RepoAction	line:349	type:string
+Description	repoindex.go	358;"	w	access:public	ctype:RepoAction	line:358	type:string
 DetachSign	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/write.go	22;"	f	access:public	line:22	signature:(w io.Writer, signer *Entity, message io.Reader, config *packet.Config)	type:error
 DetachSignText	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/write.go	37;"	f	access:public	line:37	signature:(w io.Writer, signer *Entity, message io.Reader, config *packet.Config)	type:error
 Detail	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	217;"	w	access:public	ctype:Describe	line:217	type:string
@@ -681,7 +682,7 @@ Empty	build/src/code.google.com/p/go.tools/go/types/type.go	314;"	m	access:publi
 EmptyFileID	store.go	258;"	m	access:public	ctype:sha1Store	line:258	signature:()	type:StoreID
 EmptyFileID	store.go	37;"	m	access:public	line:37	ntype:Storer	signature:()	type:StoreID
 EmptyIndex	repoindex.go	23;"	m	access:public	line:23	ntype:RepoStorer	signature:()	type:IndexID, error
-EmptyIndex	repoindex.go	307;"	m	access:public	ctype:repoBlobStore	line:307	signature:()	type:IndexID, error
+EmptyIndex	repoindex.go	316;"	m	access:public	ctype:repoBlobStore	line:316	signature:()	type:IndexID, error
 EnableTracing	build/src/code.google.com/p/go.tools/go/ssa/interp/interp.go	71;"	c	access:public	line:71
 Enclosing	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	134;"	w	access:public	ctype:What	line:134	type:[]SyntaxNode
 EnclosingFunction	build/src/code.google.com/p/go.tools/go/ssa/source.go	32;"	f	access:public	line:32	signature:(pkg *Package, path []ast.Node)	type:*Function
@@ -711,7 +712,7 @@ Entry	build/src/code.google.com/p/go.tools/blog/atom/atom.go	22;"	w	access:publi
 Entry	build/src/code.google.com/p/go.tools/blog/atom/atom.go	25;"	t	access:public	line:25	type:struct
 Env	build/src/code.google.com/p/go.tools/go/ssa/interp/value.go	72;"	w	access:public	ctype:closure	line:72	type:[]value
 Environ	build/src/code.google.com/p/go.tools/playground/socket/socket.go	47;"	v	access:public	line:47	type:func() []string
-Epoch	deb.go	27;"	w	access:public	ctype:DebVersion	line:27	type:int
+Epoch	deb.go	28;"	w	access:public	ctype:DebVersion	line:28	type:int
 Equal	Godeps/_workspace/src/code.google.com/p/go-uuid/uuid/uuid.go	74;"	f	access:public	line:74	signature:(uuid1, uuid2 UUID)	type:bool
 Equals	build/src/code.google.com/p/go.tools/container/intsets/sparse.go	667;"	m	access:public	ctype:Sparse	line:667	signature:(t *Sparse)	type:bool
 Err	build/src/code.google.com/p/go.tools/cmd/godoc/codewalk.go	122;"	w	access:public	ctype:Codestep	line:122	type:error
@@ -866,7 +867,7 @@ Fn	build/src/code.google.com/p/go.tools/godoc/analysis/json.go	16;"	w	access:pub
 Foo	build/src/code.google.com/p/go.tools/godoc/server_test.go	19;"	w	access:public	ctype:withFoo	line:19	type:int
 ForEyesOnly	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/literal.go	22;"	m	access:public	ctype:LiteralData	line:22	signature:()	type:bool
 Format	build/src/code.google.com/p/go.tools/cmd/vet/testdata/print.go	302;"	m	access:public	ctype:Formatter	line:302	signature:(fmt.State, rune)
-FormatControlParagraph	deb.go	645;"	f	access:public	line:645	signature:(ctrlWriter io.Writer, paragraphs ControlParagraph)
+FormatControlFile	deb.go	708;"	f	access:public	line:708	signature:(ctrlWriter io.Writer, paragraphs ControlFile)
 FormatSelections	build/src/code.google.com/p/go.tools/godoc/format.go	62;"	f	access:public	line:62	signature:(w io.Writer, text []byte, lw LinkWriter, links Selection, sw SegmentWriter, selections )
 FormatText	build/src/code.google.com/p/go.tools/godoc/format.go	349;"	f	access:public	line:349	signature:(w io.Writer, text []byte, line int, goSource bool, pattern string, selection Selection)
 FormattedNumber	build/src/code.google.com/p/go.tools/present/parse.go	119;"	m	access:public	ctype:Section	line:119	signature:()	type:string
@@ -920,10 +921,10 @@ Get	build/src/code.google.com/p/go.tools/dashboard/app/cache/cache.go	52;"	f	acc
 Get	build/src/code.google.com/p/go.tools/godoc/util/util.go	32;"	m	access:public	ctype:RWValue	line:32	signature:()	type:interface{}, time.Time
 Get	safemap.go	21;"	m	access:public	ctype:SafeMap	line:21	signature:(k interface{})	type:interface{}
 GetBinaryControlFile	repoindex.go	21;"	m	access:public	line:21	ntype:RepoStorer	signature:(id StoreID)	type:ControlFile, error
-GetBinaryControlFile	repoindex.go	226;"	m	access:public	ctype:repoBlobStore	line:226	signature:(id StoreID)	type:ControlFile, error
+GetBinaryControlFile	repoindex.go	235;"	m	access:public	ctype:repoBlobStore	line:235	signature:(id StoreID)	type:ControlFile, error
 GetCmdPageInfo	build/src/code.google.com/p/go.tools/godoc/pres.go	152;"	m	access:public	ctype:Presentation	line:152	signature:(abspath, relpath string, mode PageInfoMode)	type:*PageInfo
 GetCommit	repoindex.go	18;"	m	access:public	line:18	ntype:RepoStorer	signature:(id CommitID)	type:*RepoCommit, error
-GetCommit	repoindex.go	369;"	m	access:public	ctype:repoBlobStore	line:369	signature:(id CommitID)	type:*RepoCommit, error
+GetCommit	repoindex.go	378;"	m	access:public	ctype:repoBlobStore	line:378	signature:(id CommitID)	type:*RepoCommit, error
 GetCommitRun	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	278;"	f	access:public	ctype:CommitRun	line:278	signature:(c appengine.Context, commitNum int)	type:*CommitRun, error
 GetCommits	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	316;"	f	access:public	line:316	signature:(c appengine.Context, startCommitNum, n int)	type:[]*Commit, error
 GetDebianControlFile	repoindex.go	161;"	m	access:public	ctype:repoBlobStore	line:161	signature:(id StoreID)	type:ControlFile, error
@@ -947,6 +948,8 @@ GetStatus	aptserver.go	79;"	m	access:public	line:79	ntype:AptServerResponder	sig
 GetStatus	aptserver.go	89;"	m	access:public	ctype:aptServerResponse	line:89	signature:()	type:int
 GetTag	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	803;"	f	access:public	ctype:Tag	line:803	signature:(c appengine.Context, tag string)	type:*Tag, error
 GetTime	Godeps/_workspace/src/code.google.com/p/go-uuid/uuid/time.go	45;"	f	access:public	line:45	signature:()	type:Time, error
+GetValue	deb.go	585;"	m	access:public	ctype:ControlParagraph	line:585	signature:(item string)	type:string, bool
+GetValues	deb.go	580;"	m	access:public	ctype:ControlParagraph	line:580	signature:(item string)	type:[]*string, bool
 GetX	build/src/code.google.com/p/go.tools/go/pointer/testdata/context.go	13;"	m	access:public	ctype:T	line:13	signature:()	type:*int
 Gid	Godeps/_workspace/src/github.com/blakesmith/ar/common.go	16;"	w	access:public	ctype:Header	line:16	type:int
 Global	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	429;"	t	access:public	line:429	type:struct
@@ -1112,7 +1115,7 @@ Importer	build/src/code.google.com/p/go.tools/go/types/api.go	77;"	t	access:publ
 Imports	build/src/code.google.com/p/go.tools/astutil/imports.go	377;"	f	access:public	line:377	signature:(fset *token.FileSet, f *ast.File)	type:[][]*ast.ImportSpec
 Imports	build/src/code.google.com/p/go.tools/go/types/package.go	50;"	m	access:public	ctype:Package	line:50	signature:()	type:[]*Package
 In	build/src/code.google.com/p/go.tools/go/callgraph/callgraph.go	80;"	w	access:public	ctype:Node	line:80	type:[]*Edge
-InRelease	repoindex.go	365;"	w	access:public	ctype:RepoCommit	line:365	type:StoreID
+InRelease	repoindex.go	374;"	w	access:public	ctype:RepoCommit	line:374	type:StoreID
 Index	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	1012;"	w	access:public	ctype:Extract	line:1012	type:int
 Index	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	346;"	w	access:public	ctype:BasicBlock	line:346	type:int
 Index	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	827;"	w	access:public	ctype:IndexAddr	line:827	type:Value
@@ -1121,7 +1124,7 @@ Index	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	841;"	w	access:public	c
 Index	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	861;"	w	access:public	ctype:Lookup	line:861	type:Value
 Index	build/src/code.google.com/p/go.tools/go/types/selection.go	102;"	m	access:public	ctype:Selection	line:102	signature:()	type:[]int
 Index	build/src/code.google.com/p/go.tools/godoc/index.go	905;"	t	access:public	line:905	type:struct
-Index	repoindex.go	358;"	w	access:public	ctype:RepoCommit	line:358	type:IndexID
+Index	repoindex.go	367;"	w	access:public	ctype:RepoCommit	line:367	type:IndexID
 IndexAddr	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	824;"	t	access:public	line:824	type:struct
 IndexDirectory	build/src/code.google.com/p/go.tools/godoc/corpus.go	87;"	w	access:public	ctype:Corpus	line:87	type:func(dir string) bool
 IndexDocs	build/src/code.google.com/p/go.tools/godoc/corpus.go	53;"	w	access:public	ctype:Corpus	line:53	type:bool
@@ -1129,9 +1132,9 @@ IndexEnabled	build/src/code.google.com/p/go.tools/godoc/corpus.go	29;"	w	access:
 IndexFiles	build/src/code.google.com/p/go.tools/godoc/corpus.go	34;"	w	access:public	ctype:Corpus	line:34	type:string
 IndexFullText	build/src/code.google.com/p/go.tools/godoc/corpus.go	65;"	w	access:public	ctype:Corpus	line:65	type:bool
 IndexGoCode	build/src/code.google.com/p/go.tools/godoc/corpus.go	59;"	w	access:public	ctype:Corpus	line:59	type:bool
-IndexID	repoindex.go	278;"	t	access:public	line:278	type:StoreID
+IndexID	repoindex.go	287;"	t	access:public	line:287	type:StoreID
 IndexInterval	build/src/code.google.com/p/go.tools/godoc/corpus.go	47;"	w	access:public	ctype:Corpus	line:47	type:time.Duration
-IndexOrder	repoindex.go	254;"	f	access:public	line:254	signature:(a, b *RepoItem)	type:int
+IndexOrder	repoindex.go	263;"	f	access:public	line:263	signature:(a, b *RepoItem)	type:int
 IndexResult	build/src/code.google.com/p/go.tools/godoc/index.go	390;"	t	access:public	line:390	type:struct
 IndexThrottle	build/src/code.google.com/p/go.tools/godoc/corpus.go	41;"	w	access:public	ctype:Corpus	line:41	type:float64
 Indexer	build/src/code.google.com/p/go.tools/godoc/index.go	408;"	t	access:public	line:408	type:struct
@@ -1201,7 +1204,7 @@ IsNumeric	build/src/code.google.com/p/go.tools/go/types/type.go	75;"	c	access:pu
 IsOrdered	build/src/code.google.com/p/go.tools/go/types/type.go	74;"	c	access:public	line:74
 IsPrimaryId	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/signature.go	54;"	w	access:public	ctype:Signature	line:54	type:*bool
 IsSigned	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read.go	43;"	w	access:public	ctype:MessageDetails	line:43	type:bool
-IsSigned	deb.go	187;"	m	access:public	line:187	ntype:DebPackageInfoer	signature:()	type:bool, error
+IsSigned	deb.go	188;"	m	access:public	line:188	ntype:DebPackageInfoer	signature:()	type:bool, error
 IsSigned	deb.go	295;"	m	access:public	ctype:debPackage	line:295	signature:()	type:bool, error
 IsString	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	955;"	w	access:public	ctype:Next	line:955	type:bool
 IsString	build/src/code.google.com/p/go.tools/go/types/type.go	71;"	c	access:public	line:71
@@ -1214,7 +1217,7 @@ IsTextFile	build/src/code.google.com/p/go.tools/godoc/util/util.go	68;"	f	access
 IsType	build/src/code.google.com/p/go.tools/go/loader/pkginfo.go	78;"	m	access:public	ctype:PackageInfo	line:78	signature:(e ast.Expr)	type:bool
 IsUnsigned	build/src/code.google.com/p/go.tools/go/types/type.go	68;"	c	access:public	line:68
 IsUntyped	build/src/code.google.com/p/go.tools/go/types/type.go	72;"	c	access:public	line:72
-IsValidated	deb.go	188;"	m	access:public	line:188	ntype:DebPackageInfoer	signature:()	type:bool, error
+IsValidated	deb.go	189;"	m	access:public	line:189	ntype:DebPackageInfoer	signature:()	type:bool, error
 IsValidated	deb.go	310;"	m	access:public	ctype:debPackage	line:310	signature:()	type:bool, error
 IssuerKeyId	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/signature.go	53;"	w	access:public	ctype:Signature	line:53	type:*uint64
 IssuerKeyId	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/signature_v3.go	26;"	w	access:public	ctype:SignatureV3	line:26	type:uint64
@@ -1362,7 +1365,7 @@ Len	build/src/code.google.com/p/go.tools/oracle/pointsto.go	243;"	m	access:publi
 Len	build/src/code.google.com/p/go.tools/oracle/pointsto.go	249;"	m	access:public	ctype:byPosAndString	line:249	signature:()	type:int
 Len	build/src/code.google.com/p/go.tools/oracle/referrers.go	69;"	m	access:public	ctype:byNamePos	line:69	signature:()	type:int
 Len	build/src/code.google.com/p/go.tools/oracle/testdata/src/main/implements.go	34;"	m	access:public	ctype:sorter	line:34	signature:()	type:int
-Len	repoindex.go	242;"	m	access:public	ctype:ByIndexOrder	line:242	signature:()	type:int
+Len	repoindex.go	251;"	m	access:public	ctype:ByIndexOrder	line:251	signature:()	type:int
 Less	build/src/code.google.com/p/go.tools/astutil/enclosing.go	469;"	m	access:public	ctype:byPos	line:469	signature:(i, j int)	type:bool
 Less	build/src/code.google.com/p/go.tools/blog/blog.go	424;"	m	access:public	ctype:docsByTime	line:424	signature:(i, j int)	type:bool
 Less	build/src/code.google.com/p/go.tools/cmd/benchcmp/compare.go	105;"	m	access:public	ctype:ByParseOrder	line:105	signature:(i, j int)	type:bool
@@ -1413,7 +1416,7 @@ Less	build/src/code.google.com/p/go.tools/oracle/pointsto.go	244;"	m	access:publ
 Less	build/src/code.google.com/p/go.tools/oracle/pointsto.go	250;"	m	access:public	ctype:byPosAndString	line:250	signature:(i, j int)	type:bool
 Less	build/src/code.google.com/p/go.tools/oracle/referrers.go	70;"	m	access:public	ctype:byNamePos	line:70	signature:(i, j int)	type:bool
 Less	build/src/code.google.com/p/go.tools/oracle/testdata/src/main/implements.go	35;"	m	access:public	ctype:sorter	line:35	signature:(i, j int)	type:bool
-Less	repoindex.go	244;"	m	access:public	ctype:ByIndexOrder	line:244	signature:(i, j int)	type:bool
+Less	repoindex.go	253;"	m	access:public	ctype:ByIndexOrder	line:253	signature:(i, j int)	type:bool
 Level	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/compressed.go	39;"	w	access:public	ctype:CompressionConfig	line:39	type:int
 Level	build/src/code.google.com/p/go.tools/present/parse.go	113;"	m	access:public	ctype:Section	line:113	signature:()	type:int
 Lhs	build/src/code.google.com/p/go.tools/go/types/api.go	214;"	w	access:public	ctype:Initializer	line:214	type:[]*Var
@@ -1493,11 +1496,12 @@ M	build/src/code.google.com/p/go.tools/cmd/vet/testdata/nilfunc.go	13;"	m	access
 M1	build/src/code.google.com/p/go.tools/go/gcimporter/testdata/exports.go	89;"	m	access:public	ctype:T1	line:89	signature:()
 MDC	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/symmetrically_encrypted.go	21;"	w	access:public	ctype:SymmetricallyEncrypted	line:21	type:bool
 Mains	build/src/code.google.com/p/go.tools/go/pointer/api.go	24;"	w	access:public	ctype:Config	line:24	type:[]*ssa.Package
-Maintainer	deb.go	184;"	m	access:public	line:184	ntype:DebPackageInfoer	signature:()	type:string, error
+Maintainer	deb.go	185;"	m	access:public	line:185	ntype:DebPackageInfoer	signature:()	type:string, error
 Maintainer	deb.go	371;"	m	access:public	ctype:debPackage	line:371	signature:()	type:string, error
 MakeBool	build/src/code.google.com/p/go.tools/go/exact/exact.go	127;"	f	access:public	line:127	signature:(b bool)	type:Value
 MakeChan	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	717;"	t	access:public	line:717	type:struct
 MakeClosure	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	682;"	t	access:public	line:682	type:struct
+MakeControlParagraph	deb.go	576;"	f	access:public	line:576	signature:()	type:ControlParagraph
 MakeFileMutex	build/src/code.google.com/p/go.tools/dashboard/builder/filemutex_flock.go	21;"	f	access:public	ctype:FileMutex	line:21	signature:(filename string)	type:*FileMutex
 MakeFileMutex	build/src/code.google.com/p/go.tools/dashboard/builder/filemutex_local.go	20;"	f	access:public	ctype:FileMutex	line:20	signature:(filename string)	type:*FileMutex
 MakeFileMutex	build/src/code.google.com/p/go.tools/dashboard/builder/filemutex_windows.go	55;"	f	access:public	ctype:FileMutex	line:55	signature:(filename string)	type:*FileMutex
@@ -1537,8 +1541,8 @@ MayAlias	build/src/code.google.com/p/go.tools/go/pointer/api.go	232;"	m	access:p
 MbS	build/src/code.google.com/p/go.tools/cmd/benchcmp/parse.go	20;"	c	access:public	line:20
 MbS	build/src/code.google.com/p/go.tools/cmd/benchcmp/parse.go	30;"	w	access:public	ctype:Bench	line:30	type:float64
 Md5	changes.go	30;"	w	access:public	ctype:ChangesItem	line:30	type:string
-Md5	deb.go	191;"	m	access:public	line:191	ntype:DebPackageInfoer	signature:()	type:[]byte, error
-Md5	deb.go	404;"	m	access:public	ctype:debPackage	line:404	signature:()	type:[]byte, error
+Md5	deb.go	192;"	m	access:public	line:192	ntype:DebPackageInfoer	signature:()	type:[]byte, error
+Md5	deb.go	405;"	m	access:public	ctype:debPackage	line:405	signature:()	type:[]byte, error
 Md5	upload_session.go	26;"	w	access:public	ctype:UploadItem	line:26	type:string
 Measured	build/src/code.google.com/p/go.tools/cmd/benchcmp/compare.go	37;"	m	access:public	ctype:BenchCmp	line:37	signature:(flag int)	type:bool
 Measured	build/src/code.google.com/p/go.tools/cmd/benchcmp/parse.go	33;"	w	access:public	ctype:Bench	line:33	type:int
@@ -1546,7 +1550,7 @@ Member	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	63;"	n	access:public	l
 Members	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	45;"	w	access:public	ctype:Package	line:45	type:map[string]Member
 Members	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	208;"	w	access:public	ctype:DescribePackage	line:208	type:[]*DescribeMember
 MergeItemsIntoCommit	repoindex.go	26;"	m	access:public	line:26	ntype:RepoStorer	signature:(parentid CommitID, items []*RepoItem)	type:IndexID, error
-MergeItemsIntoCommit	repoindex.go	401;"	m	access:public	ctype:repoBlobStore	line:401	signature:(parentid CommitID, items []*RepoItem)	type:IndexID, error
+MergeItemsIntoCommit	repoindex.go	410;"	m	access:public	ctype:repoBlobStore	line:410	signature:(parentid CommitID, items []*RepoItem)	type:IndexID, error
 Message	build/src/code.google.com/p/go.tools/go/pointer/api.go	111;"	w	access:public	ctype:Warning	line:111	type:string
 Message	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	228;"	w	access:public	ctype:PTAWarning	line:228	type:string
 Message	build/src/code.google.com/p/go.tools/playground/socket/socket.go	60;"	t	access:public	line:60	type:struct
@@ -1665,7 +1669,7 @@ Name	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	196;"	w	access
 Name	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	42;"	w	access:public	ctype:CalleesItem	line:42	type:string
 Name	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	75;"	w	access:public	ctype:CallGraph	line:75	type:string
 Name	build/src/github.com/tools/godep/main.go	35;"	m	access:public	ctype:Command	line:35	signature:()	type:string
-Name	deb.go	181;"	m	access:public	line:181	ntype:DebPackageInfoer	signature:()	type:string, error
+Name	deb.go	182;"	m	access:public	line:182	ntype:DebPackageInfoer	signature:()	type:string, error
 Name	deb.go	352;"	m	access:public	ctype:debPackage	line:352	signature:()	type:string, error
 Name	repoindex.go	61;"	w	access:public	ctype:RepoItem	line:61	type:string
 Name	repoindex.go	72;"	w	access:public	ctype:RepoItemFile	line:72	type:string
@@ -1767,7 +1771,7 @@ Next	build/src/code.google.com/p/go.tools/dashboard/app/build/perf.go	103;"	m	ac
 Next	build/src/code.google.com/p/go.tools/dashboard/app/build/ui.go	108;"	w	access:public	ctype:Pagination	line:108	type:int
 Next	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	952;"	t	access:public	line:952	type:struct
 NextForComparison	build/src/code.google.com/p/go.tools/dashboard/app/build/perf.go	140;"	m	access:public	ctype:PerfResultCache	line:140	signature:(commitNum int, builder string)	type:*PerfResult, error
-NextItem	repoindex.go	327;"	m	access:public	ctype:repoIndexReaderHandle	line:327	signature:()	type:RepoItem, error
+NextItem	repoindex.go	336;"	m	access:public	ctype:repoIndexReaderHandle	line:336	signature:()	type:RepoItem, error
 NextNum	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	39;"	w	access:public	ctype:Package	line:39	type:int
 Nil	build/src/code.google.com/p/go.tools/go/types/object.go	221;"	t	access:public	line:221	type:struct
 NoCompression	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/compressed.go	23;"	c	access:public	line:23
@@ -1873,7 +1877,7 @@ Open	build/src/code.google.com/p/go.tools/godoc/vfs/zipfs/zipfs.go	111;"	m	acces
 Open	store.go	150;"	m	access:public	ctype:sha1Store	line:150	signature:(id StoreID)	type:io.ReadCloser, error
 Open	store.go	33;"	m	access:public	line:33	ntype:Storer	signature:(StoreID)	type:io.ReadCloser, error
 OpenIndex	repoindex.go	24;"	m	access:public	line:24	ntype:RepoStorer	signature:(id IndexID)	type:repoIndexReaderHandle, error
-OpenIndex	repoindex.go	317;"	m	access:public	ctype:repoBlobStore	line:317	signature:(id IndexID)	type:repoIndexReaderHandle, error
+OpenIndex	repoindex.go	326;"	m	access:public	ctype:repoBlobStore	line:326	signature:(id IndexID)	type:repoIndexReaderHandle, error
 Opener	build/src/code.google.com/p/go.tools/godoc/vfs/vfs.go	18;"	e	access:public	line:18	ntype:FileSystem
 Opener	build/src/code.google.com/p/go.tools/godoc/vfs/vfs.go	26;"	n	access:public	line:26	type:interface
 Operands	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	1521;"	m	access:public	ctype:Alloc	line:1521	signature:(rands []*Value)	type:[]*Value
@@ -1978,8 +1982,8 @@ Packages	build/src/code.google.com/p/go.tools/dashboard/app/build/dash.go	20;"	w
 Packages	build/src/code.google.com/p/go.tools/dashboard/app/build/ui.go	201;"	w	access:public	ctype:TagState	line:201	type:[]*PackageState
 Packages	build/src/code.google.com/p/go.tools/go/types/api.go	98;"	w	access:public	ctype:Config	line:98	type:map[string]*Package
 Packages	build/src/github.com/tools/godep/dep.go	23;"	w	access:public	ctype:Godeps	line:23	type:[]string
-Packages	repoindex.go	360;"	w	access:public	ctype:RepoCommit	line:360	type:StoreID
-PackagesGz	repoindex.go	361;"	w	access:public	ctype:RepoCommit	line:361	type:StoreID
+Packages	repoindex.go	369;"	w	access:public	ctype:RepoCommit	line:369	type:StoreID
+PackagesGz	repoindex.go	370;"	w	access:public	ctype:RepoCommit	line:370	type:StoreID
 Packet	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/packet.go	255;"	n	access:public	line:255	type:interface
 Page	build/src/code.google.com/p/go.tools/godoc/page.go	13;"	t	access:public	line:13	type:struct
 PageInfo	build/src/code.google.com/p/go.tools/godoc/godoc.go	276;"	t	access:public	line:276	type:struct
@@ -2011,19 +2015,19 @@ Parent	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	252;"	m	access:public	
 Parent	build/src/code.google.com/p/go.tools/go/types/object.go	23;"	m	access:public	line:23	ntype:Object	signature:()	type:*Scope
 Parent	build/src/code.google.com/p/go.tools/go/types/object.go	79;"	m	access:public	ctype:object	line:79	signature:()	type:*Scope
 Parent	build/src/code.google.com/p/go.tools/go/types/scope.go	43;"	m	access:public	ctype:Scope	line:43	signature:()	type:*Scope
-Parent	repoindex.go	356;"	w	access:public	ctype:RepoCommit	line:356	type:CommitID
+Parent	repoindex.go	365;"	w	access:public	ctype:RepoCommit	line:365	type:CommitID
 ParentHash	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	97;"	w	access:public	ctype:Commit	line:97	type:string
 Parse	Godeps/_workspace/src/code.google.com/p/go-uuid/uuid/uuid.go	45;"	f	access:public	line:45	signature:(s string)	type:UUID
 Parse	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/opaque.go	45;"	m	access:public	ctype:OpaquePacket	line:45	signature:()	type:Packet, error
 Parse	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/s2k/s2k.go	82;"	f	access:public	line:82	signature:(r io.Reader)	type:func(out, in []byte), error
 Parse	build/src/code.google.com/p/go.tools/present/parse.go	245;"	m	access:public	ctype:Context	line:245	signature:(r io.Reader, name string, mode ParseMode)	type:*Doc, error
 Parse	build/src/code.google.com/p/go.tools/present/parse.go	271;"	f	access:public	ctype:Doc	line:271	signature:(r io.Reader, name string, mode ParseMode)	type:*Doc, error
-Parse	deb.go	180;"	m	access:public	line:180	ntype:DebPackageInfoer	signature:()	type:error
+Parse	deb.go	181;"	m	access:public	line:181	ntype:DebPackageInfoer	signature:()	type:error
 Parse	deb.go	284;"	m	access:public	ctype:debPackage	line:284	signature:()	type:error
 ParseBenchSet	build/src/code.google.com/p/go.tools/cmd/benchcmp/parse.go	110;"	f	access:public	line:110	signature:(r io.Reader)	type:BenchSet, error
 ParseData	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	454;"	m	access:public	ctype:PerfResult	line:454	signature:()	type:map[string]map[string]*ParsedPerfResult
 ParseDebianChanges	changes.go	45;"	f	access:public	ctype:ChangesFile	line:45	signature:(r io.Reader, kr openpgp.EntityList)	type:*ChangesFile, error
-ParseDebianControl	deb.go	575;"	f	access:public	line:575	signature:(in io.Reader)	type:ControlFile, error
+ParseDebianControl	deb.go	605;"	f	access:public	line:605	signature:(rawin io.Reader)	type:ControlFile, error
 ParseFile	build/src/code.google.com/p/go.tools/go/loader/loader.go	271;"	m	access:public	ctype:Config	line:271	signature:(filename string, src interface{})	type:*ast.File, error
 ParseFunc	build/src/code.google.com/p/go.tools/present/parse.go	54;"	t	access:public	line:54	type:func(ctx *Context, fileName string, lineNumber int, inputLine string) Elem, error
 ParseLine	build/src/code.google.com/p/go.tools/cmd/benchcmp/parse.go	38;"	f	access:public	ctype:Bench	line:38	signature:(line string)	type:*Bench, error
@@ -2104,7 +2108,7 @@ PointsToSet	build/src/code.google.com/p/go.tools/go/pointer/api.go	136;"	t	acces
 PoolFilePath	aptrepo.go	26;"	m	access:public	ctype:aptRepo	line:26	signature:(filename string)	type:string
 PoolFilePath	aptrepo.go	9;"	m	access:public	line:9	ntype:AptRepo	signature:(string)	type:string
 PoolPattern	aptrepo.go	15;"	w	access:public	ctype:aptRepo	line:15	type:*regexp.Regexp
-PoolPattern	repoindex.go	359;"	w	access:public	ctype:RepoCommit	line:359	type:string
+PoolPattern	repoindex.go	368;"	w	access:public	ctype:RepoCommit	line:368	type:string
 Pop	build/src/code.google.com/p/go.tools/go/types/initorder.go	212;"	m	access:public	ctype:nodeQueue	line:212	signature:()	type:interface{}
 Pos	build/src/code.google.com/p/go.tools/astutil/enclosing.go	169;"	m	access:public	ctype:tokenNode	line:169	signature:()	type:token.Pos
 Pos	build/src/code.google.com/p/go.tools/go/pointer/api.go	110;"	w	access:public	ctype:Warning	line:110	type:token.Pos
@@ -2325,7 +2329,7 @@ Refs	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	32;"	w	access:
 Register	aptserver.go	51;"	m	access:public	ctype:AptServer	line:51	signature:(mux *http.ServeMux)
 Register	build/src/code.google.com/p/go.tools/godoc/redirect/redirect.go	18;"	f	access:public	line:18	signature:(mux *http.ServeMux)
 Register	build/src/code.google.com/p/go.tools/present/parse.go	59;"	f	access:public	line:59	signature:(name string, parser ParseFunc)
-ReifyCommit	aptgenerator.go	234;"	m	access:public	ctype:aptBlobArchiveGenerator	line:234	signature:(id CommitID)	type:error
+ReifyCommit	aptgenerator.go	240;"	m	access:public	ctype:aptBlobArchiveGenerator	line:240	signature:(id CommitID)	type:error
 ReifyCommit	aptgenerator.go	25;"	m	access:public	line:25	ntype:AptGenerator	signature:(CommitID)	type:error
 Rel	build/src/code.google.com/p/go.tools/blog/atom/atom.go	37;"	w	access:public	ctype:Link	line:37	type:string
 RelPath	build/src/code.google.com/p/go.tools/dashboard/app/build/dash.go	19;"	w	access:public	ctype:Dashboard	line:19	type:string
@@ -2336,7 +2340,7 @@ RelString	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	1463;"	m	access:pub
 RelString	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	1472;"	m	access:public	ctype:NamedConst	line:1472	signature:(from *types.Package)	type:string
 RelString	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	66;"	m	access:public	line:66	ntype:Member	signature:(*types.Package)	type:string
 Related	build/src/code.google.com/p/go.tools/blog/blog.go	53;"	w	access:public	ctype:Doc	line:53	type:[]*Doc
-Release	repoindex.go	364;"	w	access:public	ctype:RepoCommit	line:364	type:StoreID
+Release	repoindex.go	373;"	w	access:public	ctype:RepoCommit	line:373	type:StoreID
 RemoteRepo	build/src/code.google.com/p/go.tools/dashboard/builder/vcs.go	27;"	f	access:public	ctype:Repo	line:27	signature:(url, path string)	type:*Repo, error
 RemoteURL	build/src/github.com/tools/godep/dep.go	249;"	m	access:public	ctype:Dependency	line:249	signature:()	type:string
 Remove	build/src/code.google.com/p/go.tools/container/intsets/sparse.go	296;"	m	access:public	ctype:Sparse	line:296	signature:(x int)	type:bool
@@ -2347,10 +2351,10 @@ Repo	aptgenerator.go	31;"	w	access:public	ctype:aptBlobArchiveGenerator	line:31	
 Repo	aptserver.go	27;"	w	access:public	ctype:AptServer	line:27	type:AptRepo
 Repo	build/src/code.google.com/p/go.tools/dashboard/builder/vcs.go	20;"	t	access:public	line:20	type:struct
 Repo	build/src/code.google.com/p/go.tools/go/vcs/vcs.go	372;"	w	access:public	ctype:RepoRoot	line:372	type:string
-RepoAction	repoindex.go	347;"	t	access:public	line:347	type:struct
-RepoActionType	repoindex.go	337;"	t	access:public	line:337	type:int
+RepoAction	repoindex.go	356;"	t	access:public	line:356	type:struct
+RepoActionType	repoindex.go	346;"	t	access:public	line:346	type:int
 RepoBase	aptrepo.go	14;"	w	access:public	ctype:aptRepo	line:14	type:*string
-RepoCommit	repoindex.go	355;"	t	access:public	line:355	type:struct
+RepoCommit	repoindex.go	364;"	t	access:public	line:364	type:struct
 RepoItem	repoindex.go	59;"	t	access:public	line:59	type:struct
 RepoItemFile	repoindex.go	71;"	t	access:public	line:71	type:struct
 RepoItemType	repoindex.go	49;"	t	access:public	line:49	type:int
@@ -2380,7 +2384,7 @@ Results	build/src/code.google.com/p/go.tools/go/types/type.go	237;"	m	access:pub
 Return	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	1070;"	t	access:public	line:1070	type:struct
 Rev	build/src/github.com/tools/godep/dep.go	33;"	w	access:public	ctype:Dependency	line:33	type:string
 RevSync	build/src/github.com/tools/godep/vcs.go	138;"	m	access:public	ctype:VCS	line:138	signature:(dir, rev string)	type:error
-Revision	deb.go	29;"	w	access:public	ctype:DebVersion	line:29	type:string
+Revision	deb.go	30;"	w	access:public	ctype:DebVersion	line:30	type:string
 RevocationReason	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/signature.go	63;"	w	access:public	ctype:Signature	line:63	type:*uint8
 RevocationReasonText	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/signature.go	64;"	w	access:public	ctype:Signature	line:64	type:string
 Revocations	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/keys.go	29;"	w	access:public	ctype:Entity	line:29	type:[]*packet.Signature
@@ -2518,16 +2522,17 @@ SetRand	Godeps/_workspace/src/code.google.com/p/go-uuid/uuid/uuid.go	157;"	f	acc
 SetRef	store.go	264;"	m	access:public	ctype:sha1Store	line:264	signature:(name string, id StoreID)	type:error
 SetRef	store.go	38;"	m	access:public	line:38	ntype:Storer	signature:(name string, id StoreID)	type:error
 SetUnderlying	build/src/code.google.com/p/go.tools/go/types/type.go	390;"	m	access:public	ctype:Named	line:390	signature:(underlying Type)
+SetValue	deb.go	590;"	m	access:public	ctype:ControlParagraph	line:590	signature:(item string, val string)
 SetX	build/src/code.google.com/p/go.tools/cmd/vet/testdata/assign.go	13;"	m	access:public	ctype:ST	line:13	signature:(x int)
 SetX	build/src/code.google.com/p/go.tools/go/pointer/testdata/context.go	12;"	m	access:public	ctype:T	line:12	signature:(x *int)
 Sha1	changes.go	31;"	w	access:public	ctype:ChangesItem	line:31	type:string
-Sha1	deb.go	192;"	m	access:public	line:192	ntype:DebPackageInfoer	signature:()	type:[]byte, error
-Sha1	deb.go	417;"	m	access:public	ctype:debPackage	line:417	signature:()	type:[]byte, error
+Sha1	deb.go	193;"	m	access:public	line:193	ntype:DebPackageInfoer	signature:()	type:[]byte, error
+Sha1	deb.go	418;"	m	access:public	ctype:debPackage	line:418	signature:()	type:[]byte, error
 Sha1	upload_session.go	27;"	w	access:public	ctype:UploadItem	line:27	type:string
 Sha1Store	store.go	244;"	f	access:public	line:244	signature:(baseDir string, tempDir string, prefixDepth int)	type:Storer
 Sha256	changes.go	32;"	w	access:public	ctype:ChangesItem	line:32	type:string
-Sha256	deb.go	193;"	m	access:public	line:193	ntype:DebPackageInfoer	signature:()	type:[]byte, error
-Sha256	deb.go	430;"	m	access:public	ctype:debPackage	line:430	signature:()	type:[]byte, error
+Sha256	deb.go	194;"	m	access:public	line:194	ntype:DebPackageInfoer	signature:()	type:[]byte, error
+Sha256	deb.go	431;"	m	access:public	ctype:debPackage	line:431	signature:()	type:[]byte, error
 Sha256	upload_session.go	28;"	w	access:public	ctype:UploadItem	line:28	type:string
 ShadowRead	build/src/code.google.com/p/go.tools/cmd/vet/testdata/shadow.go	13;"	f	access:public	line:13	signature:(f *os.File, buf []byte)	type:error
 Shift	build/src/code.google.com/p/go.tools/go/exact/exact.go	793;"	f	access:public	line:793	signature:(x Value, op token.Token, s uint)	type:Value
@@ -2572,7 +2577,7 @@ SignatureV3	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/sig
 Signatures	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/keys.go	39;"	w	access:public	ctype:Identity	line:39	type:[]*packet.Signature
 SignedBy	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read.go	45;"	w	access:public	ctype:MessageDetails	line:45	type:*Key
 SignedBy	changes.go	34;"	w	access:public	ctype:ChangesItem	line:34	type:[]string
-SignedBy	deb.go	189;"	m	access:public	line:189	ntype:DebPackageInfoer	signature:()	type:*openpgp.Entity, error
+SignedBy	deb.go	190;"	m	access:public	line:190	ntype:DebPackageInfoer	signature:()	type:*openpgp.Entity, error
 SignedBy	deb.go	324;"	m	access:public	ctype:debPackage	line:324	signature:()	type:*openpgp.Entity, error
 SignedBy	upload_session.go	30;"	w	access:public	ctype:UploadItem	line:30	type:[]string
 SignedByKeyId	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read.go	44;"	w	access:public	ctype:MessageDetails	line:44	type:uint64
@@ -2609,8 +2614,8 @@ Snippet	build/src/code.google.com/p/go.tools/godoc/snippet.go	19;"	t	access:publ
 Snippets	build/src/code.google.com/p/go.tools/godoc/index.go	1065;"	w	access:public	ctype:fileIndex	line:1065	type:[]*Snippet
 Soft	build/src/code.google.com/p/go.tools/go/types/api.go	57;"	w	access:public	ctype:Error	line:57	type:bool
 SourceImports	build/src/code.google.com/p/go.tools/go/loader/loader.go	189;"	w	access:public	ctype:Config	line:189	type:bool
-Sources	repoindex.go	362;"	w	access:public	ctype:RepoCommit	line:362	type:StoreID
-SourcesGz	repoindex.go	363;"	w	access:public	ctype:RepoCommit	line:363	type:StoreID
+Sources	repoindex.go	371;"	w	access:public	ctype:RepoCommit	line:371	type:StoreID
+SourcesGz	repoindex.go	372;"	w	access:public	ctype:RepoCommit	line:372	type:StoreID
 Span	build/src/code.google.com/p/go.tools/cmd/vet/shadow.go	80;"	t	access:public	line:80	type:struct
 Sparse	build/src/code.google.com/p/go.tools/container/intsets/sparse.go	42;"	t	access:public	line:42	type:struct
 Spot	build/src/code.google.com/p/go.tools/godoc/index.go	204;"	t	access:public	line:204	type:struct
@@ -2836,7 +2841,7 @@ String	build/src/code.google.com/p/go.tools/godoc/vfs/namespace.go	122;"	m	acces
 String	build/src/code.google.com/p/go.tools/godoc/vfs/os.go	26;"	m	access:public	ctype:osFS	line:26	signature:()	type:string
 String	build/src/code.google.com/p/go.tools/godoc/vfs/vfs.go	22;"	m	access:public	line:22	ntype:FileSystem	signature:()	type:string
 String	build/src/code.google.com/p/go.tools/godoc/vfs/zipfs/zipfs.go	80;"	m	access:public	ctype:zipFS	line:80	signature:()	type:string
-String	deb.go	32;"	m	access:public	ctype:DebVersion	line:32	signature:()	type:string
+String	deb.go	33;"	m	access:public	ctype:DebVersion	line:33	signature:()	type:string
 String	store.go	22;"	m	access:public	ctype:StoreID	line:22	signature:()	type:string
 StringHeader	build/src/code.google.com/p/go.tools/cmd/vet/testdata/unsafeptr.go	55;"	t	access:public	line:55	type:struct
 StringVal	build/src/code.google.com/p/go.tools/go/exact/exact.go	208;"	f	access:public	line:208	signature:(x Value)	type:string
@@ -2910,7 +2915,7 @@ Swap	build/src/code.google.com/p/go.tools/oracle/pointsto.go	245;"	m	access:publ
 Swap	build/src/code.google.com/p/go.tools/oracle/pointsto.go	254;"	m	access:public	ctype:byPosAndString	line:254	signature:(i, j int)
 Swap	build/src/code.google.com/p/go.tools/oracle/referrers.go	71;"	m	access:public	ctype:byNamePos	line:71	signature:(i, j int)
 Swap	build/src/code.google.com/p/go.tools/oracle/testdata/src/main/implements.go	36;"	m	access:public	ctype:sorter	line:36	signature:(i, j int)
-Swap	repoindex.go	243;"	m	access:public	ctype:ByIndexOrder	line:243	signature:(i, j int)
+Swap	repoindex.go	252;"	m	access:public	ctype:ByIndexOrder	line:252	signature:(i, j int)
 Switch	build/src/code.google.com/p/go.tools/go/ssa/ssautil/switch.go	59;"	t	access:public	line:59	type:struct
 SwitchInAForLoop	build/src/code.google.com/p/go.tools/go/ssa/ssautil/testdata/switches.go	140;"	f	access:public	line:140	signature:(x int)
 SwitchInAForLoopUsingGoto	build/src/code.google.com/p/go.tools/go/ssa/ssautil/testdata/switches.go	163;"	f	access:public	line:163	signature:(x int)
@@ -3040,7 +3045,7 @@ TestCorrelate	build/src/code.google.com/p/go.tools/cmd/benchcmp/compare_test.go	
 TestCover	build/src/code.google.com/p/go.tools/cmd/cover/cover_test.go	42;"	f	access:public	line:42	signature:(t *testing.T)
 TestDCE	Godeps/_workspace/src/code.google.com/p/go-uuid/uuid/uuid_test.go	362;"	f	access:public	line:362	signature:(t *testing.T)
 TestDSAHashTruncatation	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read_test.go	81;"	f	access:public	line:81	signature:(t *testing.T)
-TestDebControlPersist	deb_test.go	119;"	f	access:public	line:119	signature:(t *testing.T)
+TestDebControlPersist	deb_test.go	137;"	f	access:public	line:137	signature:(t *testing.T)
 TestDebVersionComparison	deb_test.go	37;"	f	access:public	line:37	signature:(t *testing.T)
 TestDebVersionFromString	deb_test.go	78;"	f	access:public	line:78	signature:(t *testing.T)
 TestDebVersionToString	deb_test.go	101;"	f	access:public	line:101	signature:(t *testing.T)
@@ -3334,7 +3339,7 @@ Type	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	21;"	w	access:
 Type	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	222;"	w	access:public	ctype:Describe	line:222	type:*DescribeType
 Type	build/src/code.google.com/p/go.tools/oracle/serial/serial.go	99;"	w	access:public	ctype:FreeVar	line:99	type:string
 Type	build/src/code.google.com/p/go.tools/oracle/testdata/src/lib/lib.go	3;"	t	access:public	line:3	type:int
-Type	repoindex.go	348;"	w	access:public	ctype:RepoAction	line:348	type:RepoActionType
+Type	repoindex.go	357;"	w	access:public	ctype:RepoAction	line:357	type:RepoActionType
 Type	repoindex.go	60;"	w	access:public	ctype:RepoItem	line:60	type:RepoItemType
 TypeAndValue	build/src/code.google.com/p/go.tools/go/types/api.go	124;"	t	access:public	line:124	type:struct
 TypeAssert	build/src/code.google.com/p/go.tools/go/ssa/ssa.go	993;"	t	access:public	line:993	type:struct
@@ -3515,8 +3520,8 @@ Version	Godeps/_workspace/src/code.google.com/p/go-uuid/uuid/uuid.go	121;"	m	acc
 Version	Godeps/_workspace/src/code.google.com/p/go-uuid/uuid/uuid.go	20;"	t	access:public	line:20	type:byte
 Version	build/src/code.google.com/p/go.tools/godoc/index.go	1062;"	w	access:public	ctype:fileIndex	line:1062	type:int
 Version	build/src/code.google.com/p/go.tools/godoc/page.go	23;"	w	access:public	ctype:Page	line:23	type:string
-Version	deb.go	182;"	m	access:public	line:182	ntype:DebPackageInfoer	signature:()	type:DebVersion, error
-Version	deb.go	28;"	w	access:public	ctype:DebVersion	line:28	type:string
+Version	deb.go	183;"	m	access:public	line:183	ntype:DebPackageInfoer	signature:()	type:DebVersion, error
+Version	deb.go	29;"	w	access:public	ctype:DebVersion	line:29	type:string
 Version	deb.go	357;"	m	access:public	ctype:debPackage	line:357	signature:()	type:DebVersion, error
 Version	repoindex.go	62;"	w	access:public	ctype:RepoItem	line:62	type:DebVersion
 Visit	build/src/code.google.com/p/go.tools/astutil/imports.go	245;"	m	access:public	ctype:visitFn	line:245	signature:(node ast.Node)	type:ast.Visitor
@@ -3569,7 +3574,7 @@ Write	build/src/code.google.com/p/go.tools/godoc/tab.go	37;"	m	access:public	cty
 Write	build/src/code.google.com/p/go.tools/playground/socket/socket.go	340;"	m	access:public	ctype:messageWriter	line:340	signature:(b []byte)	type:int, error
 Write	store.go	325;"	m	access:public	ctype:hashedStoreWriter	line:325	signature:(p []byte)	type:int, error
 WriteAST	build/src/code.google.com/p/go.tools/refactor/eg/eg.go	261;"	f	access:public	line:261	signature:(fset *token.FileSet, filename string, f *ast.File)	type:error
-WriteDebianControl	deb.go	580;"	f	access:public	line:580	signature:(out io.Writer, paragraphs ControlFile, start []string, end []string)
+WriteDebianControl	deb.go	640;"	f	access:public	line:640	signature:(out io.Writer, paragraphs ControlFile, start []string, end []string)
 WriteExpr	build/src/code.google.com/p/go.tools/go/types/exprstring.go	22;"	f	access:public	line:22	signature:(buf *bytes.Buffer, x ast.Expr)
 WriteFunction	build/src/code.google.com/p/go.tools/go/ssa/func.go	535;"	f	access:public	line:535	signature:(buf *bytes.Buffer, f *Function)
 WriteGlobalHeader	Godeps/_workspace/src/github.com/blakesmith/ar/writer.go	80;"	m	access:public	ctype:Writer	line:80	signature:()	type:error
@@ -4457,7 +4462,7 @@ cache	build/src/code.google.com/p/go.tools/dashboard/app/build/init.go	16;"	i	li
 cache	build/src/code.google.com/p/go.tools/dashboard/app/build/ui.go	22;"	i	line:22
 cache	build/src/code.google.com/p/go.tools/dashboard/app/cache/cache.go	7;"	p	line:7
 cake	build/src/code.google.com/p/go.tools/oracle/testdata/src/main/describe.go	9;"	t	access:private	line:9	type:float64
-calcedSigs	deb.go	222;"	w	access:private	ctype:debPackage	line:222	type:map[string]debSigs
+calcedSigs	deb.go	223;"	w	access:private	ctype:debPackage	line:223	type:map[string]debSigs
 call	build/src/code.google.com/p/go.tools/cmd/vet/print.go	115;"	w	access:private	ctype:formatState	line:115	type:*ast.CallExpr
 call	build/src/code.google.com/p/go.tools/go/ssa/interp/interp.go	450;"	f	access:private	line:450	signature:(i *interpreter, caller *frame, callpos token.Pos, fn value, args []value)	type:value
 call	build/src/code.google.com/p/go.tools/go/types/call.go	14;"	m	access:private	ctype:Checker	line:14	signature:(x *operand, e *ast.CallExpr)	type:exprKind
@@ -4562,7 +4567,7 @@ chanreflect1	build/src/code.google.com/p/go.tools/go/pointer/testdata/chanreflec
 chanreflect1i	build/src/code.google.com/p/go.tools/go/pointer/testdata/chanreflect.go	20;"	f	access:private	line:20	signature:()
 chanreflect2	build/src/code.google.com/p/go.tools/go/pointer/testdata/chanreflect.go	30;"	f	access:private	line:30	signature:()
 chanreflect2	build/src/code.google.com/p/go.tools/go/pointer/testdata/chanreflect1.go	23;"	f	access:private	line:23	signature:()
-charOrder	deb.go	92;"	f	access:private	line:92	signature:(c int)	type:int
+charOrder	deb.go	93;"	f	access:private	line:93	signature:(c int)	type:int
 charsetReader	build/src/code.google.com/p/go.tools/go/vcs/discovery.go	20;"	f	access:private	line:20	signature:(charset string, input io.Reader)	type:io.Reader, error
 check	build/src/code.google.com/p/go.tools/cmd/cover/testdata/main.go	28;"	f	access:private	line:28	signature:(line, count uint32)
 check	build/src/code.google.com/p/go.tools/cmd/vet/types.go	16;"	m	access:private	ctype:Package	line:16	signature:(fs *token.FileSet, astFiles []*ast.File)	type:error
@@ -4666,7 +4671,7 @@ code.google.com/p/go.crypto/openpgp	Godeps/_workspace/src/code.google.com/p/go.c
 code.google.com/p/go.crypto/openpgp	aptgenerator.go	18;"	i	line:18
 code.google.com/p/go.crypto/openpgp	changes.go	13;"	i	line:13
 code.google.com/p/go.crypto/openpgp	changes_test.go	8;"	i	line:8
-code.google.com/p/go.crypto/openpgp	deb.go	21;"	i	line:21
+code.google.com/p/go.crypto/openpgp	deb.go	22;"	i	line:22
 code.google.com/p/go.crypto/openpgp	main.go	18;"	i	line:18
 code.google.com/p/go.crypto/openpgp	upload_manager.go	10;"	i	line:10
 code.google.com/p/go.crypto/openpgp	upload_session.go	17;"	i	line:17
@@ -4677,7 +4682,7 @@ code.google.com/p/go.crypto/openpgp/armor	Godeps/_workspace/src/code.google.com/
 code.google.com/p/go.crypto/openpgp/armor	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/write.go	8;"	i	line:8
 code.google.com/p/go.crypto/openpgp/clearsign	aptgenerator.go	19;"	i	line:19
 code.google.com/p/go.crypto/openpgp/clearsign	changes.go	14;"	i	line:14
-code.google.com/p/go.crypto/openpgp/clearsign	deb.go	22;"	i	line:22
+code.google.com/p/go.crypto/openpgp/clearsign	deb.go	23;"	i	line:23
 code.google.com/p/go.crypto/openpgp/elgamal	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/encrypted_key.go	8;"	i	line:8
 code.google.com/p/go.crypto/openpgp/elgamal	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/private_key.go	9;"	i	line:9
 code.google.com/p/go.crypto/openpgp/elgamal	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/public_key.go	9;"	i	line:9
@@ -5085,7 +5090,7 @@ commitsPerPage	build/src/code.google.com/p/go.tools/dashboard/app/build/handler.
 commonKey128	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/ocfb_test.go	14;"	v	access:private	line:14
 commonNotify	build/src/code.google.com/p/go.tools/dashboard/app/build/notify.go	219;"	f	access:private	line:219	signature:(c appengine.Context, com *Commit, builder, logHash string)	type:error
 compLit	build/src/code.google.com/p/go.tools/go/ssa/builder.go	1020;"	m	access:private	ctype:builder	line:1020	signature:(fn *Function, addr Value, e *ast.CompositeLit, isZero bool)
-compareComponent	deb.go	110;"	f	access:private	line:110	signature:(a string, b string)	type:int
+compareComponent	deb.go	111;"	f	access:private	line:111	signature:(a string, b string)	type:int
 comparePerfResults	build/src/code.google.com/p/go.tools/dashboard/app/build/handler.go	669;"	f	access:private	line:669	signature:(c appengine.Context, pc *PerfConfig, builder string, prevRes, res *PerfResult)	type:error
 comparer	build/src/code.google.com/p/go.tools/godoc/index.go	73;"	t	access:private	line:73	type:func(x, y interface{}) bool
 comparison	build/src/code.google.com/p/go.tools/go/types/expr.go	566;"	m	access:private	ctype:Checker	line:566	signature:(x, y *operand, op token.Token)
@@ -5151,7 +5156,7 @@ context2	build/src/code.google.com/p/go.tools/go/pointer/testdata/context.go	23;
 contextForRequest	build/src/code.google.com/p/go.tools/dashboard/app/build/handler.go	809;"	f	access:private	line:809	signature:(r *http.Request)	type:appengine.Context
 continuation	build/src/code.google.com/p/go.tools/go/ssa/interp/interp.go	58;"	t	access:private	line:58	type:int
 contour	build/src/code.google.com/p/go.tools/go/pointer/callgraph.go	24;"	m	access:private	ctype:cgnode	line:24	signature:()	type:string
-controlMap	deb.go	229;"	w	access:private	ctype:debPackage	line:229	type:map[string]string
+controlMap	deb.go	230;"	w	access:private	ctype:debPackage	line:230	type:*ControlParagraph
 conv	build/src/code.google.com/p/go.tools/go/ssa/interp/ops.go	1154;"	f	access:private	line:1154	signature:(t_dst, t_src types.Type, x value)	type:value
 conv1	build/src/code.google.com/p/go.tools/go/pointer/testdata/conv.go	9;"	f	access:private	line:9	signature:()
 conv2	build/src/code.google.com/p/go.tools/go/pointer/testdata/conv.go	16;"	f	access:private	line:16	signature:()
@@ -5302,9 +5307,9 @@ deadcode	build/src/code.google.com/p/go.tools/oracle/testdata/src/main/callgraph
 deadcode	build/src/code.google.com/p/go.tools/oracle/testdata/src/main/callgraph.go	54;"	f	access:private	line:54	signature:()
 deadcode	build/src/code.google.com/p/go.tools/oracle/testdata/src/main/calls.go	83;"	f	access:private	line:83	signature:()
 deadcode	build/src/code.google.com/p/go.tools/oracle/testdata/src/main/pointsto.go	54;"	f	access:private	line:54	signature:()
-debPackage	deb.go	213;"	t	access:private	line:213	type:struct
-debSigs	deb.go	197;"	t	access:private	line:197	type:struct
-debSigsFile	deb.go	204;"	t	access:private	line:204	type:struct
+debPackage	deb.go	214;"	t	access:private	line:214	type:struct
+debSigs	deb.go	198;"	t	access:private	line:198	type:struct
+debSigsFile	deb.go	205;"	t	access:private	line:205	type:struct
 debug	build/src/code.google.com/p/go.tools/cmd/cover/cover_test.go	33;"	v	access:private	line:33
 debug	build/src/code.google.com/p/go.tools/go/gcimporter/gcimporter.go	27;"	c	access:private	line:27
 debug	build/src/code.google.com/p/go.tools/go/importer/export.go	20;"	c	access:private	line:20
@@ -5332,7 +5337,7 @@ declare	build/src/code.google.com/p/go.tools/go/types/decl.go	23;"	m	access:priv
 declareInSet	build/src/code.google.com/p/go.tools/go/types/typexpr.go	434;"	m	access:private	ctype:Checker	line:434	signature:(oset *objset, pos token.Pos, obj Object)	type:bool
 declarePkgObj	build/src/code.google.com/p/go.tools/go/types/resolver.go	100;"	m	access:private	ctype:Checker	line:100	signature:(ident *ast.Ident, obj Object, d *declInfo)
 declaredFunc	build/src/code.google.com/p/go.tools/go/ssa/promote.go	208;"	m	access:private	ctype:Program	line:208	signature:(obj *types.Func)	type:*Function
-decoder	repoindex.go	314;"	w	access:private	ctype:repoIndexReaderHandle	line:314	type:*gob.Decoder
+decoder	repoindex.go	323;"	w	access:private	ctype:repoIndexReaderHandle	line:323	type:*gob.Decoder
 decr	build/src/code.google.com/p/go.tools/go/pointer/testdata/channels.go	7;"	f	access:private	line:7	signature:(x int)	type:int
 decrypted	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read.go	61;"	w	access:private	ctype:MessageDetails	line:61	type:io.ReadCloser
 def	build/src/code.google.com/p/go.tools/go/types/universe.go	198;"	f	access:private	line:198	signature:(obj Object)
@@ -5550,7 +5555,7 @@ empty	build/src/code.google.com/p/go.tools/go/ssa/interp/testdata/coverage.go	35
 emptyMethodSet	build/src/code.google.com/p/go.tools/go/types/methodset.go	63;"	v	access:private	line:63	type:MethodSet
 enclosingObj	build/src/code.google.com/p/go.tools/go/pointer/analysis.go	147;"	m	access:private	ctype:analysis	line:147	signature:(id nodeid)	type:nodeid
 enclosingTarget	build/src/code.google.com/p/go.tools/go/types/labels.go	78;"	m	access:private	ctype:block	line:78	signature:(name string)	type:*ast.LabeledStmt
-encoder	repoindex.go	275;"	w	access:private	ctype:repoIndexWriterHandle	line:275	type:*gob.Encoder
+encoder	repoindex.go	284;"	w	access:private	ctype:repoIndexWriterHandle	line:284	type:*gob.Encoder
 encoding	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/armor/encode.go	100;"	t	access:private	line:100	type:struct
 encoding/base64	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/armor/armor.go	13;"	i	line:13
 encoding/base64	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/armor/encode.go	8;"	i	line:8
@@ -6634,7 +6639,7 @@ getTime	Godeps/_workspace/src/code.google.com/p/go-uuid/uuid/time.go	51;"	f	acce
 getenvOk	build/src/code.google.com/p/go.tools/dashboard/builder/env.go	247;"	f	access:private	line:247	signature:(k string)	type:string, bool
 getstatus	upload_session.go	93;"	w	access:private	ctype:changesSession	line:93	type:chan getStatusMsg
 getter	build/src/code.google.com/p/go.tools/go/types/call.go	99;"	t	access:private	line:99	type:func(x *operand, i int)
-github.com/blakesmith/ar	deb.go	23;"	i	line:23
+github.com/blakesmith/ar	deb.go	24;"	i	line:24
 github.com/kr/fs	build/src/github.com/kr/fs/example_test.go	7;"	i	line:7
 github.com/kr/fs	build/src/github.com/kr/fs/walk_test.go	13;"	i	line:13
 github.com/kr/fs	build/src/github.com/tools/godep/rewrite.go	14;"	i	line:14
@@ -7017,8 +7022,8 @@ h	build/src/code.google.com/p/go.tools/go/pointer/testdata/structs.go	24;"	w	acc
 h	build/src/code.google.com/p/go.tools/go/ssa/interp/testdata/callstack.go	27;"	f	access:private	line:27	signature:()
 h	build/src/code.google.com/p/go.tools/go/ssa/interp/testdata/mrvchain.go	44;"	f	access:private	line:44	signature:()	type:interface{}, bool
 h2	build/src/code.google.com/p/go.tools/go/ssa/interp/testdata/mrvchain.go	50;"	f	access:private	line:50	signature:()	type:interface{}, bool
-handle	repoindex.go	274;"	w	access:private	ctype:repoIndexWriterHandle	line:274	type:StoreWriteCloser
-handle	repoindex.go	313;"	w	access:private	ctype:repoIndexReaderHandle	line:313	type:io.ReadCloser
+handle	repoindex.go	283;"	w	access:private	ctype:repoIndexWriterHandle	line:283	type:StoreWriteCloser
+handle	repoindex.go	322;"	w	access:private	ctype:repoIndexReaderHandle	line:322	type:io.ReadCloser
 handleBailout	build/src/code.google.com/p/go.tools/go/types/check.go	194;"	m	access:private	ctype:Checker	line:194	signature:(err *error)
 handleOneCommit	build/src/code.google.com/p/go.tools/dashboard/app/build/perf_changes.go	99;"	f	access:private	ctype:perfChangesCommit	line:99	signature:(pc *PerfConfig, com *Commit, rc *PerfResultCache, baseRes *PerfResult)	type:*perfChangesCommit, error
 handlePathRedirects	build/src/code.google.com/p/go.tools/godoc/redirect/redirect.go	33;"	f	access:private	line:33	signature:(mux *http.ServeMux, redirects map[string]string, prefix string)
@@ -7768,7 +7773,7 @@ keyHandler	build/src/code.google.com/p/go.tools/dashboard/app/build/handler.go	7
 keyIncorrectError	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/errors/errors.go	44;"	t	access:private	line:44	type:int
 keyRevocationHash	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/public_key.go	575;"	f	access:private	line:575	signature:(pk signingKey, hashFunc crypto.Hash)	type:hash.Hash, error
 keyRevokedError	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/errors/errors.go	60;"	t	access:private	line:60	type:int
-keyRing	deb.go	215;"	w	access:private	ctype:debPackage	line:215	type:openpgp.EntityList
+keyRing	deb.go	216;"	w	access:private	ctype:debPackage	line:216	type:openpgp.EntityList
 keyRing	upload_session.go	52;"	w	access:private	ctype:uploadSession	line:52	type:openpgp.EntityList
 keySchedule	Godeps/_workspace/src/code.google.com/p/go.crypto/cast5/cast5.go	124;"	t	access:private	line:124	type:[]keyScheduleRound
 keySchedule	Godeps/_workspace/src/code.google.com/p/go.crypto/cast5/cast5.go	188;"	m	access:private	ctype:Cipher	line:188	signature:(in []byte)
@@ -7960,6 +7965,7 @@ log	build/src/github.com/tools/godep/save.go	7;"	i	line:7
 log	build/src/github.com/tools/godep/update.go	5;"	i	line:5
 log	build/src/github.com/tools/godep/update_test.go	6;"	i	line:6
 log	changes.go	9;"	i	line:9
+log	deb.go	15;"	i	line:15
 log	main.go	12;"	i	line:12
 log	store.go	10;"	i	line:10
 log	upload_session.go	11;"	i	line:11
@@ -8346,8 +8352,8 @@ maxTime	build/src/code.google.com/p/go.tools/go/gcimporter/gcimporter_test.go	68
 maybeCreatePackage	build/src/code.google.com/p/go.tools/go/gccgoimporter/parser.go	721;"	m	access:private	ctype:parser	line:721	signature:()
 md	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read.go	298;"	w	access:private	ctype:checkReader	line:298	type:*MessageDetails
 md	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read.go	318;"	w	access:private	ctype:signatureCheckReader	line:318	type:*MessageDetails
-md5	deb.go	198;"	w	access:private	ctype:debSigs	line:198	type:string
-md5	deb.go	225;"	w	access:private	ctype:debPackage	line:225	type:[]byte
+md5	deb.go	199;"	w	access:private	ctype:debSigs	line:199	type:string
+md5	deb.go	226;"	w	access:private	ctype:debPackage	line:226	type:[]byte
 mdcPacketTagByte	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/symmetrically_encrypted.go	179;"	c	access:private	line:179
 mdcPlaintextHex	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/symmetrically_encrypted_test.go	78;"	c	access:private	line:78
 mdcTrailerSize	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/symmetrically_encrypted.go	103;"	c	access:private	line:103
@@ -9111,7 +9117,7 @@ parseConstDecl	build/src/code.google.com/p/go.tools/go/gcimporter/gcimporter.go	
 parseConstValue	build/src/code.google.com/p/go.tools/go/gccgoimporter/parser.go	251;"	m	access:private	ctype:parser	line:251	signature:()	type:exact.Value, types.Type
 parseDSA	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/public_key.go	297;"	m	access:private	ctype:PublicKey	line:297	signature:(r io.Reader)	type:error
 parseDSAPrivateKey	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/private_key.go	274;"	m	access:private	ctype:PrivateKey	line:274	signature:(data []byte)	type:error
-parseDebPackage	deb.go	448;"	m	access:private	ctype:debPackage	line:448	signature:()	type:error
+parseDebPackage	deb.go	449;"	m	access:private	ctype:debPackage	line:449	signature:()	type:error
 parseDecl	build/src/code.google.com/p/go.tools/go/gcimporter/gcimporter.go	901;"	m	access:private	ctype:parser	line:901	signature:()
 parseDir	build/src/code.google.com/p/go.tools/cmd/gotype/gotype.go	143;"	f	access:private	line:143	signature:(dirname string)	type:[]*ast.File, error
 parseDirective	build/src/code.google.com/p/go.tools/go/gccgoimporter/parser.go	777;"	m	access:private	ctype:parser	line:777	signature:()
@@ -9192,7 +9198,7 @@ parseSequence	build/src/code.google.com/p/go.tools/godoc/spec.go	107;"	m	access:
 parseSignature	build/src/code.google.com/p/go.tools/go/gcimporter/gcimporter.go	562;"	m	access:private	ctype:parser	line:562	signature:(recv *types.Var)	type:*types.Signature
 parseSignatureSubpacket	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/signature.go	196;"	f	access:private	line:196	signature:(sig *Signature, subpacket []byte, isHashed bool)	type:[]byte, error
 parseSignatureSubpackets	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/signature.go	165;"	f	access:private	line:165	signature:(sig *Signature, subpackets []byte, isHashed bool)	type:error
-parseSigsFile	deb.go	234;"	f	access:private	ctype:debSigsFile	line:234	signature:(sig string, kr openpgp.EntityList)	type:*debSigsFile, error
+parseSigsFile	deb.go	235;"	f	access:private	ctype:debSigsFile	line:235	signature:(sig string, kr openpgp.EntityList)	type:*debSigsFile, error
 parseStdin	build/src/code.google.com/p/go.tools/cmd/gotype/gotype.go	98;"	f	access:private	line:98	signature:()	type:*ast.File, error
 parseString	build/src/code.google.com/p/go.tools/go/gccgoimporter/parser.go	81;"	m	access:private	ctype:parser	line:81	signature:()	type:string
 parseStructType	build/src/code.google.com/p/go.tools/go/gccgoimporter/parser.go	471;"	m	access:private	ctype:parser	line:471	signature:(pkg *types.Package)	type:types.Type
@@ -9212,7 +9218,7 @@ parseUnquotedString	build/src/code.google.com/p/go.tools/go/gccgoimporter/parser
 parseUserId	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/userid.go	91;"	f	access:private	line:91	signature:(id string)	type:string, string, string
 parseVar	build/src/code.google.com/p/go.tools/go/gccgoimporter/parser.go	244;"	m	access:private	ctype:parser	line:244	signature:(pkg *types.Package)	type:*types.Var
 parseVarDecl	build/src/code.google.com/p/go.tools/go/gcimporter/gcimporter.go	839;"	m	access:private	ctype:parser	line:839	signature:()
-parsed	deb.go	217;"	w	access:private	ctype:debPackage	line:217	type:bool
+parsed	deb.go	218;"	w	access:private	ctype:debPackage	line:218	type:bool
 parsedData	build/src/code.google.com/p/go.tools/dashboard/app/build/build.go	408;"	w	access:private	ctype:PerfResult	line:408	type:map[string]map[string]*ParsedPerfResult
 parsedMPI	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/public_key.go	657;"	t	access:private	line:657	type:struct
 parser	build/src/code.google.com/p/go.tools/go/gccgoimporter/parser.go	21;"	t	access:private	line:21	type:struct
@@ -9755,7 +9761,7 @@ readSignedMessage	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read
 readTemplate	build/src/code.google.com/p/go.tools/cmd/godoc/handlers.go	42;"	f	access:private	line:42	signature:(name string)	type:*template.Template
 readTemplates	build/src/code.google.com/p/go.tools/cmd/godoc/handlers.go	62;"	f	access:private	line:62	signature:(p *godoc.Presentation, html bool)
 readToNextPublicKey	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/keys.go	287;"	f	access:private	line:287	signature:(packets *packet.Reader)	type:error
-reader	deb.go	214;"	w	access:private	ctype:debPackage	line:214	type:io.Reader
+reader	deb.go	215;"	w	access:private	ctype:debPackage	line:215	type:io.Reader
 readerFromHex	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/packet_test.go	39;"	f	access:private	line:39	signature:(s string)	type:io.Reader
 readerFromHex	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read_test.go	17;"	f	access:private	line:17	signature:(s string)	type:io.Reader
 readers	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/reader.go	16;"	w	access:private	ctype:Reader	line:16	type:[]io.Reader
@@ -9841,7 +9847,7 @@ reflect	build/src/code.google.com/p/go.tools/refactor/eg/rewrite.go	12;"	i	line:
 reflect	build/src/github.com/tools/godep/save_test.go	10;"	i	line:10
 reflect	build/src/github.com/tools/godep/update_test.go	9;"	i	line:9
 reflect	changes_test.go	4;"	i	line:4
-reflect	deb.go	15;"	i	line:15
+reflect	deb.go	16;"	i	line:16
 reflectCall	build/src/code.google.com/p/go.tools/go/pointer/reflect.go	332;"	f	access:private	line:332	signature:(a *analysis, cgn *cgnode, dotdotdot bool)
 reflectCallImpl	build/src/code.google.com/p/go.tools/go/pointer/reflect.go	308;"	f	access:private	line:308	signature:(a *analysis, cgn *cgnode, site *callsite, recv, arg nodeid, dotdotdot bool)	type:nodeid
 reflectChanOfConstraint	build/src/code.google.com/p/go.tools/go/pointer/reflect.go	967;"	t	access:private	line:967	type:struct
@@ -10036,8 +10042,8 @@ replaceSucc	build/src/code.google.com/p/go.tools/go/ssa/func.go	88;"	m	access:pr
 repo	build/src/code.google.com/p/go.tools/go/vcs/vcs.go	326;"	w	access:private	ctype:vcsPath	line:326	type:string
 repoBlobStore	repoindex.go	30;"	t	access:private	line:30	type:struct
 repoForTool	build/src/code.google.com/p/go.tools/dashboard/builder/main.go	550;"	f	access:private	line:550	signature:()	type:*vcs.RepoRoot, error
-repoIndexReaderHandle	repoindex.go	312;"	t	access:private	line:312	type:struct
-repoIndexWriterHandle	repoindex.go	273;"	t	access:private	line:273	type:struct
+repoIndexReaderHandle	repoindex.go	321;"	t	access:private	line:321	type:struct
+repoIndexWriterHandle	repoindex.go	282;"	t	access:private	line:282	type:struct
 repoRe	build/src/code.google.com/p/go.tools/dashboard/app/build/ui.go	380;"	v	access:private	line:380
 repoRoot	build/src/github.com/tools/godep/dep.go	46;"	w	access:private	ctype:Dependency	line:46	type:*vcs.RepoRoot
 repoURL	build/src/code.google.com/p/go.tools/dashboard/app/build/ui.go	383;"	f	access:private	line:383	signature:(dashboard, hash, packagePath string)	type:string, error
@@ -10335,11 +10341,11 @@ setup	build/src/code.google.com/p/go.tools/dashboard/builder/env.go	129;"	m	acce
 setup	build/src/code.google.com/p/go.tools/dashboard/builder/env.go	22;"	m	access:private	line:22	ntype:builderEnv	signature:(repo *Repo, workpath, hash string, envv []string)	type:string, error
 setupGoroot	build/src/code.google.com/p/go.tools/godoc/cmdline_test.go	24;"	f	access:private	line:24	signature:(t *testing.T)	type:func()
 sh	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/compressed.go	68;"	w	access:private	ctype:compressedWriteCloser	line:68	type:io.Closer
-sha1	deb.go	199;"	w	access:private	ctype:debSigs	line:199	type:string
-sha1	deb.go	226;"	w	access:private	ctype:debPackage	line:226	type:[]byte
+sha1	deb.go	200;"	w	access:private	ctype:debSigs	line:200	type:string
+sha1	deb.go	227;"	w	access:private	ctype:debPackage	line:227	type:[]byte
 sha1Checksum	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/private_key.go	32;"	w	access:private	ctype:PrivateKey	line:32	type:bool
 sha1Store	store.go	42;"	t	access:private	line:42	type:struct
-sha256	deb.go	227;"	w	access:private	ctype:debPackage	line:227	type:[]byte
+sha256	deb.go	228;"	w	access:private	ctype:debPackage	line:228	type:[]byte
 sharpNumFlag	build/src/code.google.com/p/go.tools/cmd/vet/print.go	337;"	c	access:private	line:337
 shebang	build/src/code.google.com/p/go.tools/playground/socket/socket.go	202;"	f	access:private	line:202	signature:(body string)	type:string, []string
 shift	build/src/code.google.com/p/go.tools/go/types/expr.go	618;"	m	access:private	ctype:Checker	line:618	signature:(x, y *operand, op token.Token)
@@ -10367,13 +10373,13 @@ signatureExpirationSubpacket	Godeps/_workspace/src/code.google.com/p/go.crypto/o
 signatureSubpacketType	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/signature.go	180;"	t	access:private	line:180	type:uint8
 signatureTag	build/src/code.google.com/p/go.tools/go/importer/predefined.go	30;"	c	access:private	line:30
 signatureWriter	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/write.go	326;"	t	access:private	line:326	type:struct
-signatures	deb.go	206;"	w	access:private	ctype:debSigsFile	line:206	type:map[string]debSigs
-signatures	deb.go	221;"	w	access:private	ctype:debPackage	line:221	type:map[string]*debSigsFile
+signatures	deb.go	207;"	w	access:private	ctype:debSigsFile	line:207	type:map[string]debSigs
+signatures	deb.go	222;"	w	access:private	ctype:debPackage	line:222	type:map[string]*debSigsFile
 signed	changes.go	20;"	w	access:private	ctype:ChangesFile	line:20	type:bool
-signed	deb.go	218;"	w	access:private	ctype:debPackage	line:218	type:bool
+signed	deb.go	219;"	w	access:private	ctype:debPackage	line:219	type:bool
 signedBy	changes.go	22;"	w	access:private	ctype:ChangesFile	line:22	type:*openpgp.Entity
-signedBy	deb.go	207;"	w	access:private	ctype:debSigsFile	line:207	type:*openpgp.Entity
-signedBy	deb.go	223;"	w	access:private	ctype:debPackage	line:223	type:*openpgp.Entity
+signedBy	deb.go	208;"	w	access:private	ctype:debSigsFile	line:208	type:*openpgp.Entity
+signedBy	deb.go	224;"	w	access:private	ctype:debPackage	line:224	type:*openpgp.Entity
 signedEncryptedMessage2Hex	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read_test.go	333;"	c	access:private	line:333
 signedEncryptedMessageHex	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read_test.go	331;"	c	access:private	line:331
 signedEncryptedMessageTests	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/read_test.go	137;"	v	access:private	line:137
@@ -10518,7 +10524,7 @@ sort	build/src/code.google.com/p/go.tools/oracle/what.go	14;"	i	line:14
 sort	build/src/code.google.com/p/go.tools/refactor/eg/rewrite.go	13;"	i	line:13
 sort	build/src/github.com/tools/godep/dep.go	14;"	i	line:14
 sort	build/src/github.com/tools/godep/save.go	10;"	i	line:10
-sort	deb.go	16;"	i	line:16
+sort	deb.go	17;"	i	line:17
 sort	repoindex.go	8;"	i	line:8
 sortImports	build/src/code.google.com/p/go.tools/imports/sortimports.go	20;"	f	access:private	line:20	signature:(fset *token.FileSet, f *ast.File)
 sortImports	build/src/code.google.com/p/go.tools/imports/sortimports_compat.go	14;"	v	access:private	line:14
@@ -10708,7 +10714,7 @@ strconv	build/src/code.google.com/p/go.tools/present/code.go	14;"	i	line:14
 strconv	build/src/code.google.com/p/go.tools/refactor/eg/rewrite.go	14;"	i	line:14
 strconv	build/src/github.com/tools/godep/rewrite.go	7;"	i	line:7
 strconv	changes.go	10;"	i	line:10
-strconv	deb.go	17;"	i	line:17
+strconv	deb.go	18;"	i	line:18
 strconv	repoindex.go	9;"	i	line:9
 strictShadowing	build/src/code.google.com/p/go.tools/cmd/vet/shadow.go	41;"	v	access:private	line:41
 stride	Godeps/_workspace/src/code.google.com/p/go.crypto/openpgp/packet/symmetrically_encrypted_test.go	20;"	w	access:private	ctype:testReader	line:20	type:int
@@ -10851,7 +10857,7 @@ strings	build/src/github.com/tools/godep/update.go	9;"	i	line:9
 strings	build/src/github.com/tools/godep/vcs.go	10;"	i	line:10
 strings	changes.go	11;"	i	line:11
 strings	changes_test.go	5;"	i	line:5
-strings	deb.go	18;"	i	line:18
+strings	deb.go	19;"	i	line:19
 strings	deb_test.go	5;"	i	line:5
 strings	repoindex.go	10;"	i	line:10
 strings	store.go	14;"	i	line:14
@@ -11464,7 +11470,7 @@ unicode	build/src/code.google.com/p/go.tools/godoc/godoc.go	30;"	i	line:30
 unicode	build/src/code.google.com/p/go.tools/godoc/index.go	63;"	i	line:63
 unicode	build/src/code.google.com/p/go.tools/present/parse.go	20;"	i	line:20
 unicode	build/src/code.google.com/p/go.tools/present/style.go	12;"	i	line:12
-unicode	deb.go	19;"	i	line:19
+unicode	deb.go	20;"	i	line:20
 unicode/utf8	build/src/code.google.com/p/go.tools/cmd/godoc/codewalk.go	30;"	i	line:30
 unicode/utf8	build/src/code.google.com/p/go.tools/cmd/vet/print.go	16;"	i	line:16
 unicode/utf8	build/src/code.google.com/p/go.tools/dashboard/app/build/handler.go	17;"	i	line:17
@@ -11604,7 +11610,7 @@ validJSONPFunc	build/src/code.google.com/p/go.tools/blog/blog.go	27;"	v	access:p
 validKey	build/src/code.google.com/p/go.tools/dashboard/app/build/handler.go	789;"	f	access:private	line:789	signature:(c appengine.Context, key, builder string)	type:bool
 validateDebs	upload_session.go	51;"	w	access:private	ctype:uploadSession	line:51	type:bool
 validated	changes.go	21;"	w	access:private	ctype:ChangesFile	line:21	type:bool
-validated	deb.go	219;"	w	access:private	ctype:debPackage	line:219	type:bool
+validated	deb.go	220;"	w	access:private	ctype:debPackage	line:220	type:bool
 validatedImportPath	build/src/code.google.com/p/go.tools/go/types/resolver.go	81;"	f	access:private	line:81	signature:(path string)	type:string, error
 value	build/src/code.google.com/p/go.tools/go/importer/export.go	136;"	m	access:private	ctype:exporter	line:136	signature:(x exact.Value)
 value	build/src/code.google.com/p/go.tools/go/importer/import.go	138;"	m	access:private	ctype:importer	line:138	signature:()	type:exact.Value
@@ -11665,7 +11671,7 @@ verify	build/src/code.google.com/p/go.tools/cmd/cover/testdata/main.go	50;"	f	ac
 verify	build/src/code.google.com/p/go.tools/go/types/hilbert_test.go	152;"	m	access:private	ctype:gen	line:152	signature:(n int)
 version	Godeps/_workspace/src/code.google.com/p/go-uuid/uuid/uuid_test.go	18;"	w	access:private	ctype:test	line:18	type:Version
 version	build/src/code.google.com/p/go.tools/go/importer/predefined.go	11;"	c	access:private	line:11
-version	deb.go	205;"	w	access:private	ctype:debSigsFile	line:205	type:int
+version	deb.go	206;"	w	access:private	ctype:debSigsFile	line:206	type:int
 vet	build/src/code.google.com/p/go.tools/cmd/vet/main.go	110;"	f	access:private	line:110	signature:(name string)	type:bool
 vfs	build/src/code.google.com/p/go.tools/godoc/vfs/namespace.go	5;"	p	line:5
 vfs	build/src/code.google.com/p/go.tools/godoc/vfs/os.go	5;"	p	line:5

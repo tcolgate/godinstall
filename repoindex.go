@@ -90,17 +90,17 @@ func (r repoBlobStore) AddDeb(file *ChangesItem) (*RepoItem, error) {
 	}
 
 	control, _ := pkg.Control()
-	arch, ok := control["Architecture"]
+	arch, ok := control.GetValue("Architecture")
 	if !ok {
 		arch = "all"
 	}
 	item.Architecture = arch
 
-	control["Filename"] = file.Filename
-	control["Size"] = strconv.FormatInt(file.Size, 10)
-	control["MD5sum"] = file.Md5
-	control["SHA1"] = file.Sha1
-	control["SHA256"] = file.Sha256
+	control.SetValue("Filename", file.Filename)
+	control.SetValue("Size", strconv.FormatInt(file.Size, 10))
+	control.SetValue("MD5sum", file.Md5)
+	control.SetValue("SHA1", file.Sha1)
+	control.SetValue("SHA256", file.Sha256)
 
 	paragraphs := make(ControlFile, 1)
 	paragraphs[0] = control
@@ -155,7 +155,7 @@ func (r repoBlobStore) ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoI
 // hashes for the same data.
 type consistantControlFile []struct {
 	Keys   []string
-	Values []string
+	Values [][]string
 }
 
 func (r repoBlobStore) GetDebianControlFile(id StoreID) (ControlFile, error) {
@@ -174,9 +174,13 @@ func (r repoBlobStore) GetDebianControlFile(id StoreID) (ControlFile, error) {
 
 	result := make(ControlFile, len(item))
 	for i := range item {
-		result[i] = make(map[string]string, 0)
+		para := MakeControlParagraph()
+		result[i] = &para
 		for j := range item[i].Keys {
-			result[i][item[i].Keys[j]] = item[i].Values[j]
+			strVals := item[i].Values[j]
+			for k := range strVals {
+				result[i].AddValue(item[i].Keys[j], strVals[k])
+			}
 		}
 	}
 
@@ -187,11 +191,11 @@ func (r repoBlobStore) AddDebianControlFile(item ControlFile) (StoreID, error) {
 	data := make(consistantControlFile, len(item))
 
 	for i := range item {
-		data[i].Keys = make([]string, len(item[i]))
-		data[i].Values = make([]string, len(item[i]))
+		data[i].Keys = make([]string, len(*item[i]))
+		data[i].Values = make([][]string, len(*item[i]))
 
 		j := 0
-		for s := range item[i] {
+		for s := range *item[i] {
 			data[i].Keys[j] = s
 			j++
 		}
@@ -199,7 +203,12 @@ func (r repoBlobStore) AddDebianControlFile(item ControlFile) (StoreID, error) {
 
 		for j = range data[i].Keys {
 			key := data[i].Keys[j]
-			data[i].Values[j] = item[i][key]
+			valptrs, _ := item[i].GetValues(key)
+			vals := make([]string, len(valptrs))
+			for k := range valptrs {
+				vals[k] = *valptrs[k]
+			}
+			data[i].Values[j] = vals
 		}
 	}
 

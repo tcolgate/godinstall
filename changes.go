@@ -85,7 +85,7 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err
 		c.validated = false
 	}
 
-	paragraphs, err := ParseControlFile(br)
+	paragraphs, err := ParseDebianControl(br)
 
 	if err != nil {
 		return &c, err
@@ -99,16 +99,15 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err
 		log.Println("Only first section of the changes file will be parsed")
 	}
 
-	filesStr, ok := paragraphs[0]["Files"]
+	files, ok := paragraphs[0].GetValues("Files")
 
 	if !ok {
 		return nil, errors.New("No Files section in changes")
 	}
 
 	c.Files = make(map[string]*ChangesItem)
-	files := strings.Split(filesStr, "\n")
 	for _, f := range files {
-		fileDesc := strings.Fields(f)
+		fileDesc := strings.Fields(*f)
 		if len(fileDesc) == 5 {
 			size, _ := strconv.ParseInt(fileDesc[1], 10, 64)
 			cf := ChangesItem{
@@ -120,11 +119,10 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err
 		}
 	}
 
-	sha1sStr, ok := paragraphs[0]["Checksums-Sha1"]
+	sha1s, ok := paragraphs[0].GetValues("Checksums-Sha1")
 	if ok {
-		sha1s := strings.Split(sha1sStr, "\n")
 		for _, s := range sha1s {
-			fileDesc := strings.Fields(s)
+			fileDesc := strings.Fields(*s)
 			if len(fileDesc) == 3 {
 				name := fileDesc[2]
 				f, ok := c.Files[name]
@@ -137,11 +135,10 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err
 		}
 	}
 
-	sha256sStr, ok := paragraphs[0]["Checksums-Sha256"]
+	sha256s, ok := paragraphs[0].GetValues("Checksums-Sha256")
 	if ok {
-		sha256s := strings.Split(sha256sStr, "\n")
 		for _, s := range sha256s {
-			fileDesc := strings.Fields(s)
+			fileDesc := strings.Fields(*s)
 			if len(fileDesc) == 3 {
 				name := fileDesc[2]
 				f, ok := c.Files[name]

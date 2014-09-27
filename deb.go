@@ -587,6 +587,11 @@ func (ctrl ControlParagraph) GetValue(item string) (string, bool) {
 	return *v[0], ok
 }
 
+func (ctrl ControlParagraph) SetValue(item string, val string) {
+	ctrl[item] = []*string{&val}
+	return
+}
+
 func (ctrl ControlParagraph) AddValue(item string, val string) {
 	field, ok := ctrl[item]
 	if ok {
