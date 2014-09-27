@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 	"sort"
 	"strconv"
@@ -626,11 +625,13 @@ func ParseDebianControl(rawin io.Reader) (ControlFile, error) {
 			{
 				vs := strings.SplitN(line, ":", 2)
 				currfield = vs[0]
-				currpara.AddValue(currfield, strings.TrimSpace(vs[1]))
+				val := ""
+				if len(vs) > 1 {
+					val = strings.TrimSpace(vs[1])
+				}
+				currpara.AddValue(currfield, val)
 			}
 		}
-
-		log.Println(currpara)
 	}
 
 	return paras, nil
