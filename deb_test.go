@@ -109,27 +109,28 @@ func TestDebVersionToString(t *testing.T) {
 }
 
 var testDebControlPersist = []string{
-	"fielda: with a",
+	"Package: first",
 	"fieldb: bit of stuff",
 	"fieldc: and other stuff",
-	"description: thingy with",
-	" multiple lines of ",
-	" stuff",
 	"thiny2: ",
 	" val1",
 	" val2",
 	" val3",
+	"Description: thingy with",
+	" multiple lines of",
+	" stuff",
 	"",
+	"Package: second",
 	"fielda: with a",
 	"fieldb: bit of stuff",
 	"fieldc: and other stuff",
-	"description: thingy with",
-	" multiple lines of ",
-	" stuff",
 	"thiny2: ",
 	" val1",
 	" val2",
 	" val3",
+	"Description: thingy with",
+	" multiple lines of",
+	" stuff",
 }
 
 // Check that we output unknown fields in a consistant order
