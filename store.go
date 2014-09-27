@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
-	"syscall"
 )
 
 // An interface to a content addressable file store
@@ -28,15 +27,18 @@ func StoreIDFromString(str string) (StoreID, error) {
 	return StoreID(b), err
 }
 
+type StoreWalker func(StoreID) []StoreID
 type Storer interface {
 	Store() (StoreWriteCloser, error)     // Write something to the store
 	Open(StoreID) (io.ReadCloser, error)  // Open a file by id
 	Size(StoreID) (int64, error)          // Open a file by id
 	Link(StoreID, ...string) error        // Link a file id to a given location
-	GarbageCollect()                      // Remove all files with no external links
+	UnLink(StoreID) error                 // UnLink a blob
 	EmptyFileID() StoreID                 // Return the StoreID for an 0 byte object
 	SetRef(name string, id StoreID) error // Set a reference
 	GetRef(name string) (StoreID, error)  // Get a reference
+	ListRefs() map[string]StoreID         // Get a reference
+	ForEach(f func(StoreID))              // Call function for each ID
 }
 
 type sha1Store struct {
@@ -47,6 +49,7 @@ type sha1Store struct {
 
 func (t *sha1Store) storeIdToPathName(id StoreID) (string, string, error) {
 	if len(id) != sha1.Size {
+		log.Println("ID: ", id)
 		debug.PrintStack()
 		return "", "", errors.New("invalid StoreID " + string(id))
 	}
@@ -214,29 +217,15 @@ func (t *sha1Store) Link(id StoreID, targets ...string) (err error) {
 	return err
 }
 
-func (t *sha1Store) GarbageCollect() {
-	f := func(path string, info os.FileInfo, err error) error {
-		var reterr error
-
-		if info.IsDir() {
-			return reterr
-		}
-
-		// Have no idea how I'd do this on other OSs
-		stat := info.Sys().(*syscall.Stat_t)
-		if stat != nil {
-			nlink := int64(stat.Nlink)
-			if nlink == 1 {
-				reterr = os.Remove(path)
-			}
-		} else {
-			log.Println("Could not get UNIX stat info for " + path)
-		}
-		return reterr
+func (t *sha1Store) UnLink(id StoreID) (err error) {
+	name, _, err := t.storeIdToPathName(id)
+	if err != nil {
+		err = errors.New("Failed to translate id to path " + err.Error())
+		return err
 	}
+	err = os.Remove(name)
 
-	filepath.Walk(t.baseDir, f)
-	return
+	return err
 }
 
 // Create a store using hex encoded sha1 strings of ingested
@@ -305,6 +294,26 @@ func (t *sha1Store) GetRef(name string) (StoreID, error) {
 	return refid, err
 }
 
+func (t *sha1Store) ListRefs() map[string]StoreID {
+	refsPath := t.baseDir + "/refs"
+	refs := make(map[string]StoreID)
+
+	walker := func(path string, info os.FileInfo, err error) error {
+		var reterr error
+
+		if info.IsDir() {
+			return reterr
+		}
+		refname := path[len(refsPath)+1:]
+		id, _ := t.GetRef(refname)
+		refs[refname] = id
+		return reterr
+	}
+
+	filepath.Walk(refsPath, walker)
+	return refs
+}
+
 // StoreWriterCloser is used to arite a file to the file store.
 // Write data, and call Close() when done. After calling Close,
 // Identitiy will return the ID of the item in the store.
@@ -351,4 +360,23 @@ func (w *hashedStoreWriter) Identity() (id StoreID, err error) {
 	}
 
 	return StoreID(w.hasher.Sum(nil)), nil
+}
+
+func (t *sha1Store) ForEach(fn func(StoreID)) {
+	walker := func(path string, info os.FileInfo, err error) error {
+		var reterr error
+
+		if info.IsDir() {
+			return reterr
+		}
+
+		id, _ := StoreIDFromString(info.Name())
+		if len(id) != 0 {
+			fn(id)
+		}
+		return reterr
+	}
+
+	filepath.Walk(t.baseDir, walker)
+	return
 }

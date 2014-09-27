@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ type RepoStorer interface {
 	OpenIndex(id IndexID) (h repoIndexReaderHandle, err error)
 	ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoItem, error)
 	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, err error)
+	GarbageCollect()
 	Storer
 }
 
@@ -35,6 +37,60 @@ func NewRepoBlobStore(storeDir string, tmpDir string) RepoStorer {
 	return &repoBlobStore{
 		Sha1Store(storeDir, tmpDir, 3),
 	}
+}
+
+func (r repoBlobStore) gcWalkIndex(used *SafeMap, id IndexID) {
+	used.Set(StoreID(id).String(), true)
+	index, _ := r.OpenIndex(id)
+	for {
+		item, err := index.NextItem()
+		if err != nil {
+			break
+		}
+		ctrlid := item.ControlID
+		used.Set(ctrlid.String(), true)
+		for _, f := range item.Files {
+			used.Set(f.ID.String(), true)
+		}
+	}
+	index.Close()
+}
+
+func (r repoBlobStore) gcWalkCommit(used *SafeMap, id CommitID) {
+	used.Set(StoreID(id).String(), true)
+	commit, _ := r.GetCommit(id)
+	used.Set(commit.InRelease.String(), true)
+	used.Set(commit.Release.String(), true)
+	used.Set(commit.Packages.String(), true)
+	used.Set(commit.PackagesGz.String(), true)
+	used.Set(commit.Sources.String(), true)
+	used.Set(commit.SourcesGz.String(), true)
+
+	r.gcWalkIndex(used, commit.Index)
+
+	if StoreID(commit.Parent).String() != r.EmptyFileID().String() {
+		r.gcWalkCommit(used, commit.Parent)
+	}
+}
+
+func (r repoBlobStore) GarbageCollect() {
+	used := NewSafeMap()
+	refs := r.ListRefs()
+
+	for _, id := range refs {
+		r.gcWalkCommit(used, CommitID(id))
+	}
+
+	f := func(id StoreID) {
+		if !used.Check(id.String()) {
+			log.Println("Removing unused blob ", id.String())
+			r.UnLink(id)
+		}
+	}
+
+	r.ForEach(f)
+
+	return
 }
 
 func (r repoBlobStore) GetHead(name string) (CommitID, error) {

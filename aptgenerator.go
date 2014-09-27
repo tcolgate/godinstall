@@ -21,8 +21,8 @@ import (
 
 // Interface for any Apt repository generator
 type AptGenerator interface {
-	GenerateCommit(IndexID) (CommitID, error) // Regenerate the apt archive
-	ReifyCommit(CommitID) error               // Reify the commit into  the archive
+	GenerateCommit(CommitID, IndexID) (CommitID, error) // Regenerate the apt archive
+	ReifyCommit(CommitID) error                         // Reify the commit into  the archive
 	AddSession(session UploadSessioner) (respStatus int, respObj string, err error)
 }
 
@@ -49,9 +49,10 @@ func NewAptBlobArchiveGenerator(
 	}
 }
 
-func (a *aptBlobArchiveGenerator) GenerateCommit(indexid IndexID) (commitid CommitID, err error) {
+func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid IndexID) (commitid CommitID, err error) {
 	commit := &RepoCommit{}
 	commit.Index = indexid
+	commit.Parent = parentid
 	/*
 		sourcesFile, err := a.store.Store()
 		sourcesMD5er := md5.New()
@@ -309,7 +310,8 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 				respObj = "Creating empty index failed, " + err.Error()
 				return respStatus, respObj, err
 			}
-			head, err = a.GenerateCommit(emptyidx)
+			root := a.store.EmptyFileID()
+			head, err = a.GenerateCommit(CommitID(root), emptyidx)
 			if err != nil {
 				respStatus = http.StatusInternalServerError
 				respObj = "Creating empty commit failed, " + err.Error()
@@ -329,7 +331,7 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		respObj = "Creating new index failed, " + err.Error()
 	}
 
-	newhead, err := a.GenerateCommit(newidx)
+	newhead, err := a.GenerateCommit(head, newidx)
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "Creating updated commit failed, " + err.Error()

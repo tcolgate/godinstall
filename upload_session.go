@@ -149,7 +149,7 @@ func (s *changesSession) handler() {
 		if err != nil {
 			log.Println(err)
 		}
-		//s.store.GarbageCollect()
+		s.store.GarbageCollect()
 		var msg struct{}
 		s.done <- msg
 	}()
