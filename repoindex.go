@@ -61,7 +61,6 @@ func (r repoBlobStore) gcWalkCommit(used *SafeMap, id CommitID) {
 	commit, _ := r.GetCommit(id)
 	used.Set(commit.InRelease.String(), true)
 	used.Set(commit.Release.String(), true)
-	used.Set(commit.Packages.String(), true)
 	used.Set(commit.PackagesGz.String(), true)
 	used.Set(commit.Sources.String(), true)
 	used.Set(commit.SourcesGz.String(), true)
@@ -422,7 +421,6 @@ type RepoCommit struct {
 	Date        time.Time    // Time of the update
 	Index       IndexID      // The item index in the blob store
 	PoolPattern string       // The pool pattern we used to reify the index files
-	Packages    StoreID      // StoreID for reified binary index
 	PackagesGz  StoreID      // StoreID for reified compressed binary index
 	Sources     StoreID      // StoreID for reified source index
 	SourcesGz   StoreID      // StoreID for reified compressed source index

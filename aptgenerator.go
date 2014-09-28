@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -49,6 +50,24 @@ func NewAptBlobArchiveGenerator(
 	}
 }
 
+type writeCounter struct {
+	backing io.Writer
+	Count   int64
+}
+
+func (w *writeCounter) Write(p []byte) (n int, err error) {
+	n, err = w.backing.Write(p)
+	w.Count += int64(n)
+	return
+}
+
+func MakeWriteCounter(w io.Writer) *writeCounter {
+	return &writeCounter{
+		backing: w,
+		Count:   0,
+	}
+}
+
 func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid IndexID) (commitid CommitID, err error) {
 	commit := &RepoCommit{}
 	commit.Index = indexid
@@ -78,7 +97,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid Inde
 		sourcesWriter := io.MultiWriter(sourcesHashedWriter, sourcesGzWriter)
 	*/
 
-	packagesFile, err := a.store.Store()
+	packagesFile := MakeWriteCounter(ioutil.Discard)
 	packagesMD5er := md5.New()
 	packagesSHA1er := sha1.New()
 	packagesSHA256er := sha256.New()
@@ -155,9 +174,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid Inde
 		sourcesGzSHA256 := hex.EncodeToString(sourcesGzSHA256er.Sum(nil))
 	*/
 
-	packagesFile.Close()
-	commit.Packages, _ = packagesFile.Identity()
-	packagesSize, _ := a.store.Size(commit.Packages)
+	packagesSize := packagesFile.Count
 	packagesMD5 := hex.EncodeToString(packagesMD5er.Sum(nil))
 	packagesSHA1 := hex.EncodeToString(packagesSHA1er.Sum(nil))
 	packagesSHA256 := hex.EncodeToString(packagesSHA256er.Sum(nil))
@@ -278,13 +295,44 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 		}
 	}
 
-	err = a.store.Link(commit.Packages, a.Repo.Base()+"/Packages")
 	err = a.store.Link(commit.PackagesGz, a.Repo.Base()+"/Packages.gz")
-	//err = a.store.Link(commit.Sources, a.Repo.Base()+"/Sources")
+	if err != nil {
+		return err
+	}
+
+	// Reify the uncompressed packages file
+	gzreader, err := os.Open(a.Repo.Base() + "/Packages.gz")
+	defer gzreader.Close()
+	if err != nil {
+		return err
+	}
+	pkgs, err := os.Create(a.Repo.Base() + "/Packages")
+	defer pkgs.Close()
+	if err != nil {
+		return err
+	}
+	err = a.store.Link(commit.PackagesGz, a.Repo.Base()+"/Packages.gz")
+	if err != nil {
+		return err
+	}
+	gunzipper, err := gzip.NewReader(gzreader)
+	defer gunzipper.Close()
+	if err != nil {
+		return err
+	}
+	io.Copy(pkgs, gunzipper)
+
 	//err = a.store.Link(commit.SourcesGz, a.Repo.Base()+"/Sources.gz")
 	err = a.store.Link(commit.Release, a.Repo.Base()+"/Release")
+	if err != nil {
+		return err
+	}
+
 	if a.SignerId != nil {
 		err = a.store.Link(commit.InRelease, a.Repo.Base()+"/InRelease")
+		if err != nil {
+			return err
+		}
 	}
 
 	return
