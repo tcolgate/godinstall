@@ -65,10 +65,14 @@ func (r repoBlobStore) gcWalkCommit(used *SafeMap, id CommitID) {
 	used.Set(commit.Sources.String(), true)
 	used.Set(commit.SourcesGz.String(), true)
 
-	r.gcWalkIndex(used, commit.Index)
+	if !used.Check(StoreID(commit.Index).String()) {
+		r.gcWalkIndex(used, commit.Index)
+	}
 
 	if StoreID(commit.Parent).String() != r.EmptyFileID().String() {
-		r.gcWalkCommit(used, commit.Parent)
+		if !used.Check(StoreID(commit.Parent).String()) {
+			r.gcWalkCommit(used, commit.Parent)
+		}
 	}
 }
 
