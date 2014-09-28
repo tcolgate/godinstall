@@ -27,11 +27,7 @@ availability), along with optional validation of signed changes and debs.
 - Sources, Content-?, Trnslations not  currently handled
 - Only a single release is supported
 - All versions are currently kept, (this will be configurable)
-- Garbage collection on the store needs re-implementing, failed
-  and timeout out upload will leak garbage to disk
 - The objects in the blob store are likely to change
-- Cacheing into the blob store may be a bit agressive, extra
-  copies of the metadata can be avoided.
 - No current means of reviewin the logs
 
 ## Example
