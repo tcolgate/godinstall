@@ -77,6 +77,15 @@ func (r repoBlobStore) gcWalkCommit(used *SafeMap, id CommitID) {
 }
 
 func (r repoBlobStore) GarbageCollect() {
+	log.Println("GC Start")
+	stime := time.Now()
+	gcFiles := 0
+	gcBytes := int64(0)
+	defer func() {
+		gcDuration := time.Since(stime)
+		log.Printf("GC %v files (%v bytes) in %v", gcFiles, gcBytes, gcDuration)
+	}()
+
 	used := NewSafeMap()
 	refs := r.ListRefs()
 
@@ -86,6 +95,9 @@ func (r repoBlobStore) GarbageCollect() {
 
 	f := func(id StoreID) {
 		if !used.Check(id.String()) {
+			gcFiles += 1
+			size, _ := r.Size(id)
+			gcBytes += size
 			log.Println("Removing unused blob ", id.String())
 			r.UnLink(id)
 		}

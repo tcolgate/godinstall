@@ -255,6 +255,8 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 	index, err := a.store.OpenIndex(indexId)
 	defer index.Close()
 
+	log.Println("Clearing old archive")
+	clearTime := time.Now()
 	clearRepo := func() {
 		os.Remove(a.Repo.Base() + "/Packages")
 		os.Remove(a.Repo.Base() + "/Packages.gz")
@@ -262,6 +264,8 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 		os.Remove(a.Repo.Base() + "/InRelease")
 		os.RemoveAll(a.Repo.Base() + "/pool")
 	}
+	clearDuration := time.Since(clearTime)
+	log.Println("Cleared old archive in ", clearDuration)
 
 	clearRepo()
 	defer func() {
@@ -270,6 +274,9 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 		}
 	}()
 
+	log.Println("Reifing archive from commit ", StoreID(id).String())
+	reifyTime := time.Now()
+	fileCount := 0
 	for {
 		item, err := index.NextItem()
 		if err != nil {
@@ -279,6 +286,7 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 			break
 		}
 		for i := range item.Files {
+			fileCount += 1
 			file := item.Files[i]
 			path := a.Repo.PoolFilePath(file.Name)
 			filepath := path + file.Name
@@ -329,10 +337,15 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 		}
 	}
 
+	reifyDuration := time.Since(reifyTime)
+	log.Printf("Reified %v files in %v ", fileCount, reifyDuration)
+
 	return
 }
 
 func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
+	defer a.store.GarbageCollect()
+
 	respStatus = http.StatusOK
 	respObj = "Index committed"
 
