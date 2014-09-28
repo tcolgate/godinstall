@@ -202,21 +202,15 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid Inde
 	release[0].SetValue("Suite", "stable")
 	release[0].SetValue("Components", "main")
 	release[0].SetValue("Architectures", "amd64 all")
-	MD5Str := "\n" +
-		" " + packagesMD5 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
-		" " + packagesGzMD5 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
-	SHA1Str := "\n" +
-		" " + packagesSHA1 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
-		" " + packagesGzSHA1 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
-	SHA256Str := "\n" +
-		" " + packagesSHA256 + " " + strconv.FormatInt(packagesSize, 10) + " Packages\n" +
-		" " + packagesGzSHA256 + " " + strconv.FormatInt(packagesGzSize, 10) + " Packages.gz\n"
-	//			" " + sourcesSHA256 + " " + strconv.FormatInt(sourcesInfo.Size(), 10) + " Sources\n" +
-	//			" " + sourcesGzSHA256 + " " + strconv.FormatInt(sourcesGzInfo.Size(), 10) + " Sources.gz\n"
-
-	release[0].SetValue("MD5Sum", MD5Str)
-	release[0].SetValue("SHA1", SHA1Str)
-	release[0].SetValue("SHA256", SHA256Str)
+	release[0].AddValue("MD5Sum", "")
+	release[0].AddValue("MD5Sum", packagesMD5+" "+strconv.FormatInt(packagesSize, 10)+" Packages")
+	release[0].AddValue("MD5Sum", packagesGzMD5+" "+strconv.FormatInt(packagesGzSize, 10)+" Packages.gz")
+	release[0].AddValue("SHA1", "")
+	release[0].AddValue("SHA1", packagesSHA1+" "+strconv.FormatInt(packagesSize, 10)+" Packages")
+	release[0].AddValue("SHA1", packagesGzSHA1+" "+strconv.FormatInt(packagesGzSize, 10)+" Packages.gz")
+	release[0].AddValue("SHA256", "")
+	release[0].AddValue("SHA256", packagesSHA256+" "+strconv.FormatInt(packagesSize, 10)+" Packages")
+	release[0].AddValue("SHA256", packagesGzSHA256+" "+strconv.FormatInt(packagesGzSize, 10)+" Packages.gz")
 
 	// This is a little convoluted. We'll ultimately write to this, but it may be
 	// writing to unsigned and signed releases, or just the unsigned, depending
