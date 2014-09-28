@@ -93,15 +93,6 @@ func TestStore(t *testing.T) {
 		return
 	}
 
-	// Run a gc, the previous blob has no additional references
-	// so should disspear
-	s.GarbageCollect()
-
-	reader, err = s.Open(id)
-	if err == nil {
-		t.Errorf("open unref'd blob after GC succeeded")
-		return
-	}
 }
 
 func TestStoreTwice(t *testing.T) {
@@ -206,8 +197,6 @@ func TestStoreTwiceWithGC(t *testing.T) {
 		t.Errorf("Incorrect hash, %v, expected %v", id, storeTestStringHash)
 		return
 	}
-
-	s.GarbageCollect()
 
 	// Store content a second time
 	writer, err = s.Store()
@@ -323,14 +312,6 @@ func TestPrematureIdentity(t *testing.T) {
 	}
 }
 
-func TestGarbageCollect(t *testing.T) {
-	s, clean, _ := makeTestSha1Store(t)
-	defer clean()
-
-	s.GarbageCollect()
-	return
-}
-
 func TestReferences(t *testing.T) {
 	s, clean, _ := makeTestSha1Store(t)
 	defer clean()
@@ -398,16 +379,6 @@ func TestReferences(t *testing.T) {
 
 	if string(storedData[0:n]) != storeTestString {
 		t.Errorf("wrong data in  blob , %v", string(storedData[0:n]))
-		return
-	}
-
-	// Run a gc, the previous blob has no additional references
-	// so should disspear
-	s.GarbageCollect()
-
-	reader, err = s.Open(id)
-	if err == nil {
-		t.Errorf("open unref'd blob after GC succeeded")
 		return
 	}
 }
@@ -482,13 +453,4 @@ func TestReferences2(t *testing.T) {
 		return
 	}
 
-	// Run a gc, the previous blob has no additional references
-	// so should disspear
-	s.GarbageCollect()
-
-	reader, err = s.Open(id)
-	if err == nil {
-		t.Errorf("open unref'd blob after GC succeeded")
-		return
-	}
 }
