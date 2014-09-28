@@ -1,3 +1,11 @@
+godinstall (0.4) precise; urgency=low
+
+  * Don't strip the binary
+  * Add Garbage collection
+  * Don't permanently store uncompressed Packages files
+
+ -- tristan <tristan@clonebase.we7.local>  Sun, 28 Sep 2014 19:20:20 +0100
+
 godinstall (0.3) unstable; urgency=medium
 
   * Drop apt-ftparchive requirement
