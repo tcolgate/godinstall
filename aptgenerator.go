@@ -22,8 +22,8 @@ import (
 
 // Interface for any Apt repository generator
 type AptGenerator interface {
-	GenerateCommit(CommitID, IndexID) (CommitID, error) // Regenerate the apt archive
-	ReifyCommit(CommitID) error                         // Reify the commit into  the archive
+	GenerateCommit(CommitID, IndexID, []RepoAction) (CommitID, error) // Regenerate the apt archive
+	ReifyCommit(CommitID) error                                       // Reify the commit into  the archive
 	AddSession(session UploadSessioner) (respStatus int, respObj string, err error)
 }
 
@@ -68,10 +68,11 @@ func MakeWriteCounter(w io.Writer) *writeCounter {
 	}
 }
 
-func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid IndexID) (commitid CommitID, err error) {
+func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid IndexID, actions []RepoAction) (commitid CommitID, err error) {
 	commit := &RepoCommit{}
 	commit.Index = indexid
 	commit.Parent = parentid
+	commit.Actions = actions
 	/*
 		sourcesFile, err := a.store.Store()
 		sourcesMD5er := md5.New()
@@ -255,7 +256,6 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 	index, err := a.store.OpenIndex(indexId)
 	defer index.Close()
 
-	log.Println("Clearing old archive")
 	clearTime := time.Now()
 	clearRepo := func() {
 		os.Remove(a.Repo.Base() + "/Packages")
@@ -356,7 +356,8 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		return respStatus, respObj, err
 	}
 
-	head, err := a.store.GetHead("master")
+	branchName := "master"
+	head, err := a.store.GetHead(branchName)
 	if err != nil {
 		if os.IsNotExist(err) {
 			emptyidx, err := a.store.EmptyIndex()
@@ -366,13 +367,14 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 				return respStatus, respObj, err
 			}
 			root := a.store.EmptyFileID()
-			head, err = a.GenerateCommit(CommitID(root), emptyidx)
+			head, err = a.GenerateCommit(CommitID(root), emptyidx, []RepoAction{})
 			if err != nil {
 				respStatus = http.StatusInternalServerError
 				respObj = "Creating empty commit failed, " + err.Error()
 				return respStatus, respObj, err
 			}
-			a.store.SetHead("master", head)
+			a.store.SetHead(branchName, head)
+			log.Println("Initialised new branch: " + branchName)
 		} else {
 			respStatus = http.StatusInternalServerError
 			respObj = "Opening repo head failed, " + err.Error()
@@ -380,19 +382,45 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		}
 	}
 
-	newidx, err := a.store.MergeItemsIntoCommit(head, items)
+	newidx, actions, err := a.store.MergeItemsIntoCommit(head, items)
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "Creating new index failed, " + err.Error()
 	}
 
-	newhead, err := a.GenerateCommit(head, newidx)
+	newhead, err := a.GenerateCommit(head, newidx, actions)
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "Creating updated commit failed, " + err.Error()
 		return respStatus, respObj, err
 	}
-	a.store.SetHead("master", newhead)
+	a.store.SetHead(branchName, newhead)
+
+	for _, item := range actions {
+		switch item.Type {
+		case ActionADD:
+			{
+				log.Println("Added " + item.Description)
+			}
+		case ActionSKIPPRESENT:
+			{
+				log.Println("Item already present: " + item.Description)
+			}
+		case ActionPURGE:
+			{
+				log.Println("PUrged old item " + item.Description)
+			}
+		case ActionDELETE:
+			{
+				log.Println("Deleted " + item.Description)
+			}
+		default:
+			{
+				log.Println(item.Description)
+			}
+		}
+	}
+	log.Printf("Branch %v set to %v", branchName, StoreID(newhead).String())
 
 	err = a.ReifyCommit(newhead)
 	if err != nil {

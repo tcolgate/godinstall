@@ -24,7 +24,7 @@ type RepoStorer interface {
 	EmptyIndex() (IndexID, error)
 	OpenIndex(id IndexID) (h repoIndexReaderHandle, err error)
 	ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoItem, error)
-	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, err error)
+	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, actions []RepoAction, err error)
 	GarbageCollect()
 	Storer
 }
@@ -416,10 +416,11 @@ func (r *repoIndexReaderHandle) Close() error {
 type RepoActionType int
 
 const (
-	ActionUNKNOWN RepoActionType = 1 << iota
-	ActionADD     RepoActionType = 2
-	ActionDELETE  RepoActionType = 3
-	ActionPURGE   RepoActionType = 4
+	ActionUNKNOWN     RepoActionType = 1 << iota
+	ActionADD         RepoActionType = 2
+	ActionDELETE      RepoActionType = 3
+	ActionPURGE       RepoActionType = 4
+	ActionSKIPPRESENT RepoActionType = 5
 )
 
 // This lists the actions that were taken during a commit
@@ -476,21 +477,22 @@ func (r repoBlobStore) AddCommit(data *RepoCommit) (CommitID, error) {
 }
 
 // Merge the content of index into the parent commit and return a new index
-func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, err error) {
+func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, actions []RepoAction, err error) {
 	parent, err := r.GetCommit(parentid)
+	actions = make([]RepoAction, 0)
 	if err != nil {
-		return nil, errors.New("error getting parent commit, " + err.Error())
+		return nil, actions, errors.New("error getting parent commit, " + err.Error())
 	}
 
 	parentidx, err := r.OpenIndex(parent.Index)
 	if err != nil {
-		return nil, errors.New("error getting parent commit index, " + err.Error())
+		return nil, actions, errors.New("error getting parent commit index, " + err.Error())
 	}
 	defer parentidx.Close()
 
 	mergedidx, err := r.AddIndex()
 	if err != nil {
-		return nil, errors.New("error adding new index, " + err.Error())
+		return nil, actions, errors.New("error adding new index, " + err.Error())
 	}
 
 	left, err := parentidx.NextItem()
@@ -512,10 +514,20 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 			} else if cmpItems == 0 { // New item identical to existing
 				mergedidx.AddItem(&left)
 				left, err = parentidx.NextItem()
+				item := right[0]
+				actions = append(actions, RepoAction{
+					Type:        ActionSKIPPRESENT,
+					Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
+				})
 				right = right[1:]
 				continue
 			} else {
-				mergedidx.AddItem(right[0])
+				item := right[0]
+				mergedidx.AddItem(item)
+				actions = append(actions, RepoAction{
+					Type:        ActionADD,
+					Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
+				})
 				right = right[1:]
 				continue
 			}
@@ -527,10 +539,14 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 	}
 
 	// output any items that are left
-	for i := range right {
-		mergedidx.AddItem(right[i])
+	for _, item := range right {
+		mergedidx.AddItem(item)
+		actions = append(actions, RepoAction{
+			Type:        ActionADD,
+			Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
+		})
 	}
 
 	id, err := mergedidx.Close()
-	return IndexID(id), err
+	return IndexID(id), actions, err
 }
