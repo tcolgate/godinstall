@@ -385,7 +385,7 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		}
 	}
 
-	newidx, actions, err := a.store.MergeItemsIntoCommit(head, items)
+	newidx, actions, err := a.store.MergeItemsIntoCommit(head, items, a.purgeRules)
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "Creating new index failed, " + err.Error()

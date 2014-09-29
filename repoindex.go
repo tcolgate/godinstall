@@ -24,7 +24,7 @@ type RepoStorer interface {
 	EmptyIndex() (IndexID, error)
 	OpenIndex(id IndexID) (h repoIndexReaderHandle, err error)
 	ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoItem, error)
-	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, actions []RepoAction, err error)
+	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem, purgeRules []*PurgeRule) (result IndexID, actions []RepoAction, err error)
 	GarbageCollect()
 	Storer
 }
@@ -477,7 +477,7 @@ func (r repoBlobStore) AddCommit(data *RepoCommit) (CommitID, error) {
 }
 
 // Merge the content of index into the parent commit and return a new index
-func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem) (result IndexID, actions []RepoAction, err error) {
+func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem, purgeRules []*PurgeRule) (result IndexID, actions []RepoAction, err error) {
 	parent, err := r.GetCommit(parentid)
 	actions = make([]RepoAction, 0)
 	if err != nil {
