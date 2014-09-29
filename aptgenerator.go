@@ -29,10 +29,11 @@ type AptGenerator interface {
 
 // An AptGenerator that uses a version historied blob store
 type aptBlobArchiveGenerator struct {
-	Repo     *aptRepo        // The repo to update
-	PrivRing openpgp.KeyRing // Private keyring cotaining singing key
-	SignerId *openpgp.Entity // The key to sign release file with
-	store    RepoStorer      // The blob store to use
+	Repo       *aptRepo        // The repo to update
+	PrivRing   openpgp.KeyRing // Private keyring cotaining singing key
+	SignerId   *openpgp.Entity // The key to sign release file with
+	store      RepoStorer      // The blob store to use
+	purgeRules []*PurgeRule    // Rules to use for purging the repo
 }
 
 // Create a new AptGenerator that uses a version historied blob store
@@ -41,12 +42,14 @@ func NewAptBlobArchiveGenerator(
 	privRing openpgp.KeyRing,
 	signerId *openpgp.Entity,
 	store RepoStorer,
+	purgeRules []*PurgeRule,
 ) AptGenerator {
 	return &aptBlobArchiveGenerator{
 		repo,
 		privRing,
 		signerId,
 		store,
+		purgeRules,
 	}
 }
 
