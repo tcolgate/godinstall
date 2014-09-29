@@ -77,7 +77,6 @@ func (r repoBlobStore) gcWalkCommit(used *SafeMap, id CommitID) {
 }
 
 func (r repoBlobStore) GarbageCollect() {
-	log.Println("GC Start")
 	stime := time.Now()
 	gcFiles := 0
 	gcBytes := int64(0)
