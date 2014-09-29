@@ -344,7 +344,7 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 }
 
 func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
-	defer a.store.GarbageCollect()
+	//defer a.store.GarbageCollect()
 
 	respStatus = http.StatusOK
 	respObj = "Index committed"
