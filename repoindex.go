@@ -24,7 +24,7 @@ type RepoStorer interface {
 	EmptyIndex() (IndexID, error)
 	OpenIndex(id IndexID) (h repoIndexReaderHandle, err error)
 	ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoItem, error)
-	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem, purgeRules []*PurgeRule) (result IndexID, actions []RepoAction, err error)
+	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem, purgeRules PurgeRuleSet) (result IndexID, actions []RepoAction, err error)
 	GarbageCollect()
 	Storer
 }
@@ -477,7 +477,7 @@ func (r repoBlobStore) AddCommit(data *RepoCommit) (CommitID, error) {
 }
 
 // Merge the content of index into the parent commit and return a new index
-func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem, purgeRules []*PurgeRule) (result IndexID, actions []RepoAction, err error) {
+func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem, purgeRules PurgeRuleSet) (result IndexID, actions []RepoAction, err error) {
 	parent, err := r.GetCommit(parentid)
 	actions = make([]RepoAction, 0)
 	if err != nil {
@@ -500,6 +500,8 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 	right := items
 	sort.Sort(ByIndexOrder(right))
 
+	purger := purgeRules.MakePurger()
+
 	for {
 		if err != nil {
 			break
@@ -508,31 +510,59 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 		if len(right) > 0 {
 			cmpItems := IndexOrder(&left, right[0])
 			if cmpItems < 0 { // New item not needed yet
-				mergedidx.AddItem(&left)
+				if !purger(&left) {
+					mergedidx.AddItem(&left)
+				} else {
+					actions = append(actions, RepoAction{
+						Type:        ActionPURGE,
+						Description: left.Name + " " + left.Architecture + " " + left.Version.String(),
+					})
+				}
 				left, err = parentidx.NextItem()
 				continue
 			} else if cmpItems == 0 { // New item identical to existing
-				mergedidx.AddItem(&left)
-				left, err = parentidx.NextItem()
-				item := right[0]
-				actions = append(actions, RepoAction{
-					Type:        ActionSKIPPRESENT,
-					Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
-				})
+				if !purger(&left) {
+					mergedidx.AddItem(&left)
+					left, err = parentidx.NextItem()
+					item := right[0]
+					actions = append(actions, RepoAction{
+						Type:        ActionSKIPPRESENT,
+						Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
+					})
+				} else {
+					actions = append(actions, RepoAction{
+						Type:        ActionPURGE,
+						Description: left.Name + " " + left.Architecture + " " + left.Version.String(),
+					})
+				}
 				right = right[1:]
 				continue
 			} else {
 				item := right[0]
-				mergedidx.AddItem(item)
-				actions = append(actions, RepoAction{
-					Type:        ActionADD,
-					Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
-				})
+				if !purger(item) {
+					mergedidx.AddItem(item)
+					actions = append(actions, RepoAction{
+						Type:        ActionADD,
+						Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
+					})
+				} else {
+					actions = append(actions, RepoAction{
+						Type:        ActionPURGE,
+						Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
+					})
+				}
 				right = right[1:]
 				continue
 			}
 		} else {
-			mergedidx.AddItem(&left)
+			if !purger(&left) {
+				mergedidx.AddItem(&left)
+			} else {
+				actions = append(actions, RepoAction{
+					Type:        ActionPURGE,
+					Description: left.Name + " " + left.Architecture + " " + left.Version.String(),
+				})
+			}
 			left, err = parentidx.NextItem()
 			continue
 		}
@@ -540,11 +570,20 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 
 	// output any items that are left
 	for _, item := range right {
-		mergedidx.AddItem(item)
-		actions = append(actions, RepoAction{
-			Type:        ActionADD,
-			Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
-		})
+		if !purger(item) {
+			mergedidx.AddItem(item)
+			actions = append(actions, RepoAction{
+				Type:        ActionADD,
+				Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
+			})
+		} else {
+			actions = append(actions, RepoAction{
+				Type:        ActionPURGE,
+				Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
+			})
+		}
+		right = right[1:]
+		continue
 	}
 
 	id, err := mergedidx.Close()
