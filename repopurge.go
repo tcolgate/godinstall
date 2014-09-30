@@ -67,12 +67,14 @@ func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 
 		if currRule.limitVersions {
 			if int64(currVersionCnt) > currRule.retainVersions {
+				log.Printf("Limiting %v to %v verssions", currPkg, currRule.retainVersionsa)
 				return true
 			}
 		}
 
 		if currRule.limitRevisions {
 			if int64(currRevisionCnt) > currRule.retainRevisions {
+				log.Printf("Limiting %v to %v revisions", currPkg, currRule.retainRevisions)
 				return true
 			}
 		}
