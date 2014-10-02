@@ -409,9 +409,13 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 			{
 				log.Println("Item already present: " + item.Description)
 			}
+		case ActionSKIPPURGE:
+			{
+				log.Println("Skipped due to purge policy: " + item.Description)
+			}
 		case ActionPURGE:
 			{
-				log.Println("PUrged old item " + item.Description)
+				log.Println("Purged old item " + item.Description)
 			}
 		case ActionDELETE:
 			{

@@ -421,6 +421,7 @@ const (
 	ActionDELETE      RepoActionType = 3
 	ActionPURGE       RepoActionType = 4
 	ActionSKIPPRESENT RepoActionType = 5
+	ActionSKIPPURGE   RepoActionType = 6
 )
 
 // This lists the actions that were taken during a commit
@@ -523,7 +524,6 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 			} else if cmpItems == 0 { // New item identical to existing
 				if !purger(&left) {
 					mergedidx.AddItem(&left)
-					left, err = parentidx.NextItem()
 					item := right[0]
 					actions = append(actions, RepoAction{
 						Type:        ActionSKIPPRESENT,
@@ -531,10 +531,11 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 					})
 				} else {
 					actions = append(actions, RepoAction{
-						Type:        ActionPURGE,
+						Type:        ActionSKIPPURGE,
 						Description: left.Name + " " + left.Architecture + " " + left.Version.String(),
 					})
 				}
+				left, err = parentidx.NextItem()
 				right = right[1:]
 				continue
 			} else {

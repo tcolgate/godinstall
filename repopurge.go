@@ -20,6 +20,7 @@ type PurgeRuleSet []*PurgeRule
 
 func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 	currPkg := ""
+	currArch := ""
 	currVersion := ""
 	currVersionCnt := 0
 	currRevision := ""
@@ -27,8 +28,10 @@ func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 	var currRule *PurgeRule
 
 	return func(item *RepoItem) (purge bool) {
-		if item.Name != currPkg {
+		log.Printf("pkg: %v\nver:%v\nverc:%v\nrev:%v\nrevc:%v\n\n", currPkg, currVersion, currVersionCnt, currRevision, currRevisionCnt)
+		if item.Name != currPkg || item.Architecture != currArch {
 			currPkg = item.Name
+			currArch = item.Architecture
 			currVersion = item.Version.Version
 			currVersionCnt = 1
 			currRevision = item.Version.Revision
@@ -47,34 +50,33 @@ func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 
 			log.Println(currRule)
 			return false
+		}
+
+		if item.Version.Version != currVersion {
+			currVersionCnt += 1
+			currVersion = item.Version.Version
+			currRevision = item.Version.Revision
+			currRevisionCnt = 0
 		} else {
-			if item.Version.Version != currVersion {
-				currVersionCnt += 1
-				currVersion = item.Version.Version
+			if item.Version.Revision != currRevision {
+				currRevisionCnt += 1
 				currRevision = item.Version.Revision
-				currRevisionCnt = 1
 			} else {
-				if item.Version.Revision != currRevision {
-					currRevisionCnt += 1
-					currRevision = item.Version.Revision
-				} else {
-					// pkg, version and revision all match, we already
-					// have this package!
-					return true
-				}
+				// The two versions match, shouldn't purge this
+				return false
 			}
 		}
 
 		if currRule.limitVersions {
-			if int64(currVersionCnt) > currRule.retainVersions {
-				log.Printf("Limiting %v to %v verssions", currPkg, currRule.retainVersionsa)
+			if int64(currVersionCnt) > currRule.retainVersions+1 {
+				log.Printf("Limiting %v to %v historic versions", currPkg, currRule.retainVersions)
 				return true
 			}
 		}
 
 		if currRule.limitRevisions {
-			if int64(currRevisionCnt) > currRule.retainRevisions {
-				log.Printf("Limiting %v to %v revisions", currPkg, currRule.retainRevisions)
+			if int64(currRevisionCnt) > currRule.retainRevisions+1 {
+				log.Printf("Limiting %v to %v historic revisions", currPkg, currRule.retainRevisions)
 				return true
 			}
 		}
