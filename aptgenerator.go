@@ -33,7 +33,7 @@ type aptBlobArchiveGenerator struct {
 	PrivRing   openpgp.KeyRing // Private keyring cotaining singing key
 	SignerId   *openpgp.Entity // The key to sign release file with
 	store      RepoStorer      // The blob store to use
-	purgeRules PurgeRuleSet    // Rules to use for purging the repo
+	pruneRules PruneRuleSet    // Rules to use for pruning the repo
 }
 
 // Create a new AptGenerator that uses a version historied blob store
@@ -42,14 +42,14 @@ func NewAptBlobArchiveGenerator(
 	privRing openpgp.KeyRing,
 	signerId *openpgp.Entity,
 	store RepoStorer,
-	purgeRules PurgeRuleSet,
+	pruneRules PruneRuleSet,
 ) AptGenerator {
 	return &aptBlobArchiveGenerator{
 		repo,
 		privRing,
 		signerId,
 		store,
-		purgeRules,
+		pruneRules,
 	}
 }
 
@@ -385,7 +385,7 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		}
 	}
 
-	newidx, actions, err := a.store.MergeItemsIntoCommit(head, items, a.purgeRules)
+	newidx, actions, err := a.store.MergeItemsIntoCommit(head, items, a.pruneRules)
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "Creating new index failed, " + err.Error()
@@ -409,13 +409,13 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 			{
 				log.Println("Item already present: " + item.Description)
 			}
-		case ActionSKIPPURGE:
+		case ActionSKIPPRUNE:
 			{
-				log.Println("Skipped due to purge policy: " + item.Description)
+				log.Println("Skipped due to prune policy: " + item.Description)
 			}
-		case ActionPURGE:
+		case ActionPRUNE:
 			{
-				log.Println("Purged old item " + item.Description)
+				log.Println("Pruned old item " + item.Description)
 			}
 		case ActionDELETE:
 			{

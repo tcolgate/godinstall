@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-type PurgeRule struct {
+type PruneRule struct {
 	pkgPattern      *regexp.Regexp
 	limitVersions   bool
 	retainVersions  int64
@@ -16,9 +16,9 @@ type PurgeRule struct {
 	retainRevisions int64
 }
 
-type PurgeRuleSet []*PurgeRule
+type PruneRuleSet []*PruneRule
 
-func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
+func (rules PruneRuleSet) MakePruner() func(*RepoItem) bool {
 	currPkg := ""
 	currArch := ""
 	currEpoch := 0
@@ -26,9 +26,9 @@ func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 	currVersionCnt := 0
 	currRevision := ""
 	currRevisionCnt := 0
-	var currRule *PurgeRule
+	var currRule *PruneRule
 
-	return func(item *RepoItem) (purge bool) {
+	return func(item *RepoItem) (prune bool) {
 		if item.Name != currPkg || item.Architecture != currArch {
 			currPkg = item.Name
 			currArch = item.Architecture
@@ -38,7 +38,7 @@ func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 			currRevision = item.Version.Revision
 			currRevisionCnt = 1
 
-			// Try and find a purge rule to use
+			// Try and find a prune rule to use
 			for _, r := range rules {
 				if r.pkgPattern.MatchString(currPkg) {
 					currRule = r
@@ -62,7 +62,7 @@ func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 				currRevisionCnt += 1
 				currRevision = item.Version.Revision
 			} else {
-				// The two versions match, shouldn't purge this
+				// The two versions match, shouldn't prune this
 				return false
 			}
 		}
@@ -85,12 +85,12 @@ func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 	}
 }
 
-func ParsePurgeRules(rulesStr string) (PurgeRuleSet, error) {
+func ParsePruneRules(rulesStr string) (PruneRuleSet, error) {
 	ruleStrings := strings.Split(rulesStr, ",")
-	rules := make([]*PurgeRule, 0)
+	rules := make([]*PruneRule, 0)
 
 	for _, ruleStr := range ruleStrings {
-		rule, err := ParsePurgeRule(ruleStr)
+		rule, err := ParsePruneRule(ruleStr)
 		if err != nil {
 			return rules, err
 		}
@@ -102,14 +102,14 @@ func ParsePurgeRules(rulesStr string) (PurgeRuleSet, error) {
 
 var ruleRegex = regexp.MustCompile(`^(.*)_(\d+|\*)-(\d+|\*)$`)
 
-func ParsePurgeRule(ruleStr string) (*PurgeRule, error) {
-	var rule PurgeRule
+func ParsePruneRule(ruleStr string) (*PruneRule, error) {
+	var rule PruneRule
 	var err error
 
 	matches := ruleRegex.FindStringSubmatch(ruleStr)
 
 	if len(matches) != 4 {
-		return &rule, errors.New("invalid purge rule \"" + ruleStr + "\"")
+		return &rule, errors.New("invalid prune rule \"" + ruleStr + "\"")
 	}
 
 	rule.pkgPattern, err = regexp.Compile(matches[1])

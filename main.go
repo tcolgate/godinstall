@@ -54,7 +54,7 @@ func main() {
 	pubringFile := flag.String("gpg-pubring", "", "Public keyring file")
 	privringFile := flag.String("gpg-privring", "", "Private keyring file")
 	signerEmail := flag.String("signer-email", "", "Key Email to use for signing releases")
-	purgeRulesStr := flag.String("purge", ".*_*-*", "Rules for package purging")
+	pruneRulesStr := flag.String("prune", ".*_*-*", "Rules for package pruning")
 
 	flag.Parse()
 
@@ -167,7 +167,7 @@ func main() {
 
 	repoStore := NewRepoBlobStore(storeDir, tmpDir)
 
-	purgeRules, err := ParsePurgeRules(*purgeRulesStr)
+	pruneRules, err := ParsePruneRules(*pruneRulesStr)
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -178,7 +178,7 @@ func main() {
 		privRing,
 		signerId,
 		repoStore,
-		purgeRules,
+		pruneRules,
 	)
 
 	uploadSessionManager := NewUploadSessionManager(

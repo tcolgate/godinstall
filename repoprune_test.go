@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-var testRepoPurgeInput = []*RepoItem{
+var testRepoPruneInput = []*RepoItem{
 	&RepoItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
 	&RepoItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
@@ -33,7 +33,7 @@ var testRepoPurgeInput = []*RepoItem{
 }
 
 // .*_*-*
-var testPurgeOutput1 = []*RepoItem{
+var testPruneOutput1 = []*RepoItem{
 	&RepoItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
 	&RepoItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
@@ -60,7 +60,7 @@ var testPurgeOutput1 = []*RepoItem{
 }
 
 // .*_*-0
-var testPurgeOutput2 = []*RepoItem{
+var testPruneOutput2 = []*RepoItem{
 	&RepoItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
 	&RepoItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
@@ -83,7 +83,7 @@ var testPurgeOutput2 = []*RepoItem{
 }
 
 // .*_*-2
-var testPurgeOutput3 = []*RepoItem{
+var testPruneOutput3 = []*RepoItem{
 	&RepoItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
 	&RepoItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
@@ -109,7 +109,7 @@ var testPurgeOutput3 = []*RepoItem{
 }
 
 // .*_0-*
-var testPurgeOutput4 = []*RepoItem{
+var testPruneOutput4 = []*RepoItem{
 	&RepoItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
 	&RepoItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
@@ -126,7 +126,7 @@ var testPurgeOutput4 = []*RepoItem{
 }
 
 // .*_2-*
-var testPurgeOutput5 = []*RepoItem{
+var testPruneOutput5 = []*RepoItem{
 	&RepoItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
 	&RepoItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
@@ -151,7 +151,7 @@ var testPurgeOutput5 = []*RepoItem{
 }
 
 // .*_0-0
-var testPurgeOutput6 = []*RepoItem{
+var testPruneOutput6 = []*RepoItem{
 	&RepoItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
 	&RepoItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
@@ -168,7 +168,7 @@ var testPurgeOutput6 = []*RepoItem{
 }
 
 // .*_2-2
-var testPurgeOutput7 = []*RepoItem{
+var testPruneOutput7 = []*RepoItem{
 	&RepoItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
 	&RepoItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
@@ -192,7 +192,7 @@ var testPurgeOutput7 = []*RepoItem{
 }
 
 // pkgf_2-0,.*_0-0
-var testPurgeOutput8 = []*RepoItem{
+var testPruneOutput8 = []*RepoItem{
 	&RepoItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
 	&RepoItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
@@ -210,18 +210,18 @@ var testPurgeOutput8 = []*RepoItem{
 	&RepoItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
 }
 
-var testRepoPurge = []struct {
+var testRepoPrune = []struct {
 	rules  string
 	output []*RepoItem
 }{
-	{".*_*-*", testPurgeOutput1},
-	{".*_*-0", testPurgeOutput2},
-	{".*_*-2", testPurgeOutput3},
-	{".*_0-*", testPurgeOutput4},
-	{".*_2-*", testPurgeOutput5},
-	{".*_0-0", testPurgeOutput6},
-	{".*_2-2", testPurgeOutput7},
-	{"pkgf_2-0,.*_0-0", testPurgeOutput8},
+	{".*_*-*", testPruneOutput1},
+	{".*_*-0", testPruneOutput2},
+	{".*_*-2", testPruneOutput3},
+	{".*_0-*", testPruneOutput4},
+	{".*_2-*", testPruneOutput5},
+	{".*_0-0", testPruneOutput6},
+	{".*_2-2", testPruneOutput7},
+	{"pkgf_2-0,.*_0-0", testPruneOutput8},
 }
 
 func formatTestItemList(items []*RepoItem) string {
@@ -240,21 +240,21 @@ func formatTestItemList(items []*RepoItem) string {
 	return output
 }
 
-func TestPurgeRules(t *testing.T) {
-	for i, tt := range testRepoPurge {
-		r, err := ParsePurgeRules(tt.rules)
+func TestPruneRules(t *testing.T) {
+	for i, tt := range testRepoPrune {
+		r, err := ParsePruneRules(tt.rules)
 		if err != nil {
-			t.Errorf("TestPurgeRules[%d]: ParPurgeRules failed: ", i, err.Error())
+			t.Errorf("TestPruneRules[%d]: ParPruneRules failed: ", i, err.Error())
 		}
-		p := r.MakePurger()
+		p := r.MakePruner()
 		res := make([]*RepoItem, 0)
-		for _, j := range testRepoPurgeInput {
+		for _, j := range testRepoPruneInput {
 			if !p(j) {
 				res = append(res, j)
 			}
 		}
 		if !reflect.DeepEqual(res, tt.output) {
-			t.Errorf("TestPurgeRules[%d]: %v, failed:\nExpected:\n%v\nGot:\n%v\n",
+			t.Errorf("TestPruneRules[%d]: %v, failed:\nExpected:\n%v\nGot:\n%v\n",
 				i+1,
 				tt.rules,
 				formatTestItemList(tt.output),

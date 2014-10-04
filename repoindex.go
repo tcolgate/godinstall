@@ -24,7 +24,7 @@ type RepoStorer interface {
 	EmptyIndex() (IndexID, error)
 	OpenIndex(id IndexID) (h repoIndexReaderHandle, err error)
 	ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoItem, error)
-	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem, purgeRules PurgeRuleSet) (result IndexID, actions []RepoAction, err error)
+	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem, pruneRules PruneRuleSet) (result IndexID, actions []RepoAction, err error)
 	GarbageCollect()
 	Storer
 }
@@ -419,9 +419,9 @@ const (
 	ActionUNKNOWN     RepoActionType = 1 << iota
 	ActionADD         RepoActionType = 2
 	ActionDELETE      RepoActionType = 3
-	ActionPURGE       RepoActionType = 4
+	ActionPRUNE       RepoActionType = 4
 	ActionSKIPPRESENT RepoActionType = 5
-	ActionSKIPPURGE   RepoActionType = 6
+	ActionSKIPPRUNE   RepoActionType = 6
 )
 
 // This lists the actions that were taken during a commit
@@ -478,7 +478,7 @@ func (r repoBlobStore) AddCommit(data *RepoCommit) (CommitID, error) {
 }
 
 // Merge the content of index into the parent commit and return a new index
-func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem, purgeRules PurgeRuleSet) (result IndexID, actions []RepoAction, err error) {
+func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem, pruneRules PruneRuleSet) (result IndexID, actions []RepoAction, err error) {
 	parent, err := r.GetCommit(parentid)
 	actions = make([]RepoAction, 0)
 	if err != nil {
@@ -501,7 +501,7 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 	right := items
 	sort.Sort(ByIndexOrder(right))
 
-	purger := purgeRules.MakePurger()
+	pruner := pruneRules.MakePruner()
 
 	for {
 		if err != nil {
@@ -511,18 +511,18 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 		if len(right) > 0 {
 			cmpItems := IndexOrder(&left, right[0])
 			if cmpItems < 0 { // New item not needed yet
-				if !purger(&left) {
+				if !pruner(&left) {
 					mergedidx.AddItem(&left)
 				} else {
 					actions = append(actions, RepoAction{
-						Type:        ActionPURGE,
+						Type:        ActionPRUNE,
 						Description: left.Name + " " + left.Architecture + " " + left.Version.String(),
 					})
 				}
 				left, err = parentidx.NextItem()
 				continue
 			} else if cmpItems == 0 { // New item identical to existing
-				if !purger(&left) {
+				if !pruner(&left) {
 					mergedidx.AddItem(&left)
 					item := right[0]
 					actions = append(actions, RepoAction{
@@ -531,7 +531,7 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 					})
 				} else {
 					actions = append(actions, RepoAction{
-						Type:        ActionSKIPPURGE,
+						Type:        ActionSKIPPRUNE,
 						Description: left.Name + " " + left.Architecture + " " + left.Version.String(),
 					})
 				}
@@ -540,7 +540,7 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 				continue
 			} else {
 				item := right[0]
-				if !purger(item) {
+				if !pruner(item) {
 					mergedidx.AddItem(item)
 					actions = append(actions, RepoAction{
 						Type:        ActionADD,
@@ -548,7 +548,7 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 					})
 				} else {
 					actions = append(actions, RepoAction{
-						Type:        ActionPURGE,
+						Type:        ActionPRUNE,
 						Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
 					})
 				}
@@ -556,11 +556,11 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 				continue
 			}
 		} else {
-			if !purger(&left) {
+			if !pruner(&left) {
 				mergedidx.AddItem(&left)
 			} else {
 				actions = append(actions, RepoAction{
-					Type:        ActionPURGE,
+					Type:        ActionPRUNE,
 					Description: left.Name + " " + left.Architecture + " " + left.Version.String(),
 				})
 			}
@@ -571,7 +571,7 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 
 	// output any items that are left
 	for _, item := range right {
-		if !purger(item) {
+		if !pruner(item) {
 			mergedidx.AddItem(item)
 			actions = append(actions, RepoAction{
 				Type:        ActionADD,
@@ -579,7 +579,7 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 			})
 		} else {
 			actions = append(actions, RepoAction{
-				Type:        ActionPURGE,
+				Type:        ActionPRUNE,
 				Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
 			})
 		}

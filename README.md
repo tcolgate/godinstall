@@ -68,7 +68,7 @@ curl -v -XPOST -F 'debfiles=@collectd-core_5.4.0-3_amd64.deb' http://localhost:3
 curl -v -XPOST -F 'debfiles=@collectd_5.4.0-3_amd64.deb'  http://localhost:3000/upload/$SESSION
 ```
 
-## Package Purging
+## Package Pruning
 
 You can limit the number of version and revisions of a package that will be presented in the 
 archive indexes. It should be noted that these packages are not removed from the objects store, they
@@ -77,7 +77,7 @@ UI is present for that at the moment). This means disk space is not freed. In or
 the history of the archive must be trimmed (not currenlty implemented), garbage collection will then
 remove any uneeded items from the archive.
 
-In order to setup purgins, use the --purge parameter. The parameter accepts a comma seperated set of rules,
+In order to setup pruning, use the --prune parameter. The parameter accepts a comma seperated set of rules,
 each of the following form:
 
 ```
@@ -98,6 +98,9 @@ the most recent, but no historical, 2, would keep the latest + 2 historical. For
  .*_2-0  - Would keep the latest revision of the most recent version and the two previous versions
  .*_0-2  - Would keep the last two revisions of the latest version
 ```
+
+If multiple pruning rules are given they are process from first to last, only the first matching rule is used.
+Different architectures are treated as different packages, a change of epoch is handled as a new version
 
 
 
