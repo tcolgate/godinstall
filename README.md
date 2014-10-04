@@ -15,6 +15,7 @@ availability), along with optional validation of signed changes and debs.
 - Optional verification of debsigs signed packages
 - Allow upload of lone deb packages, without changes file
 - Optionally only verify debsigs signatures on lone uploads
+- Control the number of version and revisions retained (see Pruning)
 - Run scripts on package upload, and pre/post repository regeneration
 - pool layout is used, with configurable groupings
 - A git-inspired sha1 object store is used on the backend, with
