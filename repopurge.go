@@ -21,6 +21,7 @@ type PurgeRuleSet []*PurgeRule
 func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 	currPkg := ""
 	currArch := ""
+	currEpoch := 0
 	currVersion := ""
 	currVersionCnt := 0
 	currRevision := ""
@@ -28,10 +29,10 @@ func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 	var currRule *PurgeRule
 
 	return func(item *RepoItem) (purge bool) {
-		log.Printf("pkg: %v\nver:%v\nverc:%v\nrev:%v\nrevc:%v\n\n", currPkg, currVersion, currVersionCnt, currRevision, currRevisionCnt)
 		if item.Name != currPkg || item.Architecture != currArch {
 			currPkg = item.Name
 			currArch = item.Architecture
+			currEpoch = item.Version.Epoch
 			currVersion = item.Version.Version
 			currVersionCnt = 1
 			currRevision = item.Version.Revision
@@ -39,7 +40,6 @@ func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 
 			// Try and find a purge rule to use
 			for _, r := range rules {
-				log.Println(r.pkgPattern)
 				if r.pkgPattern.MatchString(currPkg) {
 					currRule = r
 					break
@@ -48,15 +48,15 @@ func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 				}
 			}
 
-			log.Println(currRule)
 			return false
 		}
 
-		if item.Version.Version != currVersion {
+		if item.Version.Version != currVersion || item.Version.Epoch != currEpoch {
 			currVersionCnt += 1
 			currVersion = item.Version.Version
+			currEpoch = item.Version.Epoch
 			currRevision = item.Version.Revision
-			currRevisionCnt = 0
+			currRevisionCnt = 1
 		} else {
 			if item.Version.Revision != currRevision {
 				currRevisionCnt += 1
@@ -69,14 +69,14 @@ func (rules PurgeRuleSet) MakePurger() func(*RepoItem) bool {
 
 		if currRule.limitVersions {
 			if int64(currVersionCnt) > currRule.retainVersions+1 {
-				log.Printf("Limiting %v to %v historic versions", currPkg, currRule.retainVersions)
+				log.Printf("Limiting %v to %v historical versions", currPkg, currRule.retainVersions)
 				return true
 			}
 		}
 
 		if currRule.limitRevisions {
 			if int64(currRevisionCnt) > currRule.retainRevisions+1 {
-				log.Printf("Limiting %v to %v historic revisions", currPkg, currRule.retainRevisions)
+				log.Printf("Limiting %v to %v historical revisions", currPkg, currRule.retainRevisions)
 				return true
 			}
 		}
@@ -112,7 +112,6 @@ func ParsePurgeRule(ruleStr string) (*PurgeRule, error) {
 		return &rule, errors.New("invalid purge rule \"" + ruleStr + "\"")
 	}
 
-	log.Println(matches)
 	rule.pkgPattern, err = regexp.Compile(matches[1])
 	if err != nil {
 		return nil, err
