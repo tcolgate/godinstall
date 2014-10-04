@@ -26,7 +26,6 @@ availability), along with optional validation of signed changes and debs.
 
 - Sources, Content-?, Trnslations not  currently handled
 - Only a single release is supported
-- All versions are currently kept, (this will be configurable)
 - The objects in the blob store are likely to change
 - No current means of reviewin the logs
 
@@ -68,4 +67,37 @@ SESSION=`curl -XPOST -F 'debfiles=@woot.changes' http://localhost:3000/upload  |
 curl -v -XPOST -F 'debfiles=@collectd-core_5.4.0-3_amd64.deb' http://localhost:3000/upload/$SESSION
 curl -v -XPOST -F 'debfiles=@collectd_5.4.0-3_amd64.deb'  http://localhost:3000/upload/$SESSION
 ```
+
+## Package Purging
+
+You can limit the number of version and revisions of a package that will be presented in the 
+archive indexes. It should be noted that these packages are not removed from the objects store, they
+are removed from the current version of the index, but can be accessed via the archive history (no
+UI is present for that at the moment). This means disk space is not freed. In order to free disk space
+the history of the archive must be trimmed (not currenlty implemented), garbage collection will then
+remove any uneeded items from the archive.
+
+In order to setup purgins, use the --purge parameter. The parameter accepts a comma seperated set of rules,
+each of the following form:
+
+```
+[namePattern]_V-R
+```
+
+Where:
+- [namePattern] is a regex matching a pattern names
+- V is the number of historical versions to keep
+- R is the number of historical package revisions to keep
+
+Both V and R can be either `*` or a number specifying the number of historical items to keep, 0 will keep
+the most recent, but no historical, 2, would keep the latest + 2 historical. For Example:
+
+```
+ .*_*-*  - Would keep all version and revisions of everything, this is what mini-dinstall does by default
+ .*_0-0  - Would keep only the latest version and revisions, this is what reprepro does
+ .*_2-0  - Would keep the latest revision of the most recent version and the two previous versions
+ .*_0-2  - Would keep the last two revisions of the latest version
+```
+
+
 
