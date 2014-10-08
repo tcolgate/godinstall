@@ -1,3 +1,11 @@
+godinstall (0.4.1) precise; urgency=low
+
+  * Disable GC again
+  * Fix repo browsing
+  * Add python upload script for changes files
+
+ -- tristan <tristan@clonebase.we7.local>  Wed, 08 Oct 2014 11:50:13 +0100
+
 godinstall (0.4) precise; urgency=low
 
   * Don't strip the binary
