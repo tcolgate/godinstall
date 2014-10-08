@@ -56,19 +56,12 @@ func (a *AptServer) Register(mux *http.ServeMux) {
 
 // Construct the download handler for normal client downloads
 func (a *AptServer) makeDownloadHandler() http.HandlerFunc {
-	var reqRegex = regexp.MustCompile("^/repo/(.+)$")
+	fsHandler := http.StripPrefix("/repo/", http.FileServer(http.Dir(a.Repo.Base())))
 	return func(w http.ResponseWriter, r *http.Request) {
 		a.aptLocks.ReadLock()
 		defer a.aptLocks.ReadUnLock()
 
-		file := reqRegex.FindStringSubmatch(r.URL.Path)
-		if file == nil {
-			http.NotFound(w, r)
-			return
-		}
-
-		realFile := a.Repo.Base() + "/" + file[1]
-		http.ServeFile(w, r, realFile)
+		fsHandler.ServeHTTP(w, r)
 	}
 }
 
