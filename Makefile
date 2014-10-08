@@ -22,6 +22,7 @@ godinstall:  $(BINDIR)/godep
 
 install: godinstall
 	install -D godinstall $(DESTDIR)/$(PREFIX)/godinstall
+	install -D godinstall-upload.py $(DESTDIR)/$(PREFIX)/godinstall-upload.py
 
 check:
 	$(GOPATH)/bin/godep go test -v

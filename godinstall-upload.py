@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 import sys
+import os
+import os.path
 import json
 import requests
 
@@ -11,6 +13,8 @@ if len(sys.argv) != 3:
 baseurl = sys.argv[1]
 changesfile = sys.argv[2]
 
+workingDir = os.path.dirname(changesfile)
+os.chdir(workingDir)
 
 print "Uploading changes file: " + changesfile
 controlFile = {'debfiles': open(changesfile, 'rb')}
