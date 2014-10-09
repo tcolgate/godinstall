@@ -38,7 +38,7 @@ type AptServer struct {
 	downloadHandler http.HandlerFunc // HTTP handler for apt client downloads
 }
 
-// Setup the server, start related go routines
+// InitAptServer setups, and starts  a server.
 func (a *AptServer) InitAptServer() {
 	a.aptLocks, _ = NewGovernor(a.MaxReqs)
 	a.downloadHandler = a.makeDownloadHandler()
@@ -91,7 +91,7 @@ func (r aptServerResponse) Error() string {
 	return "ERROR: " + string(r.message)
 }
 
-// This contructs a new repsonse to a client and can take
+// AptServerMessage contructs a new repsonse to a client and can take
 // a string of JSON'able object
 func AptServerMessage(status int, msg interface{}) AptServerResponder {
 	var err error
@@ -204,9 +204,8 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 									w.WriteHeader(resp.GetStatus())
 									w.Write(resp.GetMessage())
 									return
-								} else {
-									err = errors.New("Too many files in upload request without changes file present")
 								}
+								err = errors.New("Too many files in upload request without changes file present")
 							}
 						} else {
 							session, err = a.SessionManager.AddChangesSession(changesReader)
@@ -268,15 +267,16 @@ func (a *AptServer) changesFromRequest(r *http.Request) (
 	return
 }
 
-// Updater is a go rourtine that repond to request to run
-// the apt regeneration
-
+// CompletedUpload describes a finished session, the details of the session,
+// and the output of any hooks
 type CompletedUpload struct {
 	Session           UploadSessioner
 	PreGenHookOutput  HookOutput
 	PostGenHookOutput HookOutput
 }
 
+// MarshalJSON implements the json.Marshaler interface to allow
+// presentation of a completed session to the user
 func (s CompletedUpload) MarshalJSON() (j []byte, err error) {
 	resp := struct {
 		Session           UploadSessioner
@@ -291,6 +291,9 @@ func (s CompletedUpload) MarshalJSON() (j []byte, err error) {
 	return
 }
 
+// Updater ensures that updates to the repository are serialized.
+// it reads from a channel of messages, responds to clients, and
+// instigates the actual regernation of the repository
 func (a *AptServer) Updater() {
 	for {
 		select {
@@ -318,7 +321,7 @@ func (a *AptServer) Updater() {
 					respStatus = http.StatusInternalServerError
 					respObj = "Archive regeneration failed, " + err.Error()
 				} else {
-					hookResult := a.PostGenHook.Run(session.SessionID())
+					hookResult := a.PostGenHook.Run(session.ID())
 					completedsession.PostGenHookOutput = hookResult
 				}
 

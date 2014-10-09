@@ -35,6 +35,9 @@ type uploadSessionManager struct {
 	sessMap  *SafeMap
 }
 
+// NewUploadSessionManager creates a session manager which maintains a set of
+// on-going upload sessions, controlling thier permitted life time, temporary
+// storage location, and how the contents should be verified
 func NewUploadSessionManager(
 	TTL time.Duration,
 	tmpDir *string,
@@ -141,10 +144,10 @@ func (usm *uploadSessionManager) AddChangesSession(changesReader io.Reader) (str
 		usm.finished,
 	)
 
-	usm.sessMap.Set(s.SessionID(), s)
+	usm.sessMap.Set(s.ID(), s)
 	go usm.handler(s)
 
-	return s.SessionID(), nil
+	return s.ID(), nil
 }
 
 // This retrieves the status of a given session as a
@@ -205,7 +208,7 @@ func (usm *uploadSessionManager) AddItems(
 // TODO need to revisit this
 func (usm *uploadSessionManager) handler(s UploadSessioner) {
 	defer func() {
-		usm.sessMap.Set(s.SessionID(), nil)
+		usm.sessMap.Set(s.ID(), nil)
 	}()
 
 	for {

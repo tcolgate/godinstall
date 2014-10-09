@@ -20,52 +20,61 @@ import (
 	"code.google.com/p/go.crypto/openpgp/clearsign"
 )
 
-// Interface for any Apt repository generator
+// AptGenerator describes an interface for maintaining and generating
+// the on disk repository
 type AptGenerator interface {
-	GenerateCommit(CommitID, IndexID, []RepoAction) (CommitID, error) // Regenerate the apt archive
-	ReifyCommit(CommitID) error                                       // Reify the commit into  the archive
-	AddSession(session UploadSessioner) (respStatus int, respObj string, err error)
+	AddSession(session UploadSessioner) (respStatus int, respObj string, err error) // Merge new items into the repository
+	GenerateCommit(CommitID, IndexID, []RepoAction) (CommitID, error)               // Regenerate the apt archive
+	ReifyCommit(CommitID) error                                                     // Reify the commit into  the archive
 }
 
 // An AptGenerator that uses a version historied blob store
 type aptBlobArchiveGenerator struct {
 	Repo       *aptRepo        // The repo to update
 	PrivRing   openpgp.KeyRing // Private keyring cotaining singing key
-	SignerId   *openpgp.Entity // The key to sign release file with
+	SignerID   *openpgp.Entity // The key to sign release file with
 	store      RepoStorer      // The blob store to use
 	pruneRules PruneRuleSet    // Rules to use for pruning the repo
 }
 
-// Create a new AptGenerator that uses a version historied blob store
+// NewAptBlobArchiveGenerator creates a new AptGenerator that uses a version
+// historied content addressable store
 func NewAptBlobArchiveGenerator(
 	repo *aptRepo,
 	privRing openpgp.KeyRing,
-	signerId *openpgp.Entity,
+	signerID *openpgp.Entity,
 	store RepoStorer,
 	pruneRules PruneRuleSet,
 ) AptGenerator {
 	return &aptBlobArchiveGenerator{
 		repo,
 		privRing,
-		signerId,
+		signerID,
 		store,
 		pruneRules,
 	}
 }
 
-type writeCounter struct {
+// WriteCounter counts writes to a io.writer, used to assess the size of a file
+// without needing to store it
+type WriteCounter struct {
 	backing io.Writer
 	Count   int64
 }
 
-func (w *writeCounter) Write(p []byte) (n int, err error) {
+func (w *WriteCounter) Write(p []byte) (n int, err error) {
 	n, err = w.backing.Write(p)
 	w.Count += int64(n)
 	return
 }
 
-func MakeWriteCounter(w io.Writer) *writeCounter {
-	return &writeCounter{
+// MakeWriteCounter is creates an io.Writer to measure the size of a
+// file writtern, without actually storing it. This is useful when we
+// want to store size information about a file without actually keeping
+// it around (such as the uncomressed size of a file we also store
+// comrpessed)
+func MakeWriteCounter(w io.Writer) *WriteCounter {
+	return &WriteCounter{
 		backing: w,
 		Count:   0,
 	}
@@ -225,9 +234,9 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid Inde
 	var signedReleaseFile StoreWriteCloser
 	var signedReleaseWriter io.WriteCloser
 
-	if a.SignerId != nil {
+	if a.SignerID != nil {
 		signedReleaseFile, err = a.store.Store()
-		signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, a.SignerId.PrivateKey, nil)
+		signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, a.SignerID.PrivateKey, nil)
 		if err != nil {
 			return nil, errors.New("Error InRelease clear-signer, " + err.Error())
 		}
@@ -241,7 +250,7 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid Inde
 	unsignedReleaseFile.Close()
 	commit.Release, _ = unsignedReleaseFile.Identity()
 
-	if a.SignerId != nil {
+	if a.SignerID != nil {
 		signedReleaseWriter.Close()
 		signedReleaseFile.Close()
 		commit.InRelease, _ = signedReleaseFile.Identity()
@@ -255,8 +264,8 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid Inde
 
 func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 	commit, err := a.store.GetCommit(id)
-	indexId := commit.Index
-	index, err := a.store.OpenIndex(indexId)
+	indexID := commit.Index
+	index, err := a.store.OpenIndex(indexID)
 	defer index.Close()
 
 	clearTime := time.Now()
@@ -289,7 +298,7 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 			break
 		}
 		for i := range item.Files {
-			fileCount += 1
+			fileCount++
 			file := item.Files[i]
 			path := a.Repo.PoolFilePath(file.Name)
 			filepath := path + file.Name
@@ -333,7 +342,7 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 		return err
 	}
 
-	if a.SignerId != nil {
+	if a.SignerID != nil {
 		err = a.store.Link(commit.InRelease, a.Repo.Base()+"/InRelease")
 		if err != nil {
 			return err

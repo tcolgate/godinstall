@@ -5,7 +5,8 @@ import (
 	"os/exec"
 )
 
-// Output
+// HookOutput wraps the exit code, and the output, of an executed
+// external hoo
 type HookOutput struct {
 	output []byte // Output of the commands
 	err    error  // Error information as returned by the hook
@@ -15,6 +16,8 @@ func (ho HookOutput) Error() string {
 	return "hook run failed, " + ho.err.Error() + ", output was: " + string(ho.output)
 }
 
+// MarshalJSON fulfills the json.Marshaler interface so that we can serialize
+// the hook output to json for returning to the user
 func (ho HookOutput) MarshalJSON() (j []byte, err error) {
 	if ho.err == nil {
 		resp := string(ho.output)
@@ -26,7 +29,7 @@ func (ho HookOutput) MarshalJSON() (j []byte, err error) {
 	return
 }
 
-// This implements an interface to external hooks
+// HookRunner is an itnerface for running external hooks
 type HookRunner interface {
 	Run(...string) HookOutput
 }
@@ -36,6 +39,8 @@ type hookRunnerCmdExec struct {
 	cmd *string
 }
 
+// NewScriptHook creates a hook to run external commands and return thier
+// output and exit status
 func NewScriptHook(cmd *string) HookRunner {
 	result := hookRunnerCmdExec{cmd: cmd}
 
@@ -61,7 +66,8 @@ type hookRunnerFuncExec struct {
 
 type hookFunc func([]string) ([]byte, error)
 
-func NewScriptHookr(hook hookFunc) HookRunner {
+// NewFuncHook creates  a hook that will execute the provided function
+func NewFuncHook(hook hookFunc) HookRunner {
 	newhook := hookRunnerFuncExec{f: hook}
 
 	return newhook

@@ -244,10 +244,10 @@ func TestPruneRules(t *testing.T) {
 	for i, tt := range testRepoPrune {
 		r, err := ParsePruneRules(tt.rules)
 		if err != nil {
-			t.Errorf("TestPruneRules[%d]: ParPruneRules failed: ", i, err.Error())
+			t.Errorf("TestPruneRules[%d]: ParPruneRules failed: %s", i, err.Error())
 		}
 		p := r.MakePruner()
-		res := make([]*RepoItem, 0)
+		var res []*RepoItem
 		for _, j := range testRepoPruneInput {
 			if !p(j) {
 				res = append(res, j)

@@ -16,18 +16,28 @@ import (
 
 // An interface to a content addressable file store
 
+// StoreID is a handle for an object within the store
 type StoreID []byte
 
 func (i StoreID) String() string {
 	return hex.EncodeToString(i)
 }
 
+// StoreIDFromString parses a string and returns the StoreID
+// that it would represent
 func StoreIDFromString(str string) (StoreID, error) {
 	b, err := hex.DecodeString(str)
 	return StoreID(b), err
 }
 
+// StoreWalker is used to enumerate a store. Given a StoreID as an
+// argument, it returns all the StoreIDs that the contents of the
+// input store item may refer to
 type StoreWalker func(StoreID) []StoreID
+
+// Storer is an interface to a content addressable blob store. Files
+// can be written to it, and then accesed and referred to based on an
+// ID representing the content of the written item.
 type Storer interface {
 	Store() (StoreWriteCloser, error)     // Write something to the store
 	Open(StoreID) (io.ReadCloser, error)  // Open a file by id
@@ -47,7 +57,7 @@ type sha1Store struct {
 	prefixDepth int
 }
 
-func (t *sha1Store) storeIdToPathName(id StoreID) (string, string, error) {
+func (t *sha1Store) storeIDToPathName(id StoreID) (string, string, error) {
 	if len(id) != sha1.Size {
 		log.Println("ID: ", id)
 		debug.PrintStack()
@@ -99,7 +109,7 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 			return
 		}
 
-		name, path, err := t.storeIdToPathName(id)
+		name, path, err := t.storeIDToPathName(id)
 		if err != nil {
 			err = errors.New("Failed to translate id to path " + err.Error())
 			os.Remove(file.Name())
@@ -151,7 +161,7 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 }
 
 func (t *sha1Store) Open(id StoreID) (reader io.ReadCloser, err error) {
-	name, _, err := t.storeIdToPathName(id)
+	name, _, err := t.storeIDToPathName(id)
 	if err != nil {
 		err = errors.New("Failed to translate id to path " + err.Error())
 		return nil, err
@@ -162,7 +172,7 @@ func (t *sha1Store) Open(id StoreID) (reader io.ReadCloser, err error) {
 }
 
 func (t *sha1Store) Size(id StoreID) (size int64, err error) {
-	name, _, err := t.storeIdToPathName(id)
+	name, _, err := t.storeIDToPathName(id)
 	if err != nil {
 		err = errors.New("Failed to translate id to path " + err.Error())
 		return 0, err
@@ -174,7 +184,7 @@ func (t *sha1Store) Size(id StoreID) (size int64, err error) {
 }
 
 func (t *sha1Store) Link(id StoreID, targets ...string) (err error) {
-	name, _, err := t.storeIdToPathName(id)
+	name, _, err := t.storeIDToPathName(id)
 	if err != nil {
 		err = errors.New("Failed to translate id to path " + err.Error())
 		return err
@@ -209,16 +219,15 @@ func (t *sha1Store) Link(id StoreID, targets ...string) (err error) {
 					break
 				}
 				return errors.New("File associated with differet hashes")
-			} else {
-				return err
 			}
+			return err
 		}
 	}
 	return err
 }
 
 func (t *sha1Store) UnLink(id StoreID) (err error) {
-	name, _, err := t.storeIdToPathName(id)
+	name, _, err := t.storeIDToPathName(id)
 	if err != nil {
 		err = errors.New("Failed to translate id to path " + err.Error())
 		return err
@@ -228,8 +237,8 @@ func (t *sha1Store) UnLink(id StoreID) (err error) {
 	return err
 }
 
-// Create a store using hex encoded sha1 strings of ingested
-// blobs
+// Sha1Store creates a blob store that uses  hex encoded sha1 strings of
+// ingested blobs for IDs
 func Sha1Store(
 	baseDir string, // Base directory of the persistant store
 	tempDir string, // Temporary directory for ingesting files
@@ -314,7 +323,7 @@ func (t *sha1Store) ListRefs() map[string]StoreID {
 	return refs
 }
 
-// StoreWriterCloser is used to arite a file to the file store.
+// StoreWriteCloser is used to arite a file to the file store.
 // Write data, and call Close() when done. After calling Close,
 // Identitiy will return the ID of the item in the store.
 type StoreWriteCloser interface {

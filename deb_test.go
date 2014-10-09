@@ -141,7 +141,7 @@ func TestDebControlPersist(t *testing.T) {
 
 	paragraphs, err := ParseDebianControl(strings.NewReader(inStr))
 	if err != nil {
-		t.Errorf("ParseDebianControl failure: %a", inStr)
+		t.Errorf("ParseDebianControl failure: %s", inStr)
 	}
 
 	var buf bytes.Buffer

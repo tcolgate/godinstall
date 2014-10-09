@@ -4,12 +4,13 @@ import (
 	"sync"
 )
 
-// This is a thread safe map stolen from somwhere else
+// SafeMap is a thread safe map stolen from somwhere else
 type SafeMap struct {
 	lock *sync.RWMutex
 	bm   map[interface{}]interface{}
 }
 
+// NewSafeMap creates a thread safe map
 func NewSafeMap() *SafeMap {
 	return &SafeMap{
 		lock: new(sync.RWMutex),
@@ -27,7 +28,7 @@ func (m *SafeMap) Get(k interface{}) interface{} {
 	return nil
 }
 
-// Maps the given key and value. Returns false
+// Set maps the given key and value. Returns false
 // if the key is already in the map and changes nothing.
 func (m *SafeMap) Set(k interface{}, v interface{}) bool {
 	m.lock.Lock()
@@ -42,7 +43,7 @@ func (m *SafeMap) Set(k interface{}, v interface{}) bool {
 	return true
 }
 
-// Returns true if k is exist in the map.
+// Check returns true if k is exist in the map.
 func (m *SafeMap) Check(k interface{}) bool {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
@@ -52,6 +53,7 @@ func (m *SafeMap) Check(k interface{}) bool {
 	return true
 }
 
+// Delete removes a key from a map
 func (m *SafeMap) Delete(k interface{}) {
 	m.lock.Lock()
 	defer m.lock.Unlock()

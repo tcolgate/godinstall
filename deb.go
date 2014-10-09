@@ -23,10 +23,11 @@ import (
 	"github.com/blakesmith/ar"
 )
 
+// DebVersion contains the componenet of a debian version
 type DebVersion struct {
-	Epoch    int
-	Version  string
-	Revision string
+	Epoch    int    // Primarily used for fixing previous errors in versiongin
+	Version  string // The "upstream" version, of the actual packaged applications
+	Revision string // This is the revision for the packaging of the main upstream version
 }
 
 func (d *DebVersion) String() string {
@@ -45,6 +46,7 @@ func (d *DebVersion) String() string {
 	return output
 }
 
+// DebVersionFromString converts a string to the debian version components
 func DebVersionFromString(str string) (version DebVersion, err error) {
 	epochSplit := strings.SplitN(str, ":", 2)
 	if len(epochSplit) > 1 {
@@ -71,7 +73,8 @@ func DebVersionFromString(str string) (version DebVersion, err error) {
 	return
 }
 
-// Annoyingly 'subtle' code, poached from
+// DebVersionCompare compares two version, returning 0 if equal, < 0 if a < b or
+// > 0 if a > b. Annoyingly 'subtle' code, poached from
 // http://anonscm.debian.org/cgit/dpkg/dpkg.git/tree/lib/dpkg/version.c?h=wheezy
 func DebVersionCompare(a DebVersion, b DebVersion) int {
 	if a.Epoch > b.Epoch {
@@ -174,7 +177,8 @@ func compareComponent(a string, b string) int {
 	return 0
 }
 
-// An interface for describing a debian package.
+// DebPackageInfoer for describing extracting information relating to
+// a debian package
 type DebPackageInfoer interface {
 	Parse() error
 	Name() (string, error)
@@ -272,7 +276,7 @@ func parseSigsFile(sig string, kr openpgp.EntityList) (*debSigsFile, error) {
 	return result, nil
 }
 
-// Create a debian package description, which will be lazily parsed and
+// NewDebPackage creates a debian package description, which will be lazily parsed and
 // verified against the provided keyring
 func NewDebPackage(r io.Reader, kr openpgp.EntityList) DebPackageInfoer {
 	return &debPackage{
@@ -571,28 +575,40 @@ func (d *debPackage) parseDebPackage() (err error) {
 	return nil
 }
 
+// ControlFile repsents a set of debian control data
+// paragraphs
 type ControlFile []*ControlParagraph
+
+// ControlParagraph represents a set of key value mappings
+// read from a debian control file
 type ControlParagraph map[string][]*string
 
+// MakeControlParagraph initialises a new control paragraph
 func MakeControlParagraph() ControlParagraph {
 	return make(ControlParagraph)
 }
 
+// GetValues returns the set of values associated with a key
+// from a paragraph of control data
 func (ctrl ControlParagraph) GetValues(item string) ([]*string, bool) {
 	v, ok := ctrl[item]
 	return v, ok
 }
 
+// GetValue returns the first value associated with a key in a control
+// paragraph
 func (ctrl ControlParagraph) GetValue(item string) (string, bool) {
 	v, ok := ctrl.GetValues(item)
 	return *v[0], ok
 }
 
+// SetValue sets a control paragraph item to the single value provided
 func (ctrl ControlParagraph) SetValue(item string, val string) {
 	ctrl[item] = []*string{&val}
 	return
 }
 
+// AddValue adds an additional value to a paragraph item
 func (ctrl ControlParagraph) AddValue(item string, val string) {
 	field, ok := ctrl[item]
 	if ok {
@@ -603,6 +619,9 @@ func (ctrl ControlParagraph) AddValue(item string, val string) {
 	return
 }
 
+// ParseDebianControl parses the contents of the reader as a debian
+// control file. It does not collapse folding or multiple value fields
+// and assumes this has already been done.
 func ParseDebianControl(rawin io.Reader) (ControlFile, error) {
 	var paras = make(ControlFile, 1)
 	var newpara = MakeControlParagraph()
@@ -639,7 +658,9 @@ func ParseDebianControl(rawin io.Reader) (ControlFile, error) {
 	return paras, nil
 }
 
-// Attempt to format a debian control file
+// WriteDebianControl writes the control paragraphs to the io.Writer, using the keys
+// from start first, if present. Any keys from end are output last, if present,
+// any remaining keys. Other keys are output in between, sorted by key
 func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, end []string) {
 	for p := range paragraphs {
 		fields := paragraphs[p]
@@ -668,7 +689,7 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 		}
 
 		// Collate the remaining fields
-		middle := make([]string, 0)
+		var middle []string
 		for fieldName := range *fields {
 			if !orderedMap[fieldName] {
 				middle = append(middle, fieldName)
@@ -708,6 +729,8 @@ func WriteDebianControl(out io.Writer, paragraphs ControlFile, start []string, e
 	}
 }
 
+// FormatControlFile outputs a debian control file, with some commong fields in
+// a sensible order
 func FormatControlFile(ctrlWriter io.Writer, paragraphs ControlFile) {
 	debStartFields := []string{"Package", "Version", "Filename", "Directory", "Size"}
 	debEndFields := []string{"MD5Sum", "MD5sum", "SHA1", "SHA256", "Description"}

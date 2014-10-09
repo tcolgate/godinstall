@@ -21,7 +21,7 @@ controlFile = {'debfiles': open(changesfile, 'rb')}
 r = requests.post(baseurl, files=controlFile)
 
 respData = json.loads(r.raw.read())
-sessionID = respData["Message"]["SessionId"]
+sessionID = respData["Message"]["SessionID"]
 
 for f in respData["Message"]["Changes"]["Files"]:
   file = {'debfiles': open(f, 'rb')}

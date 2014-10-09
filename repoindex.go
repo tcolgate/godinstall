@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+// RepoStorer defines an interface for interacting with an on disk
+// versioned apt repository (probably needs splitting up to seperate
+// bits of functionality
 type RepoStorer interface {
 	GetHead(string) (CommitID, error)
 	SetHead(string, CommitID) error
@@ -33,6 +36,8 @@ type repoBlobStore struct {
 	Storer
 }
 
+// NewRepoBlobStore This creates a new repository, based ona a content
+// addressable fs
 func NewRepoBlobStore(storeDir string, tmpDir string) RepoStorer {
 	return &repoBlobStore{
 		Sha1Store(storeDir, tmpDir, 3),
@@ -94,7 +99,7 @@ func (r repoBlobStore) GarbageCollect() {
 
 	f := func(id StoreID) {
 		if !used.Check(id.String()) {
-			gcFiles += 1
+			gcFiles++
 			size, _ := r.Size(id)
 			gcBytes += size
 			log.Println("Removing unused blob ", id.String())
@@ -116,8 +121,12 @@ func (r repoBlobStore) SetHead(name string, id CommitID) error {
 	return r.SetRef("heads/"+name, StoreID(id))
 }
 
+// RepoItemType is used to differentiate source and binary repository items
 type RepoItemType int
 
+// An uninitialised repo item
+// A binary item (a deb)
+// a source item (dsc, and related files)
 const (
 	UNKNOWN RepoItemType = 1 << iota
 	BINARY  RepoItemType = 2
@@ -197,7 +206,7 @@ func (r repoBlobStore) ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoI
 	var err error
 
 	// Build repository items
-	result := make([]*RepoItem, 0)
+	var result []*RepoItem
 	for i, file := range files {
 		switch {
 		case strings.HasSuffix(i, ".deb"):
@@ -315,7 +324,6 @@ func (r repoBlobStore) AddBinaryControlFile(data ControlFile) (StoreID, error) {
 //  - Alphabetical package name
 //  - Alphabetical architecture
 //  - Reverse Version
-
 type ByIndexOrder []*RepoItem
 
 func (a ByIndexOrder) Len() int      { return len(a) }
@@ -324,12 +332,11 @@ func (a ByIndexOrder) Less(i, j int) bool {
 	res := IndexOrder(a[i], a[j])
 	if res < 0 {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
-// Define the order we want items to appear in the index
+// IndexOrder implements  the order we want items to appear in the index
 func IndexOrder(a, b *RepoItem) int {
 	nameCmp := bytes.Compare([]byte(a.Name), []byte(b.Name))
 	if nameCmp != 0 {
@@ -354,6 +361,8 @@ type repoIndexWriterHandle struct {
 	encoder *gob.Encoder
 }
 
+// IndexID is used to reference an index description in the
+// blob store
 type IndexID StoreID
 
 // RepoIndex represent a complete list of packages that will make
@@ -413,8 +422,16 @@ func (r *repoIndexReaderHandle) Close() error {
 	return err
 }
 
+// RepoActionType is used to document the list of actions
+// take by a given merge
 type RepoActionType int
 
+//	ActionUNKNOWN     - An uninitilized action item
+//	ActionADD         - An item was added
+//	ActionDELETE      - An item was explicitly deleted
+//	ActionPRUNE       - An item was pruned by the pruning rules
+//	ActionSKIPPRESENT - An item was skipped, as it alerady existed
+//	ActionSKIPPRUNE   - An item was was skipped, dur to purge rules
 const (
 	ActionUNKNOWN     RepoActionType = 1 << iota
 	ActionADD         RepoActionType = 2
@@ -424,12 +441,13 @@ const (
 	ActionSKIPPRUNE   RepoActionType = 6
 )
 
-// This lists the actions that were taken during a commit
+// RepoAction desribes an action taken during a merge or update
 type RepoAction struct {
 	Type        RepoActionType
 	Description string
 }
 
+// CommitID is used to reference a specific point in the repository's history
 type CommitID StoreID
 
 // RepoCommit represents an actual complete repository state

@@ -113,15 +113,15 @@ func main() {
 		}
 	}
 
-	var signerId *openpgp.Entity
+	var signerID *openpgp.Entity
 	if *signerEmail != "" {
-		signerId = getKeyByEmail(privRing, *signerEmail)
-		if signerId == nil {
+		signerID = getKeyByEmail(privRing, *signerEmail)
+		if signerID == nil {
 			log.Println("Can't find signer id in keyring")
 			return
 		}
 
-		err = signerId.PrivateKey.Decrypt([]byte(""))
+		err = signerID.PrivateKey.Decrypt([]byte(""))
 		if err != nil {
 			log.Println("Can't decrypt private key, " + err.Error())
 			return
@@ -176,7 +176,7 @@ func main() {
 	aptGenerator := NewAptBlobArchiveGenerator(
 		&aptRepo,
 		privRing,
-		signerId,
+		signerID,
 		repoStore,
 		pruneRules,
 	)

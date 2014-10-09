@@ -33,9 +33,11 @@ type UploadItem struct {
 	data io.Reader
 }
 
-// This defines an interface to an individual upload session
+// UploadSessioner defines an interface for managing an session used for
+// uploading a set of files for integration with the repository, and communicating
+// the status and completion of the session
 type UploadSessioner interface {
-	SessionID() string                       // return the UUID for this session
+	ID() string                              // return the UUID for this session
 	Directory() string                       // returnt he base directory for the verified uploaded files
 	Items() map[string]*ChangesItem          // return the changes file for this session
 	AddItem(*ChangesItem) AptServerResponder // Add the given item to this session
@@ -47,7 +49,7 @@ type UploadSessioner interface {
 
 // Base session information
 type uploadSession struct {
-	SessionId    string             // Name of the session
+	SessionID    string             // Name of the session
 	validateDebs bool               // Validate uploaded. deb files
 	keyRing      openpgp.EntityList // Keyring for validation
 	dir          string             // Temporary directory for storage
@@ -58,8 +60,8 @@ type uploadSession struct {
 	changes      *ChangesFile       // The changes file for this session
 }
 
-func (s *uploadSession) SessionID() string {
-	return s.SessionId
+func (s *uploadSession) ID() string {
+	return s.SessionID
 }
 
 func (s *uploadSession) Directory() string {
@@ -68,10 +70,10 @@ func (s *uploadSession) Directory() string {
 
 func (s *uploadSession) MarshalJSON() (j []byte, err error) {
 	resp := struct {
-		SessionId string
+		SessionID string
 		Changes   ChangesFile
 	}{
-		s.SessionId,
+		s.SessionID,
 		*s.changes,
 	}
 	j, err = json.Marshal(resp)
@@ -97,6 +99,8 @@ type changesSession struct {
 	done chan struct{} // A channel to be informed of closure on
 }
 
+// NewChangesSession creates a session for uploading using a changes
+// file to describe the set of files to be uploaded
 func NewChangesSession(
 	changes *ChangesFile,
 	validateDebs bool,
@@ -112,11 +116,11 @@ func NewChangesSession(
 	s.keyRing = keyRing
 	s.done = done
 	s.finished = finished
-	s.SessionId = uuid.New()
+	s.SessionID = uuid.New()
 	s.changes = changes
 	s.uploadHook = uploadHook
 	s.store = store
-	s.dir = *tmpDirBase + "/" + s.SessionId
+	s.dir = *tmpDirBase + "/" + s.SessionID
 	s.store = store
 
 	os.Mkdir(s.dir, os.FileMode(0755))
@@ -301,7 +305,7 @@ func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 			if signed && validated {
 				signedBy, _ := pkg.SignedBy()
 				i := 0
-				for k, _ := range signedBy.Identities {
+				for k := range signedBy.Identities {
 					expectedFile.SignedBy[i] = k
 					i++
 				}
@@ -334,6 +338,8 @@ type loneDebSession struct {
 	uploadSession
 }
 
+// NewLoneDebSession creates an upload session for use when a lone
+// debian package is being uploaded, without a changes file
 func NewLoneDebSession(
 	validateDebs bool,
 	keyRing openpgp.EntityList,
@@ -346,9 +352,9 @@ func NewLoneDebSession(
 	s.validateDebs = validateDebs
 	s.keyRing = keyRing
 	s.finished = finished
-	s.SessionId = uuid.New()
+	s.SessionID = uuid.New()
 	s.uploadHook = uploadHook
-	s.dir = *tmpDirBase + "/" + s.SessionId
+	s.dir = *tmpDirBase + "/" + s.SessionID
 	s.store = store
 
 	os.Mkdir(s.dir, os.FileMode(0755))
@@ -456,7 +462,7 @@ func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) 
 		if changes.signed && changes.validated {
 			signedBy, _ := pkg.SignedBy()
 			i := 0
-			for k, _ := range signedBy.Identities {
+			for k := range signedBy.Identities {
 				signers[i] = k
 				i++
 			}

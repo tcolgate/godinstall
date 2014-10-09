@@ -8,16 +8,22 @@ import (
 	"strings"
 )
 
+// PruneRule describes the details of a rule for removing old
+// items from the repository
 type PruneRule struct {
-	pkgPattern      *regexp.Regexp
-	limitVersions   bool
-	retainVersions  int64
-	limitRevisions  bool
-	retainRevisions int64
+	pkgPattern      *regexp.Regexp // A pattern to atch against package names
+	limitVersions   bool           // should we limit the number of old version
+	retainVersions  int64          // how many additional historical versions should we keep
+	limitRevisions  bool           // should we limit the number of old revisions
+	retainRevisions int64          // how many additional historical revisions should we keep
 }
 
+// PruneRuleSet is a group of pruning rules provided by the user
 type PruneRuleSet []*PruneRule
 
+// MakePruner creates a new pruner. The pruner is a function that takes
+// a repository item, and decides if it will be included or not (true
+// implies the item should be removed, false means it should be kept)
 func (rules PruneRuleSet) MakePruner() func(*RepoItem) bool {
 	currPkg := ""
 	currArch := ""
@@ -52,14 +58,14 @@ func (rules PruneRuleSet) MakePruner() func(*RepoItem) bool {
 		}
 
 		if item.Version.Version != currVersion || item.Version.Epoch != currEpoch {
-			currVersionCnt += 1
+			currVersionCnt++
 			currVersion = item.Version.Version
 			currEpoch = item.Version.Epoch
 			currRevision = item.Version.Revision
 			currRevisionCnt = 1
 		} else {
 			if item.Version.Revision != currRevision {
-				currRevisionCnt += 1
+				currRevisionCnt++
 				currRevision = item.Version.Revision
 			} else {
 				// The two versions match, shouldn't prune this
@@ -85,9 +91,10 @@ func (rules PruneRuleSet) MakePruner() func(*RepoItem) bool {
 	}
 }
 
+// ParsePruneRules converts a string into a set of pruning rules
 func ParsePruneRules(rulesStr string) (PruneRuleSet, error) {
 	ruleStrings := strings.Split(rulesStr, ",")
-	rules := make([]*PruneRule, 0)
+	var rules []*PruneRule
 
 	for _, ruleStr := range ruleStrings {
 		rule, err := ParsePruneRule(ruleStr)
@@ -102,6 +109,8 @@ func ParsePruneRules(rulesStr string) (PruneRuleSet, error) {
 
 var ruleRegex = regexp.MustCompile(`^(.*)_(\d+|\*)-(\d+|\*)$`)
 
+// ParsePruneRule converts a string describing a single pruning rule
+// into an internal description used for pruning
 func ParsePruneRule(ruleStr string) (*PruneRule, error) {
 	var rule PruneRule
 	var err error

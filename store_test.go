@@ -234,9 +234,9 @@ func TestStoreNullString(t *testing.T) {
 	s, clean, _ := makeTestSha1Store(t)
 	defer clean()
 
-	emptyId := s.EmptyFileID()
-	if emptyId.String() != storeTestNullStringHash {
-		t.Errorf("Incorrect hash for empty blob %v, expected %v", emptyId.String(), storeTestNullStringHash)
+	emptyID := s.EmptyFileID()
+	if emptyID.String() != storeTestNullStringHash {
+		t.Errorf("Incorrect hash for empty blob %v, expected %v", emptyID.String(), storeTestNullStringHash)
 		return
 	}
 
@@ -259,7 +259,7 @@ func TestStoreNullString(t *testing.T) {
 		return
 	}
 
-	if bytes.Compare(id, emptyId) != 0 {
+	if bytes.Compare(id, emptyID) != 0 {
 		t.Errorf("Incorrect hash for NULL string, %v, expected %v", id.String(), storeTestNullStringHash)
 		return
 	}

@@ -23,6 +23,8 @@ type ChangesFile struct {
 	Files     map[string]*ChangesItem // Descriptions of files to be included in this upload
 }
 
+// ChangesItem represents an individual item referred to by a changes file, with
+// the expected size and related hashes
 type ChangesItem struct {
 	Filename         string
 	StoreID          StoreID
@@ -37,8 +39,8 @@ type ChangesItem struct {
 	data io.Reader
 }
 
-// Parse a debian chnages file into a ChangesFile object and verify any signature
-// against keys in PHP keyring kr.
+// ParseDebianChanges parses a debian chnages file into a ChangesFile object
+// and verify any signature against keys in GPG keyring kr.
 //
 // TODO This fails DRY badlt as we repeat the process for each signature type
 // rewrite this to be more generic
