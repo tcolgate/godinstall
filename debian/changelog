@@ -1,3 +1,9 @@
+godinstall (0.4.3) precise; urgency=low
+
+  * Add Release.gpg generation
+
+ -- tristan <tristan@clonebase.we7.local>  Tue, 14 Oct 2014 08:35:49 +0100
+
 godinstall (0.4.2) precise; urgency=low
 
   * Fix upload script, and get it installed 
