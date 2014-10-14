@@ -66,6 +66,7 @@ func (r repoBlobStore) gcWalkCommit(used *SafeMap, id CommitID) {
 	commit, _ := r.GetCommit(id)
 	used.Set(commit.InRelease.String(), true)
 	used.Set(commit.Release.String(), true)
+	used.Set(commit.ReleaseGPG.String(), true)
 	used.Set(commit.PackagesGz.String(), true)
 	used.Set(commit.Sources.String(), true)
 	used.Set(commit.SourcesGz.String(), true)
@@ -460,6 +461,7 @@ type RepoCommit struct {
 	Sources     StoreID      // StoreID for reified source index
 	SourcesGz   StoreID      // StoreID for reified compressed source index
 	Release     StoreID      // StoreID for reified release file
+	ReleaseGPG  StoreID      // StoreID for reified release.gpg file
 	InRelease   StoreID      // StoreID for reified signed release file
 	Actions     []RepoAction // List of all actions that were performed for this commit
 }

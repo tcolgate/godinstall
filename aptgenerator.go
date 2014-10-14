@@ -254,6 +254,14 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid Inde
 		signedReleaseWriter.Close()
 		signedReleaseFile.Close()
 		commit.InRelease, _ = signedReleaseFile.Identity()
+
+		// Generate detached GPG signature
+		releaseReader, _ := a.store.Open(commit.Release)
+		defer releaseReader.Close()
+		releaseGpgFile, _ := a.store.Store()
+		err = openpgp.ArmoredDetachSign(releaseGpgFile, a.SignerID, releaseReader, nil)
+		releaseGpgFile.Close()
+		commit.ReleaseGPG, _ = releaseGpgFile.Identity()
 	}
 
 	commit.Date = time.Now()
@@ -273,6 +281,7 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 		os.Remove(a.Repo.Base() + "/Packages")
 		os.Remove(a.Repo.Base() + "/Packages.gz")
 		os.Remove(a.Repo.Base() + "/Release")
+		os.Remove(a.Repo.Base() + "/Release.gpg")
 		os.Remove(a.Repo.Base() + "/InRelease")
 		os.RemoveAll(a.Repo.Base() + "/pool")
 	}
@@ -344,6 +353,10 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 
 	if a.SignerID != nil {
 		err = a.store.Link(commit.InRelease, a.Repo.Base()+"/InRelease")
+		if err != nil {
+			return err
+		}
+		err = a.store.Link(commit.ReleaseGPG, a.Repo.Base()+"/Release.gpg")
 		if err != nil {
 			return err
 		}
