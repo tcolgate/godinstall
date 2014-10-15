@@ -440,6 +440,7 @@ const (
 	ActionPRUNE       RepoActionType = 4
 	ActionSKIPPRESENT RepoActionType = 5
 	ActionSKIPPRUNE   RepoActionType = 6
+	ActionTRIM        RepoActionType = 7
 )
 
 // RepoAction desribes an action taken during a merge or update
@@ -609,4 +610,75 @@ func (r repoBlobStore) MergeItemsIntoCommit(parentid CommitID, items []*RepoItem
 
 	id, err := mergedidx.Close()
 	return IndexID(id), actions, err
+}
+
+// Trimmer is an type for describing functions that can be used to
+// trim the repository history
+type Trimmer func(*RepoCommit) bool
+
+// MakeTimeTrimmer creates a trimmer function that reduces the repository
+// history to a given window of time
+func (r repoBlobStore) MakeTimeTrimmer(time.Duration) Trimmer {
+	return func(commit *RepoCommit) (trim bool) {
+
+		return false
+	}
+}
+
+// MakeLengthTrimmer creates a trimmer function that reduces the repository
+// history to a given number of commits
+func (r repoBlobStore) MakeLengthTrimmer(commitcount int) Trimmer {
+	count := commitcount
+	return func(commit *RepoCommit) (trim bool) {
+		if count >= 0 {
+			count--
+			return false
+		}
+		return true
+	}
+}
+
+// Trim works it's way through the commit history, and rebuilds a new version
+// of the repository history, truncated at the commit selected by the trimmer
+func (r repoBlobStore) Trim(head CommitID, t Trimmer) (newhead CommitID, err error) {
+	var history []*RepoCommit
+	newhead = head
+	curr := head
+
+	for {
+		if StoreID(curr).String() == r.EmptyFileID().String() {
+			// We reached an empty commit before we decided to trim
+			// so just return the untrimmed origin CommitID
+			return head, nil
+		}
+
+		c, err := r.GetCommit(curr)
+		if err != nil {
+			return head, err
+		}
+
+		if t(c) {
+			break
+		}
+		history = append(history, c)
+	}
+
+	newhead = CommitID(r.EmptyFileID())
+	history[len(history)-1].Actions = []RepoAction{
+		RepoAction{
+			Type:        ActionTRIM,
+			Description: "Repository history trimmed",
+		},
+	}
+
+	for i := len(history) - 1; i >= 0; i-- {
+		newcommit := history[i]
+		newcommit.Parent = newhead
+		newhead, err = r.AddCommit(newcommit)
+		if err != nil {
+			return head, err
+		}
+	}
+
+	return
 }
