@@ -5,13 +5,11 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
-	"crypto/md5"
-	"crypto/sha1"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"reflect"
 	"sort"
 	"strconv"
@@ -452,10 +450,7 @@ func (d *debPackage) Sha256() ([]byte, error) {
 //  debian-binary - Package version info
 //  _gpg* - dpkg-sig signatures covering hashes of the other files
 func (d *debPackage) parseDebPackage() (err error) {
-	pkgmd5er := md5.New()
-	pkgsha1er := sha1.New()
-	pkgsha256er := sha256.New()
-	pkghasher := io.MultiWriter(pkgmd5er, pkgsha1er, pkgsha256er)
+	pkghasher := MakeWriteHasher(ioutil.Discard)
 	pkgtee := io.TeeReader(d.reader, pkghasher)
 
 	arReader := ar.NewReader(pkgtee)
@@ -481,9 +476,7 @@ func (d *debPackage) parseDebPackage() (err error) {
 			return err
 		}
 
-		md5er := md5.New()
-		sha1er := sha1.New()
-		hasher := io.MultiWriter(md5er, sha1er)
+		hasher := MakeWriteHasher(ioutil.Discard)
 
 		switch {
 		case strings.HasPrefix(header.Name, "_gpg"):
@@ -528,14 +521,14 @@ func (d *debPackage) parseDebPackage() (err error) {
 		}
 
 		d.calcedSigs[header.Name] = debSigs{
-			md5:  hex.EncodeToString(md5er.Sum(nil)),
-			sha1: hex.EncodeToString(sha1er.Sum(nil)),
+			md5:  hex.EncodeToString(hasher.MD5Sum()),
+			sha1: hex.EncodeToString(hasher.SHA1Sum()),
 		}
 	}
 
-	d.md5 = pkgmd5er.Sum(nil)
-	d.sha1 = pkgsha1er.Sum(nil)
-	d.sha256 = pkgsha256er.Sum(nil)
+	d.md5 = pkghasher.MD5Sum()
+	d.sha1 = pkghasher.SHA1Sum()
+	d.sha256 = pkghasher.SHA256Sum()
 
 	if control.Len() == 0 {
 		return errors.New("did not find control file in archive")

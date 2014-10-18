@@ -1,13 +1,11 @@
 package main
 
 import (
-	"crypto/md5"
-	"crypto/sha1"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -250,10 +248,7 @@ func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 		return errors.New("File already uploaded")
 	}
 
-	md5er := md5.New()
-	sha1er := sha1.New()
-	sha256er := sha256.New()
-	hasher := io.MultiWriter(md5er, sha1er, sha256er)
+	hasher := MakeWriteHasher(ioutil.Discard)
 	tee := io.TeeReader(upload.data, hasher)
 	storeFilename := s.dir + "/" + upload.Filename
 	defer func() {
@@ -283,9 +278,9 @@ func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 	}
 	expectedFile.StoreID = id
 
-	md5 := hex.EncodeToString(md5er.Sum(nil))
-	sha1 := hex.EncodeToString(sha1er.Sum(nil))
-	sha256 := hex.EncodeToString(sha256er.Sum(nil))
+	md5 := hex.EncodeToString(hasher.MD5Sum())
+	sha1 := hex.EncodeToString(hasher.SHA1Sum())
+	sha256 := hex.EncodeToString(hasher.SHA256Sum())
 
 	if expectedFile.Md5 != md5 ||
 		expectedFile.Sha1 != sha1 ||
@@ -384,10 +379,7 @@ func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) 
 	var changes ChangesFile
 	changes.Files = make(map[string]*ChangesItem)
 
-	md5er := md5.New()
-	sha1er := sha1.New()
-	sha256er := sha256.New()
-	hasher := io.MultiWriter(md5er, sha1er, sha256er)
+	hasher := MakeWriteHasher(ioutil.Discard)
 	tee := io.TeeReader(upload.data, hasher)
 
 	blob, err := s.store.Store()
@@ -497,9 +489,9 @@ func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) 
 
 	upload.UploadHookResult = hookResult
 	upload.Uploaded = true
-	upload.Md5 = hex.EncodeToString(md5er.Sum(nil))
-	upload.Sha1 = hex.EncodeToString(sha1er.Sum(nil))
-	upload.Sha256 = hex.EncodeToString(sha256er.Sum(nil))
+	upload.Md5 = hex.EncodeToString(hasher.MD5Sum())
+	upload.Sha1 = hex.EncodeToString(hasher.SHA1Sum())
+	upload.Sha256 = hex.EncodeToString(hasher.SHA256Sum())
 	upload.SignedBy = signers
 	upload.StoreID = id
 	upload.Size, _ = s.store.Size(id)

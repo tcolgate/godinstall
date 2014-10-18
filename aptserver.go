@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"expvar"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"regexp"
@@ -36,6 +38,8 @@ type AptServer struct {
 
 	uploadHandler   http.HandlerFunc // HTTP handler for upload requests
 	downloadHandler http.HandlerFunc // HTTP handler for apt client downloads
+
+	getCount *expvar.Int // Download count
 }
 
 // InitAptServer setups, and starts  a server.
@@ -43,6 +47,8 @@ func (a *AptServer) InitAptServer() {
 	a.aptLocks, _ = NewGovernor(a.MaxReqs)
 	a.downloadHandler = a.makeDownloadHandler()
 	a.uploadHandler = a.makeUploadHandler()
+
+	a.getCount = expvar.NewInt("GetRequests")
 
 	go a.Updater()
 }
@@ -61,6 +67,8 @@ func (a *AptServer) makeDownloadHandler() http.HandlerFunc {
 		a.aptLocks.ReadLock()
 		defer a.aptLocks.ReadUnLock()
 
+		log.Printf("%s %s %s %s", r.Method, r.Proto, r.URL.Path, r.RemoteAddr)
+		a.getCount.Add(1)
 		fsHandler.ServeHTTP(w, r)
 	}
 }

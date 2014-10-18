@@ -12,9 +12,6 @@ import (
 	"time"
 
 	"compress/gzip"
-	"crypto/md5"
-	"crypto/sha1"
-	"crypto/sha256"
 
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/clearsign"
@@ -55,31 +52,6 @@ func NewAptBlobArchiveGenerator(
 	}
 }
 
-// WriteCounter counts writes to a io.writer, used to assess the size of a file
-// without needing to store it
-type WriteCounter struct {
-	backing io.Writer
-	Count   int64
-}
-
-func (w *WriteCounter) Write(p []byte) (n int, err error) {
-	n, err = w.backing.Write(p)
-	w.Count += int64(n)
-	return
-}
-
-// MakeWriteCounter is creates an io.Writer to measure the size of a
-// file writtern, without actually storing it. This is useful when we
-// want to store size information about a file without actually keeping
-// it around (such as the uncomressed size of a file we also store
-// comrpessed)
-func MakeWriteCounter(w io.Writer) *WriteCounter {
-	return &WriteCounter{
-		backing: w,
-		Count:   0,
-	}
-}
-
 func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid IndexID, actions []RepoAction) (commitid CommitID, err error) {
 	commit := &RepoCommit{}
 	commit.Index = indexid
@@ -110,28 +82,15 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid Inde
 		sourcesWriter := io.MultiWriter(sourcesHashedWriter, sourcesGzWriter)
 	*/
 
-	packagesFile := MakeWriteCounter(ioutil.Discard)
-	packagesMD5er := md5.New()
-	packagesSHA1er := sha1.New()
-	packagesSHA256er := sha256.New()
-	packagesHashedWriter := io.MultiWriter(
-		packagesFile,
-		packagesMD5er,
-		packagesSHA1er,
-		packagesSHA256er)
+	packagesFileWriter := MakeWriteHasher(ioutil.Discard)
+	packagesGzStore, err := a.store.Store()
+	if err != nil {
+		return
+	}
+	packagesGzFile := MakeWriteHasher(packagesGzStore)
+	packagesGzFileWriter := gzip.NewWriter(packagesGzFile)
 
-	packagesGzFile, err := a.store.Store()
-	packagesGzMD5er := md5.New()
-	packagesGzSHA1er := sha1.New()
-	packagesGzSHA256er := sha256.New()
-	packagesGzHashedWriter := io.MultiWriter(
-		packagesGzFile,
-		packagesGzMD5er,
-		packagesGzSHA1er,
-		packagesGzSHA256er)
-	packagesGzWriter := gzip.NewWriter(packagesGzHashedWriter)
-
-	packagesWriter := io.MultiWriter(packagesHashedWriter, packagesGzWriter)
+	packagesWriter := io.MultiWriter(packagesFileWriter, packagesGzFileWriter)
 
 	newindex, err := a.store.OpenIndex(commit.Index)
 	if err != nil {
@@ -187,18 +146,18 @@ func (a *aptBlobArchiveGenerator) GenerateCommit(parentid CommitID, indexid Inde
 		sourcesGzSHA256 := hex.EncodeToString(sourcesGzSHA256er.Sum(nil))
 	*/
 
-	packagesSize := packagesFile.Count
-	packagesMD5 := hex.EncodeToString(packagesMD5er.Sum(nil))
-	packagesSHA1 := hex.EncodeToString(packagesSHA1er.Sum(nil))
-	packagesSHA256 := hex.EncodeToString(packagesSHA256er.Sum(nil))
+	packagesSize := packagesFileWriter.Count()
+	packagesMD5 := hex.EncodeToString(packagesFileWriter.MD5Sum())
+	packagesSHA1 := hex.EncodeToString(packagesFileWriter.SHA1Sum())
+	packagesSHA256 := hex.EncodeToString(packagesFileWriter.SHA256Sum())
 
-	packagesGzWriter.Close()
-	packagesGzFile.Close()
-	commit.PackagesGz, _ = packagesGzFile.Identity()
+	packagesGzFileWriter.Close()
+	packagesGzStore.Close()
+	commit.PackagesGz, _ = packagesGzStore.Identity()
 	packagesGzSize, _ := a.store.Size(commit.PackagesGz)
-	packagesGzMD5 := hex.EncodeToString(packagesGzMD5er.Sum(nil))
-	packagesGzSHA1 := hex.EncodeToString(packagesGzSHA1er.Sum(nil))
-	packagesGzSHA256 := hex.EncodeToString(packagesGzSHA256er.Sum(nil))
+	packagesGzMD5 := hex.EncodeToString(packagesGzFile.MD5Sum())
+	packagesGzSHA1 := hex.EncodeToString(packagesGzFile.SHA1Sum())
+	packagesGzSHA256 := hex.EncodeToString(packagesGzFile.SHA256Sum())
 
 	/*
 		sourcesInfo, _ := os.Stat(*a.Repo.RepoBase + "/Sources")
