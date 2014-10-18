@@ -20,6 +20,11 @@
 		{
 			"ImportPath": "github.com/blakesmith/ar",
 			"Rev": "c9a977dd0cc1392b023382c7bfa5a22af8d3b730"
+		},
+		{
+			"ImportPath": "github.com/codegangsta/cli",
+			"Comment": "1.2.0-26-gf7ebb76",
+			"Rev": "f7ebb761e83e21225d1d8954fde853bf8edd46c4"
 		}
 	]
 }

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
+	"github.com/codegangsta/cli"
 )
 
 // Looks an email address up in a pgp keyring
@@ -34,39 +35,138 @@ func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
 }
 
 func main() {
+	app := cli.NewApp()
+	app.Name = "godinstall"
+	app.Usage = "dynamic apt repository server"
+
+	app.Commands = []cli.Command{
+		cli.Command{
+			Name: "serve",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "l, listen",
+					Value: ":3000",
+					Usage: "The listen address",
+				},
+				cli.StringFlag{
+					Name:  "t, ttl",
+					Value: "60s",
+					Usage: "Upload session will be terminated after the TTL",
+				},
+				cli.IntFlag{
+					Name:  "max-requests",
+					Value: 4,
+					Usage: "Maximum concurrent requests",
+				},
+				cli.StringFlag{
+					Name:  "repo-base",
+					Value: "",
+					Usage: "Location of repository root",
+				},
+				cli.StringFlag{
+					Name:  "cookie-name",
+					Value: "godinstall-sess",
+					Usage: "Name for the sessio cookie",
+				},
+				cli.StringFlag{
+					Name:  "upload-hook",
+					Value: "",
+					Usage: "Script to run after for each uploaded file",
+				},
+				cli.StringFlag{
+					Name:  "pre-gen-hook",
+					Value: "",
+					Usage: "Script to run before archive regeneration",
+				},
+				cli.StringFlag{
+					Name:  "post-gen-hook",
+					Value: "",
+					Usage: "Script to run after archive regeneration",
+				},
+				cli.StringFlag{
+					Name:  "pool-pattern",
+					Value: "[a-z]|lib[a-z]",
+					Usage: "A pattern to match package prefixes to split into directories in the pool",
+				},
+				cli.BoolTFlag{
+					Name:  "validate-changes",
+					Usage: "Validate signatures on changes files",
+				},
+				cli.BoolTFlag{
+					Name:  "validate-changes-sufficient",
+					Usage: "If we are given a signed chnages file, we wont validate individual debs",
+				},
+				cli.BoolTFlag{
+					Name:  "accept-lone-debs",
+					Usage: "Accept individual debs for upload",
+				},
+				cli.BoolTFlag{
+					Name:  "validate-debs",
+					Usage: "Validate signatures on deb files",
+				},
+				cli.StringFlag{
+					Name:  "gpg-pubring",
+					Value: "",
+					Usage: "Public keyring file",
+				},
+				cli.StringFlag{
+					Name:  "gpg-privring",
+					Value: "",
+					Usage: "Private keyring file",
+				},
+				cli.StringFlag{
+					Name:  "signer-email",
+					Value: "",
+					Usage: "Key Email to use for signing releases",
+				},
+				cli.StringFlag{
+					Name:  "prune",
+					Value: ".*_*-*",
+					Usage: "Rules for package pruning",
+				},
+			},
+			Usage:  "run a repository server",
+			Action: CmdServe,
+		},
+	}
+
+	app.Run(os.Args)
+}
+
+func CmdServe(c *cli.Context) {
 	// Setup CLI flags
-	listenAddress := flag.String("listen", ":3000", "ip:port to listen on")
-	ttl := flag.String("ttl", "60s", "Session life time")
-	maxReqs := flag.Int("max-requests", 4, "Maximum concurrent requests")
-	repoBase := flag.String("repo-base", "", "Location of repository root")
-	cookieName := flag.String("cookie-name", "godinstall-sess", "Name for the sessio cookie")
-	uploadHook := flag.String("upload-hook", "", "Script to run after for each uploaded file")
-	preGenHook := flag.String("pre-gen-hook", "", "Script to run before archive regeneration")
-	postGenHook := flag.String("post-gen-hook", "", "Script to run after archive regeneration")
-	poolPattern := flag.String("pool-pattern", "[a-z]|lib[a-z]", "A pattern to match package prefixes to split into directories in the pool")
-	validateChanges := flag.Bool("validate-changes", true, "Validate signatures on changes files")
-	validateChangesSufficient := flag.Bool("validate-changes-sufficient", true, "If we are given a signed chnages file, we wont validate individual debs")
-	acceptLoneDebs := flag.Bool("accept-lone-debs", true, "Accept individual debs for upload")
-	validateDebs := flag.Bool("validate-debs", true, "Validate signatures on deb files")
-	pubringFile := flag.String("gpg-pubring", "", "Public keyring file")
-	privringFile := flag.String("gpg-privring", "", "Private keyring file")
-	signerEmail := flag.String("signer-email", "", "Key Email to use for signing releases")
-	pruneRulesStr := flag.String("prune", ".*_*-*", "Rules for package pruning")
+	listenAddress := c.String("listen")
+	ttl := c.String("ttl")
+	maxReqs := c.Int("max-requests")
+	repoBase := c.String("repo-base")
+	cookieName := c.String("cookie-name")
+	uploadHook := c.String("upload-hook")
+	preGenHook := c.String("pre-gen-hook")
+	postGenHook := c.String("post-gen-hook")
+	poolPattern := c.String("pool-pattern")
+	validateChanges := c.Bool("validate-changes")
+	validateChangesSufficient := c.Bool("validate-changes-sufficient")
+	acceptLoneDebs := c.Bool("accept-lone-debs")
+	validateDebs := c.Bool("validate-debs")
+	pubringFile := c.String("gpg-pubring")
+	privringFile := c.String("gpg-privring")
+	signerEmail := c.String("signer-email")
+	pruneRulesStr := c.String("prune")
 
 	flag.Parse()
 
-	if *repoBase == "" {
+	if repoBase == "" {
 		log.Println("You must pass --repo-base")
 		return
 	}
 
-	expire, err := time.ParseDuration(*ttl)
+	expire, err := time.ParseDuration(ttl)
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
 
-	poolRegexp, err := regexp.CompilePOSIX("^(" + *poolPattern + ")")
+	poolRegexp, err := regexp.CompilePOSIX("^(" + poolPattern + ")")
 
 	if err != nil {
 		log.Println(err.Error())
@@ -74,8 +174,8 @@ func main() {
 	}
 
 	var pubRing openpgp.EntityList
-	if *pubringFile != "" {
-		pubringReader, err := os.Open(*pubringFile)
+	if pubringFile != "" {
+		pubringReader, err := os.Open(pubringFile)
 		if err != nil {
 			log.Println(err.Error())
 			return
@@ -89,8 +189,8 @@ func main() {
 	}
 
 	var privRing openpgp.EntityList
-	if *privringFile != "" {
-		privringReader, err := os.Open(*privringFile)
+	if privringFile != "" {
+		privringReader, err := os.Open(privringFile)
 		if err != nil {
 			log.Println(err.Error())
 			return
@@ -103,7 +203,7 @@ func main() {
 		}
 	}
 
-	if *validateChanges || *validateDebs {
+	if validateChanges || validateDebs {
 		if privRing == nil || pubRing == nil {
 			log.Println("Validation requested, but keyrings not loaded")
 			return
@@ -111,8 +211,8 @@ func main() {
 	}
 
 	var signerID *openpgp.Entity
-	if *signerEmail != "" {
-		signerID = getKeyByEmail(privRing, *signerEmail)
+	if signerEmail != "" {
+		signerID = getKeyByEmail(privRing, signerEmail)
 		if signerID == nil {
 			log.Println("Can't find signer id in keyring")
 			return
@@ -127,9 +227,9 @@ func main() {
 
 	updateChan := make(chan UpdateRequest)
 
-	base := *repoBase + "/archive"
-	storeDir := *repoBase + "/store"
-	tmpDir := *repoBase + "/tmp"
+	base := repoBase + "/archive"
+	storeDir := repoBase + "/store"
+	tmpDir := repoBase + "/tmp"
 
 	_, patherr := os.Stat(base)
 	if os.IsNotExist(patherr) {
@@ -164,7 +264,7 @@ func main() {
 
 	repoStore := NewRepoBlobStore(storeDir, tmpDir)
 
-	pruneRules, err := ParsePruneRules(*pruneRulesStr)
+	pruneRules, err := ParsePruneRules(pruneRulesStr)
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -182,20 +282,20 @@ func main() {
 		expire,
 		&tmpDir,
 		repoStore,
-		NewScriptHook(uploadHook),
-		*validateChanges,
-		*validateChangesSufficient,
-		*validateDebs,
+		NewScriptHook(&uploadHook),
+		validateChanges,
+		validateChangesSufficient,
+		validateDebs,
 		pubRing,
 		updateChan,
 	)
 
 	server := &AptServer{
-		MaxReqs:        *maxReqs,
-		CookieName:     *cookieName,
-		PreGenHook:     NewScriptHook(preGenHook),
-		PostGenHook:    NewScriptHook(postGenHook),
-		AcceptLoneDebs: *acceptLoneDebs,
+		MaxReqs:        maxReqs,
+		CookieName:     cookieName,
+		PreGenHook:     NewScriptHook(&preGenHook),
+		PostGenHook:    NewScriptHook(&postGenHook),
+		AcceptLoneDebs: acceptLoneDebs,
 
 		Repo:           &aptRepo,
 		AptGenerator:   aptGenerator,
@@ -205,5 +305,5 @@ func main() {
 
 	server.InitAptServer()
 	server.Register(http.DefaultServeMux)
-	http.ListenAndServe(*listenAddress, http.DefaultServeMux)
+	http.ListenAndServe(listenAddress, http.DefaultServeMux)
 }
