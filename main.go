@@ -8,20 +8,17 @@ package main
 //   It is primarily aimed at use in continuous delivery processes.
 
 import (
+	_ "expvar"
 	"flag"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"regexp"
 	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
 )
-
-// HTTP handler for the server /
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Nothing to see here"))
-}
 
 // Looks an email address up in a pgp keyring
 func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
@@ -207,10 +204,6 @@ func main() {
 	}
 
 	server.InitAptServer()
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", rootHandler)
-
-	server.Register(mux)
-	http.ListenAndServe(*listenAddress, mux)
+	server.Register(http.DefaultServeMux)
+	http.ListenAndServe(*listenAddress, http.DefaultServeMux)
 }
