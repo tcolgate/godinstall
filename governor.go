@@ -18,7 +18,7 @@ type Governor struct {
 
 // NewGovernor creates a governor that will limit users to max current
 // readers at any one time
-func NewGovernor(max int) (*Governor, error) {
+func NewGovernor(max int) *Governor {
 	var g Governor
 	g.Max = max
 
@@ -29,7 +29,7 @@ func NewGovernor(max int) (*Governor, error) {
 		}
 	}
 
-	return &g, nil
+	return &g
 }
 
 // ReadLock takes a read lock on this governor

@@ -251,9 +251,12 @@ func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 	hasher := MakeWriteHasher(ioutil.Discard)
 	tee := io.TeeReader(upload.data, hasher)
 	storeFilename := s.dir + "/" + upload.Filename
+	s.store.DisableGarbageCollector()
+
 	defer func() {
 		if err != nil {
 			log.Println(err)
+			s.store.EnableGarbageCollector()
 		}
 	}()
 
@@ -377,10 +380,19 @@ func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) 
 	storeFilename := s.dir + "/" + upload.Filename
 
 	var changes ChangesFile
-	changes.Files = make(map[string]*ChangesItem)
+	var err error
 
+	changes.Files = make(map[string]*ChangesItem)
 	hasher := MakeWriteHasher(ioutil.Discard)
 	tee := io.TeeReader(upload.data, hasher)
+
+	s.store.DisableGarbageCollector()
+	defer func() {
+		if err != nil {
+			log.Println(err)
+			s.store.EnableGarbageCollector()
+		}
+	}()
 
 	blob, err := s.store.Store()
 	if err != nil {

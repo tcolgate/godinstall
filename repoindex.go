@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -29,11 +30,14 @@ type RepoStorer interface {
 	ItemsFromChanges(files map[string]*ChangesItem) ([]*RepoItem, error)
 	MergeItemsIntoCommit(parentid CommitID, items []*RepoItem, pruneRules PruneRuleSet) (result IndexID, actions []RepoAction, err error)
 	GarbageCollect()
+	DisableGarbageCollector()
+	EnableGarbageCollector()
 	Storer
 }
 
 type repoBlobStore struct {
 	Storer
+	gcLock *sync.RWMutex
 }
 
 // NewRepoBlobStore This creates a new repository, based ona a content
@@ -41,6 +45,7 @@ type repoBlobStore struct {
 func NewRepoBlobStore(storeDir string, tmpDir string) RepoStorer {
 	return &repoBlobStore{
 		Sha1Store(storeDir, tmpDir, 3),
+		new(sync.RWMutex),
 	}
 }
 
@@ -83,6 +88,13 @@ func (r repoBlobStore) gcWalkCommit(used *SafeMap, id CommitID) {
 }
 
 func (r repoBlobStore) GarbageCollect() {
+	log.Println("Disable GC during collection")
+	r.gcLock.Lock()
+	defer func() {
+		r.gcLock.Unlock()
+		log.Println("Enable GC during collection")
+	}()
+
 	stime := time.Now()
 	gcFiles := 0
 	gcBytes := int64(0)
@@ -111,6 +123,16 @@ func (r repoBlobStore) GarbageCollect() {
 	r.ForEach(f)
 
 	return
+}
+
+func (r repoBlobStore) DisableGarbageCollector() {
+	log.Println("Disable GC")
+	r.gcLock.RLock()
+}
+
+func (r repoBlobStore) EnableGarbageCollector() {
+	log.Println("Enable GC")
+	r.gcLock.RUnlock()
 }
 
 func (r repoBlobStore) GetHead(name string) (CommitID, error) {

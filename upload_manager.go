@@ -223,6 +223,7 @@ func (usm *uploadSessionManager) handler(s UploadSessioner) {
 				// The sesession has timeout out,
 				// tell it to close down
 				s.Close()
+				return
 			}
 		}
 	}

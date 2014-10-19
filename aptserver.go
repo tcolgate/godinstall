@@ -44,7 +44,7 @@ type AptServer struct {
 
 // InitAptServer setups, and starts  a server.
 func (a *AptServer) InitAptServer() {
-	a.aptLocks, _ = NewGovernor(a.MaxReqs)
+	a.aptLocks = NewGovernor(a.MaxReqs)
 	a.downloadHandler = a.makeDownloadHandler()
 	a.uploadHandler = a.makeUploadHandler()
 
