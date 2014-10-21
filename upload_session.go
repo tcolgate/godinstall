@@ -288,7 +288,8 @@ func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 	if expectedFile.Md5 != md5 ||
 		expectedFile.Sha1 != sha1 ||
 		expectedFile.Sha256 != sha256 {
-		return errors.New("Uploaded file hashes do not match")
+		err = errors.New("Uploaded file hashes do not match")
+		return err
 	}
 
 	if strings.HasSuffix(upload.Filename, ".deb") {
@@ -308,7 +309,8 @@ func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 					i++
 				}
 			} else {
-				return errors.New("Package could not be validated")
+				err = errors.New("Package could not be validated")
+				return err
 			}
 		}
 	}
@@ -471,9 +473,10 @@ func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) 
 				i++
 			}
 		} else {
+			err = errors.New("Package could not be validated")
 			resp = AptServerMessage(
 				http.StatusBadRequest,
-				"Package could not be validated",
+				err.String(),
 			)
 			return
 		}
@@ -490,9 +493,10 @@ func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) 
 
 	hookResult := s.uploadHook.Run(storeFilename)
 	if hookResult.err != nil {
+		err = errors.New("Upload " + hookResult.Error())
 		resp = AptServerMessage(
 			http.StatusBadRequest,
-			"Upload "+hookResult.Error(),
+			err.String(),
 		)
 		return
 	}
