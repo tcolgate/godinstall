@@ -88,11 +88,11 @@ func (r repoBlobStore) gcWalkCommit(used *SafeMap, id CommitID) {
 }
 
 func (r repoBlobStore) GarbageCollect() {
-	log.Println("Disable GC during collection")
 	r.gcLock.Lock()
+	log.Println("Disabled GC during collection")
 	defer func() {
+		log.Println("Re-enabling GC after collection")
 		r.gcLock.Unlock()
-		log.Println("Enable GC during collection")
 	}()
 
 	stime := time.Now()
