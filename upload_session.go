@@ -251,7 +251,6 @@ func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 	hasher := MakeWriteHasher(ioutil.Discard)
 	tee := io.TeeReader(upload.data, hasher)
 	storeFilename := s.dir + "/" + upload.Filename
-	s.store.DisableGarbageCollector()
 
 	defer func() {
 		if err != nil {
@@ -388,7 +387,6 @@ func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) 
 	hasher := MakeWriteHasher(ioutil.Discard)
 	tee := io.TeeReader(upload.data, hasher)
 
-	s.store.DisableGarbageCollector()
 	defer func() {
 		if err != nil {
 			log.Println(err)
@@ -476,7 +474,7 @@ func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) 
 			err = errors.New("Package could not be validated")
 			resp = AptServerMessage(
 				http.StatusBadRequest,
-				err.String(),
+				err.Error(),
 			)
 			return
 		}
@@ -496,7 +494,7 @@ func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) 
 		err = errors.New("Upload " + hookResult.Error())
 		resp = AptServerMessage(
 			http.StatusBadRequest,
-			err.String(),
+			err.Error(),
 		)
 		return
 	}
