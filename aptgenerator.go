@@ -329,7 +329,7 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 
 func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
 	defer func() {
-		a.store.EnableGarbageCollector()
+		session.Close()
 		go a.store.GarbageCollect()
 	}()
 

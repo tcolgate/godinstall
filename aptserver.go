@@ -208,7 +208,6 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 										err = errors.New("Lone files for upload must end in .deb")
 									}
 
-									a.AptGenerator.DisableGarbageCollector()
 									resp := a.SessionManager.AddDeb(otherParts[0])
 									w.WriteHeader(resp.GetStatus())
 									w.Write(resp.GetMessage())
@@ -219,7 +218,6 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 						} else {
 							session, err = a.SessionManager.AddChangesSession(changesReader)
 							if err != nil {
-								s.AptGenerator.DisableGarbageCollector()
 								resp = AptServerMessage(http.StatusBadRequest, err.Error())
 							} else {
 								cookie := http.Cookie{

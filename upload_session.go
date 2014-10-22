@@ -129,6 +129,8 @@ func NewChangesSession(
 
 	go s.handler()
 
+	store.DisableGarbageCollector()
+
 	return &s
 }
 
@@ -208,6 +210,7 @@ func (s *changesSession) handler() {
 
 func (s *changesSession) Close() {
 	s.close <- closeMsg{}
+	s.store.EnableGarbageCollector()
 }
 
 func (s *changesSession) DoneChan() chan struct{} {
@@ -358,15 +361,16 @@ func NewLoneDebSession(
 
 	os.Mkdir(s.dir, os.FileMode(0755))
 
+	store.DisableGarbageCollector()
+
 	return &s
 }
 
-// Should never get called
 func (s *loneDebSession) Close() {
+	s.store.EnableGarbageCollector()
 	return
 }
 
-// Should never get called
 func (s *loneDebSession) DoneChan() chan struct{} {
 	dummy := make(chan struct{})
 	return dummy
