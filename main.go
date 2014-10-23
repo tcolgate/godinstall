@@ -225,7 +225,7 @@ func CmdServe(c *cli.Context) {
 		}
 	}
 
-	updateChan := make(chan UpdateRequest)
+	updateChan := make(chan UpdateRequest, 1)
 
 	base := repoBase + "/archive"
 	storeDir := repoBase + "/store"

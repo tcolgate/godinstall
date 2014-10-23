@@ -325,6 +325,8 @@ func (a *AptServer) Updater() {
 				}
 
 				respStatus, respObj, err = a.AptGenerator.AddSession(session)
+				session.Close()
+
 				if err != nil {
 					respStatus = http.StatusInternalServerError
 					respObj = "Archive regeneration failed, " + err.Error()

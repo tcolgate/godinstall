@@ -162,6 +162,7 @@ func (s *changesSession) handler() {
 			{
 				var msg struct{}
 				s.done <- msg
+				s.store.EnableGarbageCollector()
 				return
 			}
 		case msg := <-s.getstatus:
@@ -210,7 +211,6 @@ func (s *changesSession) handler() {
 
 func (s *changesSession) Close() {
 	s.close <- closeMsg{}
-	s.store.EnableGarbageCollector()
 }
 
 func (s *changesSession) DoneChan() chan struct{} {
@@ -258,7 +258,6 @@ func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 	defer func() {
 		if err != nil {
 			log.Println(err)
-			s.store.EnableGarbageCollector()
 		}
 	}()
 
@@ -394,7 +393,6 @@ func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) 
 	defer func() {
 		if err != nil {
 			log.Println(err)
-			s.store.EnableGarbageCollector()
 		}
 	}()
 

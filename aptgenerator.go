@@ -330,7 +330,6 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
 	defer func() {
 		session.Close()
-		go a.store.GarbageCollect()
 	}()
 
 	respStatus = http.StatusOK
