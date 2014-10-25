@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"time"
@@ -14,8 +13,7 @@ import (
 // session  It creates sessions, times them out, amd acts as a request
 // muxer to pass requests on to invidiuvidual managers
 type UploadSessionManager interface {
-	AddDeb(*multipart.FileHeader) AptServerResponder
-	AddChangesSession(io.Reader) (string, error)
+	Add(*ChangesFile) (string, error)
 	Status(string) AptServerResponder
 	AddItems(string, []*multipart.FileHeader) AptServerResponder
 }
@@ -83,57 +81,30 @@ func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) 
 	}
 }
 
-// Add a Deb, this probably shouldn't be here, but we don't
-// need an upladSession, as they are focused too much on
-// changes files
-func (usm *uploadSessionManager) AddDeb(upload *multipart.FileHeader) (resp AptServerResponder) {
-	s := NewLoneDebSession(
-		usm.ValidateDebs,
-		usm.PubRing,
-		usm.TmpDir,
-		usm.Store,
-		usm.UploadHook,
-		usm.finished,
-	)
-
-	reader, _ := upload.Open()
-	resp = s.AddItem(&ChangesItem{
-		Filename: upload.Filename,
-		data:     reader,
-	})
-
-	return
-}
-
 // Add a new upload session based on the details from the passed
 // debian changes file.
-func (usm *uploadSessionManager) AddChangesSession(changesReader io.Reader) (string, error) {
+func (usm *uploadSessionManager) Add(changes *ChangesFile) (string, error) {
 	var err error
 
-	changes, err := ParseDebianChanges(changesReader, usm.PubRing)
-	if err != nil {
-		return "", err
-	}
-
-	if usm.ValidateChanges && !changes.signed {
+	if usm.ValidateChanges && !changes.signed && !changes.loneDeb {
 		err = errors.New("Changes file was not signed")
 		return "", err
 	}
 
-	if usm.ValidateChanges && !changes.validated {
+	if usm.ValidateChanges && !changes.validated && !changes.loneDeb {
 		err = errors.New("Changes file could not be validated")
 		return "", err
 	}
 
 	// Should we check signatures on individual debs?
 	var validateDebSign bool
-	if usm.ValidateChanges && changes.validated && usm.ValidateChangesSufficient {
+	if usm.ValidateChanges && changes.validated && usm.ValidateChangesSufficient && !changes.loneDeb {
 		validateDebSign = false
 	} else {
 		validateDebSign = usm.ValidateDebs
 	}
 
-	s := NewChangesSession(
+	s := NewUploadSession(
 		changes,
 		validateDebSign,
 		usm.PubRing,

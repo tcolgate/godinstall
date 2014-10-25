@@ -301,6 +301,7 @@ func CmdServe(c *cli.Context) {
 		AptGenerator:   aptGenerator,
 		SessionManager: uploadSessionManager,
 		UpdateChannel:  updateChan,
+		PubRing:        pubRing,
 	}
 
 	server.InitAptServer()

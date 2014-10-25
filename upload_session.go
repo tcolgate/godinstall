@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -56,6 +55,16 @@ type uploadSession struct {
 	store        RepoStorer         // Blob store to keep files in
 	finished     chan UpdateRequest // A channel to anounce completion and trigger a repo update
 	changes      *ChangesFile       // The changes file for this session
+
+	// Channels for requests
+	// TODO revisit this
+	incoming  chan addItemMsg   // New item upload requests
+	close     chan closeMsg     // A channel for close messages
+	getstatus chan getStatusMsg // A channel for responding to status requests
+
+	// output session
+	// TODO revisit this
+	done chan struct{} // A channel to be informed of closure on
 }
 
 func (s *uploadSession) ID() string {
@@ -82,24 +91,9 @@ func (s *uploadSession) Items() map[string]*ChangesItem {
 	return s.changes.Files
 }
 
-// An UploadSession for uploading using a changes file
-type changesSession struct {
-	uploadSession
-
-	// Channels for requests
-	// TODO revisit this
-	incoming  chan addItemMsg   // New item upload requests
-	close     chan closeMsg     // A channel for close messages
-	getstatus chan getStatusMsg // A channel for responding to status requests
-
-	// output session
-	// TODO revisit this
-	done chan struct{} // A channel to be informed of closure on
-}
-
-// NewChangesSession creates a session for uploading using a changes
+// NewUploadSession creates a session for uploading using a changes
 // file to describe the set of files to be uploaded
-func NewChangesSession(
+func NewUploadSession(
 	changes *ChangesFile,
 	validateDebs bool,
 	keyRing openpgp.EntityList,
@@ -109,7 +103,7 @@ func NewChangesSession(
 	done chan struct{},
 	finished chan UpdateRequest,
 ) UploadSessioner {
-	var s changesSession
+	var s uploadSession
 	s.validateDebs = validateDebs
 	s.keyRing = keyRing
 	s.done = done
@@ -147,7 +141,7 @@ type getStatusMsg struct {
 
 // All item additions to this session are
 // serialized through this routine
-func (s *changesSession) handler() {
+func (s *uploadSession) handler() {
 	defer func() {
 		err := os.RemoveAll(s.dir)
 		if err != nil {
@@ -209,15 +203,15 @@ func (s *changesSession) handler() {
 	}
 }
 
-func (s *changesSession) Close() {
+func (s *uploadSession) Close() {
 	s.close <- closeMsg{}
 }
 
-func (s *changesSession) DoneChan() chan struct{} {
+func (s *uploadSession) DoneChan() chan struct{} {
 	return s.done
 }
 
-func (s *changesSession) Status() AptServerResponder {
+func (s *uploadSession) Status() AptServerResponder {
 	done := make(chan AptServerResponder)
 	go func() {
 		s.getstatus <- getStatusMsg{
@@ -228,7 +222,7 @@ func (s *changesSession) Status() AptServerResponder {
 	return resp
 }
 
-func (s *changesSession) AddItem(upload *ChangesItem) AptServerResponder {
+func (s *uploadSession) AddItem(upload *ChangesItem) AptServerResponder {
 	done := make(chan AptServerResponder)
 	go func() {
 		s.incoming <- addItemMsg{
@@ -240,7 +234,7 @@ func (s *changesSession) AddItem(upload *ChangesItem) AptServerResponder {
 	return resp
 }
 
-func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
+func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 	// Check that there is an upload slot
 	expectedFile, ok := s.changes.Files[upload.Filename]
 	if !ok {
@@ -251,22 +245,14 @@ func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 		return errors.New("File already uploaded")
 	}
 
-	hasher := MakeWriteHasher(ioutil.Discard)
-	tee := io.TeeReader(upload.data, hasher)
 	storeFilename := s.dir + "/" + upload.Filename
-
-	defer func() {
-		if err != nil {
-			log.Println(err)
-		}
-	}()
-
 	blob, err := s.store.Store()
+	hasher := MakeWriteHasher(blob)
 	if err != nil {
 		return errors.New("Upload to store failed: " + err.Error())
 	}
 
-	_, err = io.Copy(blob, tee)
+	_, err = io.Copy(hasher, upload.data)
 	if err != nil {
 		return errors.New("Upload to store failed: " + err.Error())
 	}
@@ -286,9 +272,9 @@ func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 	sha1 := hex.EncodeToString(hasher.SHA1Sum())
 	sha256 := hex.EncodeToString(hasher.SHA256Sum())
 
-	if expectedFile.Md5 != md5 ||
+	if !s.changes.loneDeb && (expectedFile.Md5 != md5 ||
 		expectedFile.Sha1 != sha1 ||
-		expectedFile.Sha256 != sha256 {
+		expectedFile.Sha256 != sha256) {
 		err = errors.New("Uploaded file hashes do not match")
 		return err
 	}
@@ -332,197 +318,4 @@ func (s *changesSession) doAddItem(upload *ChangesItem) (err error) {
 	expectedFile.Uploaded = true
 
 	return
-}
-
-// An UploadSession for uploading lone deb packages
-type loneDebSession struct {
-	uploadSession
-}
-
-// NewLoneDebSession creates an upload session for use when a lone
-// debian package is being uploaded, without a changes file
-func NewLoneDebSession(
-	validateDebs bool,
-	keyRing openpgp.EntityList,
-	tmpDirBase *string,
-	store RepoStorer,
-	uploadHook HookRunner,
-	finished chan UpdateRequest,
-) UploadSessioner {
-	var s loneDebSession
-	s.validateDebs = validateDebs
-	s.keyRing = keyRing
-	s.finished = finished
-	s.SessionID = uuid.New()
-	s.uploadHook = uploadHook
-	s.dir = *tmpDirBase + "/" + s.SessionID
-	s.store = store
-
-	os.Mkdir(s.dir, os.FileMode(0755))
-
-	store.DisableGarbageCollector()
-
-	return &s
-}
-
-func (s *loneDebSession) Close() {
-	s.store.EnableGarbageCollector()
-	return
-}
-
-func (s *loneDebSession) DoneChan() chan struct{} {
-	dummy := make(chan struct{})
-	return dummy
-}
-
-func (s *loneDebSession) Status() AptServerResponder {
-	return AptServerMessage(http.StatusBadRequest, "Not done yet")
-}
-
-func (s *loneDebSession) AddItem(upload *ChangesItem) (resp AptServerResponder) {
-	defer os.RemoveAll(s.dir)
-	storeFilename := s.dir + "/" + upload.Filename
-
-	var changes ChangesFile
-	var err error
-
-	changes.Files = make(map[string]*ChangesItem)
-	hasher := MakeWriteHasher(ioutil.Discard)
-	tee := io.TeeReader(upload.data, hasher)
-
-	defer func() {
-		if err != nil {
-			log.Println(err)
-		}
-	}()
-
-	blob, err := s.store.Store()
-	if err != nil {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Package upload to store failed, "+err.Error(),
-		)
-		return
-	}
-
-	upload.Size, err = io.Copy(blob, tee)
-	if err != nil {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Package upload to store failed, "+err.Error(),
-		)
-		return
-	}
-
-	err = blob.Close()
-	if err != nil {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Package upload to store failed, "+err.Error(),
-		)
-		return
-	}
-
-	id, err := blob.Identity()
-	if err != nil {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Retrieving upload blob id failed: "+err.Error(),
-		)
-		return
-	}
-
-	if err != nil {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Package upload failed, "+err.Error(),
-		)
-		return
-	}
-
-	pkgfile, err := s.store.Open(id)
-	if err != nil {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Package upload failed, "+err.Error(),
-		)
-		return
-	}
-
-	pkg := NewDebPackage(pkgfile, s.keyRing)
-
-	err = pkg.Parse()
-	if err != nil {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Package file not valid, "+err.Error(),
-		)
-		return
-	}
-
-	signers := make([]string, 1)
-	if s.validateDebs {
-		changes.signed, _ = pkg.IsSigned()
-		changes.validated, _ = pkg.IsValidated()
-
-		if changes.signed && changes.validated {
-			signedBy, _ := pkg.SignedBy()
-			i := 0
-			for k := range signedBy.Identities {
-				signers[i] = k
-				i++
-			}
-		} else {
-			err = errors.New("Package could not be validated")
-			resp = AptServerMessage(
-				http.StatusBadRequest,
-				err.Error(),
-			)
-			return
-		}
-	}
-
-	err = s.store.Link(id, storeFilename)
-	if err != nil {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Package file not valid, "+err.Error(),
-		)
-		return
-	}
-
-	hookResult := s.uploadHook.Run(storeFilename)
-	if hookResult.err != nil {
-		err = errors.New("Upload " + hookResult.Error())
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			err.Error(),
-		)
-		return
-	}
-
-	changes.Files[upload.Filename] = upload
-
-	upload.UploadHookResult = hookResult
-	upload.Uploaded = true
-	upload.Md5 = hex.EncodeToString(hasher.MD5Sum())
-	upload.Sha1 = hex.EncodeToString(hasher.SHA1Sum())
-	upload.Sha256 = hex.EncodeToString(hasher.SHA256Sum())
-	upload.SignedBy = signers
-	upload.StoreID = id
-	upload.Size, _ = s.store.Size(id)
-
-	s.changes = &changes
-
-	// We're done, lets call out to the server to update
-	// with the contents of this session
-	updater := make(chan AptServerResponder)
-	s.finished <- UpdateRequest{
-		session: s,
-		resp:    updater,
-	}
-
-	updateresp := <-updater
-
-	return updateresp
 }

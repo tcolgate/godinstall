@@ -7,6 +7,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -17,6 +19,7 @@ import (
 // ChangesFile represents a debian changes file. A changes file
 // describes a set of files for upload to a repositry
 type ChangesFile struct {
+	loneDeb   bool                    // Is this really a lone deb file upload?
 	signed    bool                    // Whether this changes file signed
 	validated bool                    //  Whether the signature is valid
 	signedBy  *openpgp.Entity         // The pgp entity that signed the file
@@ -150,4 +153,29 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err
 	}
 
 	return &c, err
+}
+
+// Seperate a changes file from any other files in a http
+// request
+func ChangesFromHTTPRequest(r *http.Request) (
+	changesReader io.Reader,
+	other []*multipart.FileHeader,
+	err error) {
+
+	err = r.ParseMultipartForm(mimeMemoryBufferSize)
+	if err != nil {
+		return
+	}
+
+	form := r.MultipartForm
+	files := form.File["debfiles"]
+	for _, f := range files {
+		if strings.HasSuffix(f.Filename, ".changes") {
+			changesReader, _ = f.Open()
+		} else {
+			other = append(other, f)
+		}
+	}
+
+	return
 }

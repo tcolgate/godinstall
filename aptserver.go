@@ -4,12 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"expvar"
-	"io"
 	"log"
-	"mime/multipart"
 	"net/http"
 	"regexp"
 
+	"code.google.com/p/go.crypto/openpgp"
 	"strings"
 	"time"
 )
@@ -20,9 +19,10 @@ var mimeMemoryBufferSize = int64(64000000)
 
 // AptServer describes a web server
 type AptServer struct {
-	MaxReqs    int           // The maximum nuber of concurrent requests we'll handle
-	CookieName string        // The session cookie name for uploads
-	TTL        time.Duration // How long to keep session alive
+	MaxReqs    int                // The maximum nuber of concurrent requests we'll handle
+	CookieName string             // The session cookie name for uploads
+	TTL        time.Duration      // How long to keep session alive
+	PubRing    openpgp.EntityList // public keyring for checking changes files
 
 	AcceptLoneDebs bool // Whether we should allow individual deb uploads
 
@@ -30,6 +30,7 @@ type AptServer struct {
 	AptGenerator   AptGenerator         // The generator for updating the repo
 	SessionManager UploadSessionManager // The session manager
 	UpdateChannel  chan UpdateRequest   // A channel to recieve update requests
+	Store          Storer               // We'll write files directly to this
 
 	PreGenHook  HookRunner // A hook to run before we run the genrator
 	PostGenHook HookRunner // A hooke to run after successful regeneration
@@ -40,6 +41,7 @@ type AptServer struct {
 	downloadHandler http.HandlerFunc // HTTP handler for apt client downloads
 
 	getCount *expvar.Int // Download count
+
 }
 
 // InitAptServer setups, and starts  a server.
@@ -159,7 +161,7 @@ func AptServerMessage(status int, msg interface{}) AptServerResponder {
 func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 	var reqRegex = regexp.MustCompile("^/upload(|/(.+))$")
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Did we get a session
+		// Check the URL matches
 		rest := reqRegex.FindStringSubmatch(r.URL.Path)
 		if rest == nil {
 			http.NotFound(w, r)
@@ -169,6 +171,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 		found := false
 		session := ""
 
+		// Did we get a session in the URL
 		if rest[1] != "" {
 			session = rest[2]
 			found = true
@@ -176,7 +179,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 
 		var resp AptServerResponder
 
-		//maybe in a cookie?
+		//Maybe in a cookie?
 		if !found {
 			cookie, err := r.Cookie(a.CookieName)
 			if err == nil {
@@ -184,7 +187,6 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 			}
 		}
 
-		// THis all needs rewriting
 		switch r.Method {
 		case "GET":
 			{
@@ -192,31 +194,42 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 			}
 		case "PUT", "POST":
 			{
-				changesReader, otherParts, err := a.changesFromRequest(r)
+				changesReader, otherParts, err := ChangesFromHTTPRequest(r)
 
 				if err != nil {
 					resp = AptServerMessage(http.StatusBadRequest, err.Error())
 				} else {
 					if session == "" {
-						if changesReader == nil {
-							// Not overly keen on having this here.
+						// We don't have an active session, lets create one
+						var changes *ChangesFile
+						if changesReader != nil {
+							changes, err = ParseDebianChanges(changesReader, a.PubRing)
+							if err != nil {
+								resp = AptServerMessage(http.StatusBadRequest, err.Error())
+							}
+						} else {
 							if !a.AcceptLoneDebs {
 								err = errors.New("No debian changes file in request")
 							} else {
-								if len(otherParts) == 1 {
+								if len(otherParts) != 1 {
+									err = errors.New("Too many files in upload request without changes file present")
+								} else {
 									if !strings.HasSuffix(otherParts[0].Filename, ".deb") {
 										err = errors.New("Lone files for upload must end in .deb")
 									}
-
-									resp := a.SessionManager.AddDeb(otherParts[0])
-									w.WriteHeader(resp.GetStatus())
-									w.Write(resp.GetMessage())
-									return
+									// No chnages file in the request, we need to create
+									// a changes session based on the deb
+									changes = &ChangesFile{
+										loneDeb: true,
+									}
+									changes.Files = make(map[string]*ChangesItem)
+									changes.Files[otherParts[0].Filename] = &ChangesItem{
+										Filename: otherParts[0].Filename,
+									}
 								}
-								err = errors.New("Too many files in upload request without changes file present")
 							}
-						} else {
-							session, err = a.SessionManager.AddChangesSession(changesReader)
+
+							session, err = a.SessionManager.Add(changes)
 							if err != nil {
 								resp = AptServerMessage(http.StatusBadRequest, err.Error())
 							} else {
@@ -248,31 +261,6 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 			w.Write(resp.GetMessage())
 		}
 	}
-}
-
-// Seperate the changes file from any other files in a http
-// request
-func (a *AptServer) changesFromRequest(r *http.Request) (
-	changesReader io.Reader,
-	other []*multipart.FileHeader,
-	err error) {
-
-	err = r.ParseMultipartForm(mimeMemoryBufferSize)
-	if err != nil {
-		return
-	}
-
-	form := r.MultipartForm
-	files := form.File["debfiles"]
-	for _, f := range files {
-		if strings.HasSuffix(f.Filename, ".changes") {
-			changesReader, _ = f.Open()
-		} else {
-			other = append(other, f)
-		}
-	}
-
-	return
 }
 
 // CompletedUpload describes a finished session, the details of the session,
@@ -325,7 +313,7 @@ func (a *AptServer) Updater() {
 				}
 
 				respStatus, respObj, err = a.AptGenerator.AddSession(session)
-				session.Close()
+				//session.Close()
 
 				if err != nil {
 					respStatus = http.StatusInternalServerError
