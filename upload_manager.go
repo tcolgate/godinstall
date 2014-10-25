@@ -111,13 +111,10 @@ func (usm *uploadSessionManager) Add(changes *ChangesFile) (string, error) {
 		usm.TmpDir,
 		usm.Store,
 		usm.UploadHook,
-		make(chan struct{}),
 		usm.finished,
 	)
 
 	usm.sessMap.Set(s.ID(), s)
-	go usm.handler(s)
-
 	return s.ID(), nil
 }
 
@@ -178,24 +175,11 @@ func (usm *uploadSessionManager) AddItems(
 // to serialize all actions on the given session.
 // TODO need to revisit this
 func (usm *uploadSessionManager) handler(s UploadSessioner) {
-	defer func() {
-		usm.sessMap.Set(s.ID(), nil)
-	}()
-
-	for {
-		select {
-		case <-s.DoneChan():
-			{
-				// The sesession has completed
-				return
-			}
-		case <-time.After(usm.TTL):
-			{
-				// The sesession has timeout out,
-				// tell it to close down
-				s.Close()
-				return
-			}
+	select {
+	case <-s.Done():
+		{
+			// The sesession has completed
+			usm.sessMap.Set(s.ID(), nil)
 		}
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -35,10 +34,15 @@ type RepoStorer interface {
 	Storer
 }
 
+type gcReq struct {
+	done chan struct{}
+}
+
 type repoBlobStore struct {
 	Storer
-	gcLock *sync.RWMutex
-	gcChan chan struct{}
+	enableGCChan  chan gcReq
+	disableGCChan chan gcReq
+	runGCChan     chan gcReq
 }
 
 // NewRepoBlobStore This creates a new repository, based ona a content
@@ -46,8 +50,9 @@ type repoBlobStore struct {
 func NewRepoBlobStore(storeDir string, tmpDir string) RepoStorer {
 	result := &repoBlobStore{
 		Sha1Store(storeDir, tmpDir, 3),
-		new(sync.RWMutex),
-		make(chan struct{}, 16),
+		make(chan gcReq),
+		make(chan gcReq),
+		make(chan gcReq),
 	}
 
 	go result.garbageCollector()
@@ -93,73 +98,81 @@ func (r repoBlobStore) gcWalkCommit(used *SafeMap, id CommitID) {
 	}
 }
 
-func (r repoBlobStore) GarbageCollect() {
-	var signal struct{}
-	r.gcChan <- signal
+func (r repoBlobStore) runGC() {
+	log.Println("Beginning GC")
+
+	stime := time.Now()
+	gcFiles := 0
+	gcBytes := int64(0)
+	defer func() {
+		gcDuration := time.Since(stime)
+		log.Printf("GC %v files (%v bytes) in %v", gcFiles, gcBytes, gcDuration)
+	}()
+
+	used := NewSafeMap()
+	refs := r.ListRefs()
+
+	for _, id := range refs {
+		r.gcWalkCommit(used, CommitID(id))
+	}
+
+	f := func(id StoreID) {
+		if !used.Check(id.String()) {
+			gcFiles++
+			size, _ := r.Size(id)
+			gcBytes += size
+			log.Println("Removing unused blob ", id.String())
+			r.UnLink(id)
+		}
+	}
+	r.ForEach(f)
 }
 
 func (r repoBlobStore) garbageCollector() {
+	runGC := false
+	lockCount := 0
+
 	for {
+		var req gcReq
 		select {
-		case _ = <-r.gcChan:
-			r.gcLock.Lock()
-			log.Println("Disabled GC during collection")
-
-			// By the tie we actual get the lock we may have queued a few more
-			// GC requests, we'll run over the channel until we block to drain
-			// them down
-		Loop:
-			for {
-				select {
-				case _ = <-r.gcChan:
-					log.Println("Skipping queued GC")
-				default:
-					break Loop
-				}
+		case req = <-r.enableGCChan:
+			lockCount -= 1
+			if lockCount < 0 {
+				panic("GC Lock count has gone negactive")
 			}
-
-			log.Println("Beginning GC")
-
-			stime := time.Now()
-			gcFiles := 0
-			gcBytes := int64(0)
-			defer func() {
-				gcDuration := time.Since(stime)
-				log.Printf("GC %v files (%v bytes) in %v", gcFiles, gcBytes, gcDuration)
-			}()
-
-			used := NewSafeMap()
-			refs := r.ListRefs()
-
-			for _, id := range refs {
-				r.gcWalkCommit(used, CommitID(id))
-			}
-
-			f := func(id StoreID) {
-				if !used.Check(id.String()) {
-					gcFiles++
-					size, _ := r.Size(id)
-					gcBytes += size
-					log.Println("Removing unused blob ", id.String())
-					r.UnLink(id)
-				}
-			}
-			r.ForEach(f)
-
-			log.Println("Re-enabling GC after collection")
-			r.gcLock.Unlock()
+		case req = <-r.disableGCChan:
+			lockCount += 1
+		case req = <-r.runGCChan:
+			runGC = true
 		}
+
+		if runGC && lockCount == 0 {
+			r.runGC()
+			runGC = false
+		}
+
+		close(req.done)
 	}
+}
+
+func (r repoBlobStore) GarbageCollect() {
+	c := make(chan struct{})
+	r.runGCChan <- gcReq{c}
+	<-c
 }
 
 func (r repoBlobStore) DisableGarbageCollector() {
 	log.Println("Disable GC")
-	r.gcLock.RLock()
+	c := make(chan struct{})
+	r.disableGCChan <- gcReq{c}
+	<-c
 }
 
 func (r repoBlobStore) EnableGarbageCollector() {
 	log.Println("Enable GC")
-	r.gcLock.RUnlock()
+	c := make(chan struct{})
+	r.enableGCChan <- gcReq{c}
+	<-c
 }
 
 func (r repoBlobStore) GetHead(name string) (CommitID, error) {

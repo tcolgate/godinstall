@@ -39,7 +39,7 @@ type UploadSessioner interface {
 	Items() map[string]*ChangesItem          // return the changes file for this session
 	AddItem(*ChangesItem) AptServerResponder // Add the given item to this session
 	Close()                                  // Close, and clear up, any remaining files
-	DoneChan() chan struct{}                 // This returns a channel that anounces copletion
+	Done() chan struct{}                     // This returns a channel that anounces copletion
 	Status() AptServerResponder              // Return the status of this session
 	json.Marshaler                           // All session implementations should serialize to JSON
 }
@@ -100,13 +100,12 @@ func NewUploadSession(
 	tmpDirBase *string,
 	store RepoStorer,
 	uploadHook HookRunner,
-	done chan struct{},
 	finished chan UpdateRequest,
 ) UploadSessioner {
 	var s uploadSession
 	s.validateDebs = validateDebs
 	s.keyRing = keyRing
-	s.done = done
+	s.done = make(chan struct{})
 	s.finished = finished
 	s.SessionID = uuid.New()
 	s.changes = changes
@@ -121,9 +120,8 @@ func NewUploadSession(
 	s.close = make(chan closeMsg)
 	s.getstatus = make(chan getStatusMsg)
 
-	go s.handler()
-
 	store.DisableGarbageCollector()
+	go s.handler()
 
 	return &s
 }
@@ -142,21 +140,20 @@ type getStatusMsg struct {
 // All item additions to this session are
 // serialized through this routine
 func (s *uploadSession) handler() {
+
 	defer func() {
 		err := os.RemoveAll(s.dir)
 		if err != nil {
 			log.Println(err)
 		}
-		var msg struct{}
-		s.done <- msg
+		close(s.done)
+		s.store.EnableGarbageCollector()
 	}()
+
 	for {
 		select {
 		case <-s.close:
 			{
-				var msg struct{}
-				s.done <- msg
-				s.store.EnableGarbageCollector()
 				return
 			}
 		case msg := <-s.getstatus:
@@ -187,13 +184,13 @@ func (s *uploadSession) handler() {
 				// We're done, lets call out to the server to update
 				// with the contents of this session
 
-				updater := make(chan AptServerResponder)
+				c := make(chan AptServerResponder)
 				s.finished <- UpdateRequest{
 					session: s,
-					resp:    updater,
+					resp:    c,
 				}
 
-				updateresp := <-updater
+				updateresp := <-c
 				msg.resp <- updateresp
 
 				// Need to do the update and return the response
@@ -207,30 +204,30 @@ func (s *uploadSession) Close() {
 	s.close <- closeMsg{}
 }
 
-func (s *uploadSession) DoneChan() chan struct{} {
+func (s *uploadSession) Done() chan struct{} {
 	return s.done
 }
 
 func (s *uploadSession) Status() AptServerResponder {
-	done := make(chan AptServerResponder)
+	c := make(chan AptServerResponder)
 	go func() {
 		s.getstatus <- getStatusMsg{
-			resp: done,
+			resp: c,
 		}
 	}()
-	resp := <-done
+	resp := <-c
 	return resp
 }
 
 func (s *uploadSession) AddItem(upload *ChangesItem) AptServerResponder {
-	done := make(chan AptServerResponder)
+	c := make(chan AptServerResponder)
 	go func() {
 		s.incoming <- addItemMsg{
 			file: upload,
-			resp: done,
+			resp: c,
 		}
 	}()
-	resp := <-done
+	resp := <-c
 	return resp
 }
 
