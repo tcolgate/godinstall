@@ -328,10 +328,6 @@ func (a *aptBlobArchiveGenerator) ReifyCommit(id CommitID) (err error) {
 }
 
 func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
-	defer func() {
-		session.Close()
-	}()
-
 	respStatus = http.StatusOK
 	respObj = "Index committed"
 
@@ -419,5 +415,6 @@ func (a *aptBlobArchiveGenerator) AddSession(session UploadSessioner) (respStatu
 		return respStatus, respObj, err
 	}
 
+	a.store.GarbageCollect()
 	return
 }

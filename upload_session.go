@@ -120,7 +120,6 @@ func NewUploadSession(
 	s.close = make(chan closeMsg)
 	s.getstatus = make(chan getStatusMsg)
 
-	store.DisableGarbageCollector()
 	go s.handler()
 
 	return &s
@@ -140,14 +139,15 @@ type getStatusMsg struct {
 // All item additions to this session are
 // serialized through this routine
 func (s *uploadSession) handler() {
+	s.store.DisableGarbageCollector()
 
 	defer func() {
 		err := os.RemoveAll(s.dir)
 		if err != nil {
 			log.Println(err)
 		}
-		close(s.done)
 		s.store.EnableGarbageCollector()
+		close(s.done)
 	}()
 
 	for {
