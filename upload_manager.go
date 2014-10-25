@@ -112,6 +112,7 @@ func (usm *uploadSessionManager) Add(changes *ChangesFile) (string, error) {
 		usm.Store,
 		usm.UploadHook,
 		usm.finished,
+		usm.TTL,
 	)
 
 	usm.sessMap.Set(s.ID(), s)

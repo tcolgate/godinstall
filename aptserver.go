@@ -229,19 +229,19 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 								}
 							}
 
-							session, err = a.SessionManager.Add(changes)
-							if err != nil {
-								resp = AptServerMessage(http.StatusBadRequest, err.Error())
-							} else {
-								cookie := http.Cookie{
-									Name:     a.CookieName,
-									Value:    session,
-									Expires:  time.Now().Add(a.TTL),
-									HttpOnly: false,
-									Path:     "/upload",
-								}
-								http.SetCookie(w, &cookie)
+						}
+						session, err = a.SessionManager.Add(changes)
+						if err != nil {
+							resp = AptServerMessage(http.StatusBadRequest, err.Error())
+						} else {
+							cookie := http.Cookie{
+								Name:     a.CookieName,
+								Value:    session,
+								Expires:  time.Now().Add(a.TTL),
+								HttpOnly: false,
+								Path:     "/upload",
 							}
+							http.SetCookie(w, &cookie)
 						}
 					}
 

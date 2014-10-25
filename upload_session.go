@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"code.google.com/p/go-uuid/uuid"
 	"code.google.com/p/go.crypto/openpgp"
@@ -55,6 +56,7 @@ type uploadSession struct {
 	store        RepoStorer         // Blob store to keep files in
 	finished     chan UpdateRequest // A channel to anounce completion and trigger a repo update
 	changes      *ChangesFile       // The changes file for this session
+	ttl          time.Duration      // How long should this session stick around for
 
 	// Channels for requests
 	// TODO revisit this
@@ -101,6 +103,7 @@ func NewUploadSession(
 	store RepoStorer,
 	uploadHook HookRunner,
 	finished chan UpdateRequest,
+	TTL time.Duration,
 ) UploadSessioner {
 	var s uploadSession
 	s.validateDebs = validateDebs
@@ -113,6 +116,7 @@ func NewUploadSession(
 	s.store = store
 	s.dir = *tmpDirBase + "/" + s.SessionID
 	s.store = store
+	s.ttl = TTL
 
 	os.Mkdir(s.dir, os.FileMode(0755))
 
@@ -150,8 +154,13 @@ func (s *uploadSession) handler() {
 		close(s.done)
 	}()
 
+	timeout := time.After(s.ttl)
 	for {
 		select {
+		case <-timeout:
+			{
+				return
+			}
 		case <-s.close:
 			{
 				return
