@@ -531,7 +531,7 @@ func (d *debPackage) parseDebPackage() (err error) {
 	d.sha256 = pkghasher.SHA256Sum()
 
 	if control.Len() == 0 {
-		return errors.New("did not find control file in archive")
+		return errors.New("did not find control file in debian archive")
 	}
 
 	controlReader = bytes.NewReader(control.Bytes())
