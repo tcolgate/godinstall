@@ -136,12 +136,12 @@ func (r repoBlobStore) garbageCollector() {
 		var req gcReq
 		select {
 		case req = <-r.enableGCChan:
-			lockCount -= 1
+			lockCount--
 			if lockCount < 0 {
 				panic("GC Lock count has gone negactive")
 			}
 		case req = <-r.disableGCChan:
-			lockCount += 1
+			lockCount++
 		case req = <-r.runGCChan:
 			runGC = true
 		}

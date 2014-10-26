@@ -133,6 +133,7 @@ func main() {
 	app.Run(os.Args)
 }
 
+// CmdServe is the implementation of the godinstall "serve" command
 func CmdServe(c *cli.Context) {
 	// Setup CLI flags
 	listenAddress := c.String("listen")

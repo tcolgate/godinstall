@@ -18,6 +18,8 @@ type WriteHasher struct {
 	sha256er hash.Hash
 }
 
+// Write writes some bytes to the hasher and the backing
+// writer
 func (w *WriteHasher) Write(p []byte) (n int, err error) {
 	n, err = w.backing.Write(p)
 	w.md5er.Write(p)
@@ -27,15 +29,23 @@ func (w *WriteHasher) Write(p []byte) (n int, err error) {
 	return
 }
 
+// Count returns the number of hytes in total that have
+// been written to the writer
 func (w *WriteHasher) Count() int64 {
 	return w.count
 }
+
+// MD5Sum of the input so far
 func (w *WriteHasher) MD5Sum() []byte {
 	return w.md5er.Sum(nil)
 }
+
+// SHA1Sum of the input so far
 func (w *WriteHasher) SHA1Sum() []byte {
 	return w.sha1er.Sum(nil)
 }
+
+// SHA256Sum of the input so far
 func (w *WriteHasher) SHA256Sum() []byte {
 	return w.sha256er.Sum(nil)
 }
