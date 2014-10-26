@@ -313,7 +313,7 @@ func (t *sha1Store) ListRefs() map[string]StoreID {
 		if info.IsDir() {
 			return reterr
 		}
-		refname := path[len(refsPath)+1:]
+		refname := strings.TrimSuffix(path[len(refsPath)+1:], ".ref")
 		id, _ := t.GetRef(refname)
 		refs[refname] = id
 		return reterr
