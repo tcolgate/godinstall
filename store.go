@@ -272,7 +272,7 @@ func (t *sha1Store) SetRef(name string, id StoreID) error {
 		}
 	}
 
-	refFile := refDir + name
+	refFile := refDir + name + ".ref"
 
 	err := os.MkdirAll(refDir, 0777)
 	if err != nil {
@@ -285,7 +285,7 @@ func (t *sha1Store) SetRef(name string, id StoreID) error {
 
 func (t *sha1Store) GetRef(name string) (StoreID, error) {
 	refsPath := t.baseDir + "/refs"
-	refFile := refsPath + "/" + name
+	refFile := refsPath + "/" + name + ".ref"
 
 	f, err := os.Open(refFile)
 	if err != nil {

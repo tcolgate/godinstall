@@ -39,6 +39,7 @@ type AptServer struct {
 
 	uploadHandler   http.HandlerFunc // HTTP handler for upload requests
 	downloadHandler http.HandlerFunc // HTTP handler for apt client downloads
+	logHandler      http.HandlerFunc // HTTP handler for exposing the logs
 
 	getCount *expvar.Int // Download count
 
@@ -49,6 +50,7 @@ func (a *AptServer) InitAptServer() {
 	a.aptLocks = NewGovernor(a.MaxReqs)
 	a.downloadHandler = a.makeDownloadHandler()
 	a.uploadHandler = a.makeUploadHandler()
+	a.logHandler = a.makeLogHandler()
 
 	a.getCount = expvar.NewInt("GetRequests")
 
@@ -60,6 +62,7 @@ func (a *AptServer) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/repo/", a.downloadHandler)
 	mux.HandleFunc("/upload", a.uploadHandler)
 	mux.HandleFunc("/upload/", a.uploadHandler)
+	mux.HandleFunc("/log", a.logHandler)
 }
 
 // Construct the download handler for normal client downloads
@@ -260,6 +263,12 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 			w.WriteHeader(resp.GetStatus())
 			w.Write(resp.GetMessage())
 		}
+	}
+}
+
+// This build a function to despatch upload requests
+func (a *AptServer) makeLogHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
