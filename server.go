@@ -30,7 +30,6 @@ type AptServer struct {
 	AptGenerator   AptGenerator         // The generator for updating the repo
 	SessionManager UploadSessionManager // The session manager
 	UpdateChannel  chan UpdateRequest   // A channel to recieve update requests
-	Store          Storer               // We'll write files directly to this
 
 	PreGenHook  HookRunner // A hook to run before we run the genrator
 	PostGenHook HookRunner // A hooke to run after successful regeneration
@@ -269,6 +268,28 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 // This build a function to despatch upload requests
 func (a *AptServer) makeLogHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		/*
+			branchName := "master"
+			curr, err := a.store.GetHead(branchName)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("failed to retrieve store reference for branch " + branchName + ", " + err.Error()))
+				return
+			}
+
+			for {
+				commit, err := a.store.GetCommit(curr)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					w.Write([]byte("Error following log, " + err.Error()))
+					return
+				}
+				log.Println(commit)
+				w.WriteHeader(http.StatusOK)
+				w.Write(curr)
+				curr = commit.Parent
+			}
+		*/
 	}
 }
 
