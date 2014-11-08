@@ -8,6 +8,9 @@ BINDIR=$(GOPATH)/bin
 
 all: godinstall
 
+version.go:
+	echo "package main\nvar godinstallVersion = \""`dpkg-parsechangelog --show-field Version`-`git show-ref -s --abbrev HEAD`\" > version.go
+
 $(GOPATH): 
 	mkdir $(GOPATH)
 	mkdir -p $(GOPATH)/pkg
@@ -16,7 +19,7 @@ $(GOPATH):
 $(BINDIR)/godep: $(GOPATH)
 	go get github.com/tools/godep
 
-godinstall:  $(BINDIR)/godep 
+godinstall:  $(BINDIR)/godep version.go
 	$(GOPATH)/bin/godep go build
 	mv $(BINNAME) godinstall
 
@@ -29,3 +32,4 @@ check:
 
 clean:
 	rm -rf build godinstall
+	rm -f version.go

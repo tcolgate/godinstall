@@ -38,6 +38,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "godinstall"
 	app.Usage = "dynamic apt repository server"
+	app.Version = godinstallVersion
 
 	app.Commands = []cli.Command{
 		cli.Command{
