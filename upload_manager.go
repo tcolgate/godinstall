@@ -22,7 +22,7 @@ type UploadSessionManager interface {
 type uploadSessionManager struct {
 	TTL                       time.Duration
 	TmpDir                    *string
-	Store                     RepoStorer
+	Store                     ArchiveStorer
 	UploadHook                HookRunner
 	ValidateChanges           bool
 	ValidateChangesSufficient bool
@@ -39,7 +39,7 @@ type uploadSessionManager struct {
 func NewUploadSessionManager(
 	TTL time.Duration,
 	tmpDir *string,
-	store RepoStorer,
+	store ArchiveStorer,
 	uploadHook HookRunner,
 	validateChanges bool,
 	validateChangesSufficient bool,

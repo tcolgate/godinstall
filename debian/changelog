@@ -1,6 +1,7 @@
-godinstall (0.4.3) precise; urgency=low
+godinstall (0.5.0) precise; urgency=low
 
-  * Add Release.gpg generation
+  * Big refactor of on disk format to support
+    multiple repositories
 
  -- tristan <tristan@clonebase.we7.local>  Tue, 14 Oct 2014 08:35:49 +0100
 

@@ -53,7 +53,7 @@ type uploadSession struct {
 	dir          string             // Temporary directory for storage
 	uploadHook   HookRunner         // A hook to run after a successful upload
 	requireSig   bool               // Check debian package signatures
-	store        RepoStorer         // Blob store to keep files in
+	store        ArchiveStorer      // Blob store to keep files in
 	finished     chan UpdateRequest // A channel to anounce completion and trigger a repo update
 	changes      *ChangesFile       // The changes file for this session
 	ttl          time.Duration      // How long should this session stick around for
@@ -100,7 +100,7 @@ func NewUploadSession(
 	validateDebs bool,
 	keyRing openpgp.EntityList,
 	tmpDirBase *string,
-	store RepoStorer,
+	store ArchiveStorer,
 	uploadHook HookRunner,
 	finished chan UpdateRequest,
 	TTL time.Duration,
@@ -277,6 +277,12 @@ func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 	md5 := hex.EncodeToString(hasher.MD5Sum())
 	sha1 := hex.EncodeToString(hasher.SHA1Sum())
 	sha256 := hex.EncodeToString(hasher.SHA256Sum())
+
+	if s.changes.loneDeb {
+		expectedFile.Md5 = md5
+		expectedFile.Sha1 = sha1
+		expectedFile.Sha256 = sha256
+	}
 
 	if !s.changes.loneDeb && (expectedFile.Md5 != md5 ||
 		expectedFile.Sha1 != sha1 ||

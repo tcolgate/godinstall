@@ -309,6 +309,13 @@ func (t *sha1Store) ListRefs() map[string]StoreID {
 
 	walker := func(path string, info os.FileInfo, err error) error {
 		var reterr error
+		log.Println("path: ", path)
+		log.Println("info: ", info)
+		log.Println("err: ", err)
+
+		if err != nil {
+			return err
+		}
 
 		if info.IsDir() {
 			return reterr
@@ -320,6 +327,7 @@ func (t *sha1Store) ListRefs() map[string]StoreID {
 	}
 
 	filepath.Walk(refsPath, walker)
+	log.Println("refs: ", refs)
 	return refs
 }
 

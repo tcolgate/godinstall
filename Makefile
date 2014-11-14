@@ -9,7 +9,7 @@ BINDIR=$(GOPATH)/bin
 all: godinstall
 
 version.go:
-	echo "package main\nvar godinstallVersion = \""`dpkg-parsechangelog --show-field Version`-`git show-ref -s --abbrev HEAD`\" > version.go
+	echo "package main\nvar godinstallVersion = \""`dpkg-parsechangelog | grep ^Version | awk '{print $$2}'   `-`git show-ref -s --abbrev HEAD`\" > version.go
 
 $(GOPATH): 
 	mkdir $(GOPATH)
