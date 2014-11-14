@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"regexp"
 
-	"code.google.com/p/go.crypto/openpgp"
 	"strings"
 	"time"
+
+	"code.google.com/p/go.crypto/openpgp"
+	"github.com/gorilla/mux"
 )
 
 // The maximum amount of RAM to use when parsing
@@ -26,8 +28,7 @@ type AptServer struct {
 
 	AcceptLoneDebs bool // Whether we should allow individual deb uploads
 
-	Repo           AptRepo              // The repository to populate
-	AptGenerator   AptGenerator         // The generator for updating the repo
+	Archive        Archiver             // The generator for updating the repo
 	SessionManager UploadSessionManager // The session manager
 	UpdateChannel  chan UpdateRequest   // A channel to recieve update requests
 
@@ -38,6 +39,7 @@ type AptServer struct {
 
 	uploadHandler   http.HandlerFunc // HTTP handler for upload requests
 	downloadHandler http.HandlerFunc // HTTP handler for apt client downloads
+	distsHandler    http.HandlerFunc // HTTP handler for exposing the logs
 	logHandler      http.HandlerFunc // HTTP handler for exposing the logs
 
 	getCount *expvar.Int // Download count
@@ -49,6 +51,7 @@ func (a *AptServer) InitAptServer() {
 	a.aptLocks = NewGovernor(a.MaxReqs)
 	a.downloadHandler = a.makeDownloadHandler()
 	a.uploadHandler = a.makeUploadHandler()
+	a.distsHandler = a.makeDistsHandler()
 	a.logHandler = a.makeLogHandler()
 
 	a.getCount = expvar.NewInt("GetRequests")
@@ -57,16 +60,19 @@ func (a *AptServer) InitAptServer() {
 }
 
 // Register this server with a HTTP server
-func (a *AptServer) Register(mux *http.ServeMux) {
-	mux.HandleFunc("/repo/", a.downloadHandler)
-	mux.HandleFunc("/upload", a.uploadHandler)
-	mux.HandleFunc("/upload/", a.uploadHandler)
-	mux.HandleFunc("/log", a.logHandler)
+func (a *AptServer) Register(r *mux.Router) {
+	r.PathPrefix("/repo/").HandlerFunc(a.downloadHandler)
+	r.PathPrefix("/upload").HandlerFunc(a.uploadHandler)
+
+	r.HandleFunc("/dists", a.distsHandler)
+	r.HandleFunc("/dists/{name}/log", a.logHandler)
+	r.HandleFunc("/dists/{name}/upload", a.uploadHandler)
+	r.HandleFunc("/dists/{name}/upload/{session}", a.uploadHandler)
 }
 
 // Construct the download handler for normal client downloads
 func (a *AptServer) makeDownloadHandler() http.HandlerFunc {
-	fsHandler := http.StripPrefix("/repo/", http.FileServer(http.Dir(a.Repo.Base())))
+	fsHandler := http.StripPrefix("/repo/", http.FileServer(http.Dir(a.Archive.PublicDir())))
 	return func(w http.ResponseWriter, r *http.Request) {
 		a.aptLocks.ReadLock()
 		defer a.aptLocks.ReadUnLock()
@@ -163,6 +169,7 @@ func AptServerMessage(status int, msg interface{}) AptServerResponder {
 func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 	var reqRegex = regexp.MustCompile("^/upload(|/(.+))$")
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.URL.Path)
 		// Check the URL matches
 		rest := reqRegex.FindStringSubmatch(r.URL.Path)
 		if rest == nil {
@@ -268,28 +275,57 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 // This build a function to despatch upload requests
 func (a *AptServer) makeLogHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		/*
-			branchName := "master"
-			curr, err := a.store.GetHead(branchName)
+		vars := mux.Vars(r)
+		name := vars["name"]
+
+		curr, err := a.Archive.GetDist(name)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("failed to retrieve store reference for branch " + name + ", " + err.Error()))
+			return
+		}
+
+		w.Write([]byte("["))
+		defer w.Write([]byte("]"))
+
+		for {
+			output, err := json.Marshal(curr)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte("failed to retrieve store reference for branch " + branchName + ", " + err.Error()))
+				log.Println("Could not marshal json object, " + err.Error())
 				return
 			}
+			w.Write(output)
 
-			for {
-				commit, err := a.store.GetCommit(curr)
-				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte("Error following log, " + err.Error()))
-					return
-				}
-				log.Println(commit)
-				w.WriteHeader(http.StatusOK)
-				w.Write(curr)
-				curr = commit.Parent
+			curr, err = a.Archive.GetRelease(curr.ParentID)
+			if err != nil {
+				log.Println("Could not get parent, " + err.Error())
+				return
 			}
-		*/
+			if curr.ParentID != nil {
+				w.Write([]byte(","))
+			} else {
+				return
+			}
+		}
+	}
+}
+
+// This build a function to enumerate the distributions
+func (a *AptServer) makeDistsHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		branches := a.Archive.Dists()
+
+		output, err := json.Marshal(branches)
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("failed to retrieve list of distributions, " + err.Error()))
+			return
+		}
+
+		w.Write(output)
+
+		return
 	}
 }
 
@@ -342,7 +378,7 @@ func (a *AptServer) Updater() {
 					completedsession.PreGenHookOutput = hookResult
 				}
 
-				respStatus, respObj, err = a.AptGenerator.AddSession(session)
+				respStatus, respObj, err = a.Archive.AddSession(session)
 
 				if err != nil {
 					respStatus = http.StatusInternalServerError

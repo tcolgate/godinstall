@@ -12,13 +12,14 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
+	"net/http/pprof"
 	"os"
 	"regexp"
 	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
 	"github.com/codegangsta/cli"
+	"github.com/gorilla/mux"
 )
 
 // Looks an email address up in a pgp keyring
@@ -168,13 +169,6 @@ func CmdServe(c *cli.Context) {
 		return
 	}
 
-	poolRegexp, err := regexp.CompilePOSIX("^(" + poolPattern + ")")
-
-	if err != nil {
-		log.Println(err.Error())
-		return
-	}
-
 	var pubRing openpgp.EntityList
 	if pubringFile != "" {
 		pubringReader, err := os.Open(pubringFile)
@@ -229,13 +223,13 @@ func CmdServe(c *cli.Context) {
 
 	updateChan := make(chan UpdateRequest)
 
-	base := repoBase + "/archive"
 	storeDir := repoBase + "/store"
 	tmpDir := repoBase + "/tmp"
+	publicDir := repoBase + "/archive"
 
-	_, patherr := os.Stat(base)
+	_, patherr := os.Stat(publicDir)
 	if os.IsNotExist(patherr) {
-		err = os.Mkdir(base, 0777)
+		err = os.Mkdir(publicDir, 0777)
 		if err != nil {
 			log.Println(err.Error())
 			return
@@ -259,31 +253,33 @@ func CmdServe(c *cli.Context) {
 		}
 	}
 
-	aptRepo := aptRepo{
-		&base,
-		poolRegexp,
-	}
-
-	repoStore := NewRepoBlobStore(storeDir, tmpDir)
-
 	pruneRules, err := ParsePruneRules(pruneRulesStr)
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
 
-	aptGenerator := NewAptBlobArchiveGenerator(
-		&aptRepo,
+	// We make sure the default pool pattern is a valid rege
+	_, err = regexp.CompilePOSIX("^(" + poolPattern + ")")
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	archive := NewAptBlobArchive(
 		privRing,
 		signerID,
-		repoStore,
+		&storeDir,
+		&tmpDir,
+		&publicDir,
 		pruneRules,
+		poolPattern,
 	)
 
 	uploadSessionManager := NewUploadSessionManager(
 		expire,
 		&tmpDir,
-		repoStore,
+		archive,
 		NewScriptHook(&uploadHook),
 		validateChanges,
 		validateChangesSufficient,
@@ -299,14 +295,23 @@ func CmdServe(c *cli.Context) {
 		PostGenHook:    NewScriptHook(&postGenHook),
 		AcceptLoneDebs: acceptLoneDebs,
 
-		Repo:           &aptRepo,
-		AptGenerator:   aptGenerator,
+		Archive:        archive,
 		SessionManager: uploadSessionManager,
 		UpdateChannel:  updateChan,
 		PubRing:        pubRing,
 	}
 
+	r := mux.NewRouter()
+
+	// We'll hook up all the normal debug business
+	r.HandleFunc("/debug/pprof/", pprof.Index)
+	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	r.Handle("/debug/vars", http.DefaultServeMux)
+
 	server.InitAptServer()
-	server.Register(http.DefaultServeMux)
-	http.ListenAndServe(listenAddress, http.DefaultServeMux)
+	server.Register(r)
+
+	http.ListenAndServe(listenAddress, r)
 }
