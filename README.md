@@ -26,15 +26,16 @@ availability), along with optional validation of signed changes and debs.
 ## Mis(sing)-Features
 
 - Sources, Content-?, Trnslations not  currently handled
-- Only a single release is supported
 - The objects in the blob store are likely to change
-- No current means of reviewin the logs
+- Only a single component is populated at present
+- Package name + version + arch must be unique accross all componenets in a
+  repository (not merely main + other)
 
 ## Example
 
 sources.list.d/test.list:
 ```
-deb http://localhost:3000/repo /
+deb http://localhost:3000/repo mydist main
 ```
 
 To start godinstall:
@@ -56,22 +57,22 @@ $ godinstall serve -repo-base ./testrepo \
              -validate-debs=false
 ```
 
-To upload a package, either upload all the files and the changes file in one PUT: 
+To upload a package, either upload all the files and the changes file in one PUT:
 ```
-curl -v -c cookie.jar  -XPOST -F 'debfiles=@woot.changes' -F 'debfiles=@collectd-core_5.4.0-3_amd64.deb' -F 'debfiles=@collectd_5.4.0-3_amd64.deb'  http://localhost:3000/upload/$SESSION
+curl -v -c cookie.jar  -XPOST -F 'debfiles=@woot.changes' -F 'debfiles=@collectd-core_5.4.0-3_amd64.deb' -F 'debfiles=@collectd_5.4.0-3_amd64.deb'  http://localhost:3000/dists/mydist/upload/$SESSION
 ```
 
 Or upload the changes file, and then upload the individual files. As Session ID is returned in a JSON response, and in a cookie
 ```
 # This just 'parses' the json :)
-SESSION=`curl -XPOST -F 'debfiles=@woot.changes' http://localhost:3000/upload  | json_pp | grep SessionId | awk '{print $3}' | awk -F\" '{print $2}'`
-curl -v -XPOST -F 'debfiles=@collectd-core_5.4.0-3_amd64.deb' http://localhost:3000/upload/$SESSION
-curl -v -XPOST -F 'debfiles=@collectd_5.4.0-3_amd64.deb'  http://localhost:3000/upload/$SESSION
+SESSION=`curl -XPOST -F 'debfiles=@woot.changes' http://localhost:3000/dists/mydist/upload  | json_pp | grep SessionId | awk '{print $3}' | awk -F\" '{print $2}'`
+curl -v -XPOST -F 'debfiles=@collectd-core_5.4.0-3_amd64.deb' http://localhost:3000/dists/mydist/upload/$SESSION
+curl -v -XPOST -F 'debfiles=@collectd_5.4.0-3_amd64.deb'  http://localhost:3000/dists/mydist/upload/$SESSION
 ```
 
 ## Package Pruning
 
-You can limit the number of version and revisions of a package that will be presented in the 
+You can limit the number of version and revisions of a package that will be presented in the
 archive indexes. It should be noted that these packages are not removed from the objects store, they
 are removed from the current version of the index, but can be accessed via the archive history (no
 UI is present for that at the moment). This means disk space is not freed. In order to free disk space
