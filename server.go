@@ -6,7 +6,6 @@ import (
 	"expvar"
 	"log"
 	"net/http"
-	"regexp"
 
 	"strings"
 	"time"
@@ -66,8 +65,11 @@ func (a *AptServer) Register(r *mux.Router) {
 
 	r.HandleFunc("/dists", a.distsHandler)
 	r.HandleFunc("/dists/{name}/log", a.logHandler)
+
 	r.HandleFunc("/dists/{name}/upload", a.uploadHandler)
 	r.HandleFunc("/dists/{name}/upload/{session}", a.uploadHandler)
+	r.PathPrefix("/upload").HandlerFunc(a.uploadHandler)
+	r.PathPrefix("/upload/{session}").HandlerFunc(a.uploadHandler)
 }
 
 // Construct the download handler for normal client downloads
@@ -167,24 +169,16 @@ func AptServerMessage(status int, msg interface{}) AptServerResponder {
 
 // This build a function to despatch upload requests
 func (a *AptServer) makeUploadHandler() http.HandlerFunc {
-	var reqRegex = regexp.MustCompile("^/upload(|/(.+))$")
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.URL.Path)
-		// Check the URL matches
-		rest := reqRegex.FindStringSubmatch(r.URL.Path)
-		if rest == nil {
-			http.NotFound(w, r)
-			return
+
+		vars := mux.Vars(r)
+
+		branchName, ok := vars["name"]
+		if !ok {
+			branchName = "master"
 		}
 
-		found := false
-		session := ""
-
-		// Did we get a session in the URL
-		if rest[1] != "" {
-			session = rest[2]
-			found = true
-		}
+		session, found := vars["session"]
 
 		var resp AptServerResponder
 
@@ -239,7 +233,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 							}
 
 						}
-						session, err = a.SessionManager.Add(changes)
+						session, err = a.SessionManager.Add(branchName, changes)
 						if err != nil {
 							resp = AptServerMessage(http.StatusBadRequest, err.Error())
 						} else {

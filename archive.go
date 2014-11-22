@@ -260,6 +260,7 @@ func (a *archiveStoreArchive) SignerID() *openpgp.Entity {
 func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
 	respStatus = http.StatusOK
 	respObj = "Index committed"
+	branchName := session.BranchName()
 
 	items, err := a.ItemsFromChanges(session.Items())
 	if err != nil {
@@ -268,7 +269,6 @@ func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus in
 		return respStatus, respObj, err
 	}
 
-	branchName := "master"
 	heads := a.Dists()
 	head, ok := heads[branchName]
 	if !ok {

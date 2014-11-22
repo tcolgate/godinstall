@@ -13,7 +13,7 @@ import (
 // session  It creates sessions, times them out, amd acts as a request
 // muxer to pass requests on to invidiuvidual managers
 type UploadSessionManager interface {
-	Add(*ChangesFile) (string, error)
+	Add(string, *ChangesFile) (string, error)
 	Status(string) AptServerResponder
 	AddItems(string, []*multipart.FileHeader) AptServerResponder
 }
@@ -83,7 +83,7 @@ func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) 
 
 // Add a new upload session based on the details from the passed
 // debian changes file.
-func (usm *uploadSessionManager) Add(changes *ChangesFile) (string, error) {
+func (usm *uploadSessionManager) Add(branchName string, changes *ChangesFile) (string, error) {
 	var err error
 
 	if usm.ValidateChanges && !changes.signed && !changes.loneDeb {
@@ -105,6 +105,7 @@ func (usm *uploadSessionManager) Add(changes *ChangesFile) (string, error) {
 	}
 
 	s := NewUploadSession(
+		branchName,
 		changes,
 		validateDebSign,
 		usm.PubRing,

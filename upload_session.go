@@ -36,7 +36,8 @@ type UploadItem struct {
 // the status and completion of the session
 type UploadSessioner interface {
 	ID() string                              // return the UUID for this session
-	Directory() string                       // returnt he base directory for the verified uploaded files
+	BranchName() string                      // return the release this update is for
+	Directory() string                       // return the base directory for the verified uploaded files
 	Items() map[string]*ChangesItem          // return the changes file for this session
 	AddItem(*ChangesItem) AptServerResponder // Add the given item to this session
 	Close()                                  // Close, and clear up, any remaining files
@@ -48,6 +49,7 @@ type UploadSessioner interface {
 // Base session information
 type uploadSession struct {
 	SessionID    string             // Name of the session
+	branchName   string             // The release this is meant for
 	validateDebs bool               // Validate uploaded. deb files
 	keyRing      openpgp.EntityList // Keyring for validation
 	dir          string             // Temporary directory for storage
@@ -77,6 +79,10 @@ func (s *uploadSession) Directory() string {
 	return s.dir
 }
 
+func (s *uploadSession) BranchName() string {
+	return s.branchName
+}
+
 func (s *uploadSession) MarshalJSON() (j []byte, err error) {
 	resp := struct {
 		SessionID string
@@ -96,6 +102,7 @@ func (s *uploadSession) Items() map[string]*ChangesItem {
 // NewUploadSession creates a session for uploading using a changes
 // file to describe the set of files to be uploaded
 func NewUploadSession(
+	branchName string,
 	changes *ChangesFile,
 	validateDebs bool,
 	keyRing openpgp.EntityList,
@@ -106,6 +113,7 @@ func NewUploadSession(
 	TTL time.Duration,
 ) UploadSessioner {
 	var s uploadSession
+	s.branchName = branchName
 	s.validateDebs = validateDebs
 	s.keyRing = keyRing
 	s.done = make(chan struct{})
