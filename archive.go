@@ -104,7 +104,6 @@ func (a *archiveStoreArchive) ReifyRelease(id StoreID) (err error) {
 	if err != nil {
 		return err
 	}
-	log.Println(*release)
 
 	distBase := *a.base + "/dists/" + release.CodeName
 	distAlias := *a.base + "/dists/" + release.SuiteName
@@ -235,7 +234,6 @@ func (a *archiveStoreArchive) updatePool(release *Release) error {
 		for i := range item.Files {
 			file := item.Files[i]
 			path := a.PublicDir() + "/" + release.PoolFilePath(file.Name)
-			log.Println(path)
 			filepath := path + file.Name
 			err = a.Link(file.ID, filepath)
 			if err != nil {
@@ -296,7 +294,6 @@ func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus in
 		respObj = "Creating updated commit failed, " + err.Error()
 		return respStatus, respObj, err
 	}
-	a.SetDist(branchName, newhead)
 
 	for _, item := range actions {
 		switch item.Type {
@@ -320,12 +317,25 @@ func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus in
 			{
 				log.Println("Deleted " + item.Description)
 			}
+		case ActionTRIM:
+			{
+				log.Println("Trimmed " + item.Description)
+			}
 		default:
 			{
 				log.Println(item.Description)
 			}
 		}
 	}
+
+	trimmer := MakeLengthTrimmer(10)
+	trimmedhead, err := TrimReleaseHistory(a, newhead, trimmer)
+	if trimmedhead.String() != newhead.String() {
+		log.Println("Trimmed release history to 10 commits")
+		newhead = trimmedhead
+	}
+
+	a.SetDist(branchName, newhead)
 	log.Printf("Branch %v set to %v", branchName, StoreID(newhead).String())
 
 	err = a.ReifyRelease(newhead)

@@ -47,6 +47,7 @@ type Release struct {
 	ReleaseGPG  StoreID
 	Actions     []ReleaseLogAction
 	PoolPattern string
+	TrimAfter   int32
 	poolPattern *regexp.Regexp
 }
 
@@ -272,7 +273,6 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 			}
 			poolpath := release.PoolFilePath(filename)
 			path := poolpath + filename
-			log.Println(path)
 			control[0].SetValue("Filename", path)
 
 			FormatControlFile(arch.packagesWriter, control)
@@ -443,82 +443,9 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 	release.Date = time.Now()
 
 	releaseid, err := store.AddRelease(&release)
-	log.Println("grrr: ", err)
 
 	return releaseid, nil
 }
-
-// Trimmer is an type for describing functions that can be used to
-// trim the repository history
-type Trimmer func(*Release) bool
-
-// MakeTimeTrimmer creates a trimmer function that reduces the repository
-// history to a given window of time
-func MakeTimeTrimmer(time.Duration) Trimmer {
-	return func(commit *Release) (trim bool) {
-		return false
-	}
-}
-
-// MakeLengthTrimmer creates a trimmer function that reduces the repository
-// history to a given number of commits
-func MakeLengthTrimmer(commitcount int) Trimmer {
-	count := commitcount
-	return func(commit *Release) (trim bool) {
-		if count >= 0 {
-			count--
-			return false
-		}
-		return true
-	}
-}
-
-// Trim works it's way through the commit history, and rebuilds a new version
-// of the repository history, truncated at the commit selected by the trimmer
-/*
-func Trim(head StoreID, t Trimmer) (newhead StoreID, err error) {
-	var history []*Release
-	newhead = head
-	curr := head
-
-	for {
-		if StoreID(curr).String() == r.EmptyFileID().String() {
-			// We reached an empty commit before we decided to trim
-			// so just return the untrimmed origin StoreID
-			return head, nil
-		}
-
-		c, err := r.GetRelease(curr)
-		if err != nil {
-			return head, err
-		}
-
-		if t(c) {
-			break
-		}
-		history = append(history, c)
-	}
-
-	newhead = StoreID(r.EmptyFileID())
-	history[len(history)-1].Actions = []ReleaseLogAction{
-		ReleaseLogAction{
-			Type:        ActionTRIM,
-			Description: "Repository history trimmed",
-		},
-	}
-
-	for i := len(history) - 1; i >= 0; i-- {
-		newcommit := history[i]
-		newcommit.Parent = newhead
-		newhead, err = r.AddRelease(newcommit)
-		if err != nil {
-			return head, err
-		}
-	}
-
-	return
-}
-*/
 
 // PoolFilePath provides the full path to the location
 // in the debian apt pool for a given file, expanded using

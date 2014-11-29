@@ -82,26 +82,49 @@ func (r archiveBlobStore) gcWalkReleaseIndex(used *SafeMap, id StoreID) {
 }
 
 func (r archiveBlobStore) gcWalkRelease(used *SafeMap, releaseID StoreID) {
-	used.Set(releaseID.String(), true)
-	release, _ := r.GetRelease(releaseID)
-	used.Set(release.InRelease.String(), true)
-	used.Set(release.Release.String(), true)
-	used.Set(release.ReleaseGPG.String(), true)
-	for _, comp := range release.Components {
-		used.Set(comp.SourcesGz.String(), true)
-		for _, arch := range comp.Architectures {
-			used.Set(arch.PackagesGz.String(), true)
-		}
-	}
+	curr := releaseID
+	trimmerActive := false
+	trimAfter := int32(0)
 
-	if !used.Check(StoreID(release.IndexID).String()) {
-		r.gcWalkReleaseIndex(used, release.IndexID)
-	}
-
-	if StoreID(release.ParentID).String() != r.EmptyFileID().String() {
-		if !used.Check(StoreID(release.ParentID).String()) {
-			r.gcWalkRelease(used, release.ParentID)
+	for {
+		if trimmerActive {
+			if trimAfter > 0 {
+				trimAfter--
+			} else {
+				// Stop Garbage collective after history trim
+				break
+			}
 		}
+
+		used.Set(curr.String(), true)
+		release, _ := r.GetRelease(curr)
+		used.Set(release.InRelease.String(), true)
+		used.Set(release.Release.String(), true)
+		used.Set(release.ReleaseGPG.String(), true)
+
+		for _, comp := range release.Components {
+			used.Set(comp.SourcesGz.String(), true)
+			for _, arch := range comp.Architectures {
+				used.Set(arch.PackagesGz.String(), true)
+			}
+		}
+
+		if !used.Check(StoreID(release.IndexID).String()) {
+			r.gcWalkReleaseIndex(used, release.IndexID)
+		}
+
+		if StoreID(release.ParentID).String() == r.EmptyFileID().String() {
+			break
+		}
+		if used.Check(StoreID(release.ParentID).String()) {
+			break
+		}
+
+		if release.TrimAfter > 0 && !trimmerActive {
+			trimAfter = release.TrimAfter
+			trimmerActive = true
+		}
+		curr = release.ParentID
 	}
 }
 
@@ -191,7 +214,6 @@ func (r archiveBlobStore) SetReleaseTag(name string, id StoreID) error {
 }
 
 func (r archiveBlobStore) AddDeb(file *ChangesItem) (*ReleaseItem, error) {
-	log.Println(*file)
 	var item ReleaseItem
 	item.Type = BINARY
 
