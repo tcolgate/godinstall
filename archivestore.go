@@ -85,32 +85,35 @@ func (r archiveBlobStore) gcWalkRelease(used *SafeMap, releaseID StoreID) {
 	curr := releaseID
 	trimmerActive := false
 	trimAfter := int32(0)
+	dropAssets := false
 
 	for {
 		if trimmerActive {
 			if trimAfter > 0 {
 				trimAfter--
 			} else {
-				// Stop Garbage collective after history trim
-				break
+				// Stop makring assets after history trim
+				dropAssets = true
 			}
 		}
 
 		used.Set(curr.String(), true)
 		release, _ := r.GetRelease(curr)
-		used.Set(release.InRelease.String(), true)
-		used.Set(release.Release.String(), true)
-		used.Set(release.ReleaseGPG.String(), true)
+		if !dropAssets {
+			used.Set(release.InRelease.String(), true)
+			used.Set(release.Release.String(), true)
+			used.Set(release.ReleaseGPG.String(), true)
 
-		for _, comp := range release.Components {
-			used.Set(comp.SourcesGz.String(), true)
-			for _, arch := range comp.Architectures {
-				used.Set(arch.PackagesGz.String(), true)
+			for _, comp := range release.Components {
+				used.Set(comp.SourcesGz.String(), true)
+				for _, arch := range comp.Architectures {
+					used.Set(arch.PackagesGz.String(), true)
+				}
 			}
-		}
 
-		if !used.Check(StoreID(release.IndexID).String()) {
-			r.gcWalkReleaseIndex(used, release.IndexID)
+			if !used.Check(StoreID(release.IndexID).String()) {
+				r.gcWalkReleaseIndex(used, release.IndexID)
+			}
 		}
 
 		if StoreID(release.ParentID).String() == r.EmptyFileID().String() {

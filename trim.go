@@ -44,7 +44,7 @@ func TrimReleaseHistory(store Archiver, parentid StoreID, trimmer Trimmer) (id S
 	}
 
 	curr := parentid
-	trimCount := 0
+	trimCount := int32(0)
 	activeTrim := int32(0)
 
 	for {
@@ -83,6 +83,8 @@ func TrimReleaseHistory(store Archiver, parentid StoreID, trimmer Trimmer) (id S
 		if activeTrim > 1 {
 			activeTrim--
 		}
+
+		curr = c.ParentID
 	}
 
 	if trimCount > 0 {
@@ -95,6 +97,7 @@ func TrimReleaseHistory(store Archiver, parentid StoreID, trimmer Trimmer) (id S
 			},
 		}
 		release.Date = time.Now()
+		release.TrimAfter = trimCount
 		return store.AddRelease(&release)
 	} else {
 		return parentid, nil

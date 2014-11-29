@@ -328,10 +328,10 @@ func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus in
 		}
 	}
 
-	trimmer := MakeLengthTrimmer(10)
+	trimmer := MakeLengthTrimmer(4)
 	trimmedhead, err := TrimReleaseHistory(a, newhead, trimmer)
 	if trimmedhead.String() != newhead.String() {
-		log.Println("Trimmed release history to 10 commits")
+		log.Println("Trimmed release history to 4 commits")
 		newhead = trimmedhead
 	}
 

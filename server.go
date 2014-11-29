@@ -282,6 +282,10 @@ func (a *AptServer) makeLogHandler() http.HandlerFunc {
 		w.Write([]byte("["))
 		defer w.Write([]byte("]"))
 
+		displayTrimmed := false
+		trimmerActive := false
+		trimAfter := int32(0)
+
 		for {
 			output, err := json.Marshal(curr)
 			if err != nil {
@@ -290,12 +294,30 @@ func (a *AptServer) makeLogHandler() http.HandlerFunc {
 			}
 			w.Write(output)
 
+			if !displayTrimmed {
+				if !trimmerActive && curr.TrimAfter != 0 {
+					trimmerActive = true
+					trimAfter = curr.TrimAfter
+				}
+			}
+
 			curr, err = a.Archive.GetRelease(curr.ParentID)
 			if err != nil {
 				log.Println("Could not get parent, " + err.Error())
 				return
 			}
+
 			if curr.ParentID != nil {
+				if !displayTrimmed {
+					if trimmerActive {
+						if trimAfter > 0 {
+							trimAfter--
+						} else {
+							// Stop displaying history here
+							return
+						}
+					}
+				}
 				w.Write([]byte(","))
 			} else {
 				return
