@@ -105,4 +105,30 @@ If multiple pruning rules are given they are process from first to last, only th
 Different architectures are treated as different packages, a change of epoch is handled as a new version
 
 
+## Release History Trimming
+
+By default, all updates to the repository are done non-destrutctively. Whilst a
+package may be pruned, or updated (or, in the future, deleted via the api), the
+change is made on a new revision of the release. All previous revisions are
+kept, so no items are ever actaully lost. It will be possible to reset a
+release to a point in the history, or create a new snapshot or release branch,
+from a given commit that is present in the history.
+
+Whilst this is nice, it does mean that pruning does not actually free up any
+space, it simply removes the packages from being visible in the next release of
+the repository.
+
+In order to to control space, you can limit the repository to only keep a
+limited number of histories of the release available. This is called Releae
+History Trimming. If a release history is trimmed, the garbage collection of a
+release branch will stop marking the assets for a release for retention after
+a given number of releases beyond the point that the history was trimmed at.
+Any items (packages, files, release index files) referred to by commits
+after that piont that are not then referred to by another branch will be valid
+for garbage collection.
+
+The objects specifying the details of all previous releases are still retained,
+though items they refer to will be inaccessible. Only fully accessible releases
+are shown in the log by default, but the full history is availble. This allows
+the full history of the repository, back to its birth, to be retained.
 
