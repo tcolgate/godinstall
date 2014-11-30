@@ -101,7 +101,7 @@ type relTempData map[string]compTempData
 // NewRelease creates a new release object in the specified store, based on the
 // parent and built using the passed in index, and associated set of
 // actions
-func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []ReleaseLogAction) (id StoreID, err error) {
+func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimmer, actions []ReleaseLogAction) (id StoreID, err error) {
 	release := Release{}
 	release.ParentID = parentid
 	release.IndexID = indexid
@@ -438,6 +438,14 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 		err = openpgp.ArmoredDetachSign(releaseGpgFile, store.SignerID(), releaseReader, nil)
 		releaseGpgFile.Close()
 		release.ReleaseGPG, _ = releaseGpgFile.Identity()
+	}
+
+	// Trim the release history if requested
+	if trimmer != nil {
+		err = release.TrimHistory(store, trimmer)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	release.Date = time.Now()

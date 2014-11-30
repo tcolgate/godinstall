@@ -266,6 +266,10 @@ func CmdServe(c *cli.Context) {
 		return
 	}
 
+	getTrimmer := func() Trimmer {
+		return MakeLengthTrimmer(4)
+	}
+
 	archive := NewAptBlobArchive(
 		privRing,
 		signerID,
@@ -273,6 +277,7 @@ func CmdServe(c *cli.Context) {
 		&tmpDir,
 		&publicDir,
 		pruneRules,
+		getTrimmer,
 		poolPattern,
 	)
 

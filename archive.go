@@ -33,6 +33,7 @@ type archiveStoreArchive struct {
 	signerID       *openpgp.Entity // The key to sign release file with
 	base           *string         // The base directory of the repository
 	pruneRules     PruneRuleSet    // Rules to use for pruning the repo
+	getTrimmer     func() Trimmer  // History Trimmer
 	defPoolPattern string          // Default pool pattern
 	ArchiveStorer                  // The blob store to use
 }
@@ -46,6 +47,7 @@ func NewAptBlobArchive(
 	tmpDir *string,
 	publicDir *string,
 	pruneRules PruneRuleSet,
+	getTrimmer func() Trimmer,
 	defPoolPattern string,
 ) Archiver {
 	archivestore := NewArchiveBlobStore(*storeDir, *tmpDir)
@@ -55,6 +57,7 @@ func NewAptBlobArchive(
 		signerID:       signerID,
 		base:           publicDir,
 		pruneRules:     pruneRules,
+		getTrimmer:     getTrimmer,
 		defPoolPattern: defPoolPattern,
 	}
 }
@@ -288,7 +291,7 @@ func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus in
 		respObj = "Creating new index failed, " + err.Error()
 	}
 
-	newhead, err := NewRelease(a, head, newidx, actions)
+	newhead, err := NewRelease(a, head, newidx, a.getTrimmer(), actions)
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "Creating updated commit failed, " + err.Error()
@@ -326,13 +329,6 @@ func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus in
 				log.Println(item.Description)
 			}
 		}
-	}
-
-	trimmer := MakeLengthTrimmer(4)
-	trimmedhead, err := TrimReleaseHistory(a, newhead, trimmer)
-	if trimmedhead.String() != newhead.String() {
-		log.Println("Trimmed release history to 4 commits")
-		newhead = trimmedhead
 	}
 
 	a.SetDist(branchName, newhead)

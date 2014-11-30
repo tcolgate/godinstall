@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -20,6 +22,7 @@ func MakeTimeTrimmer(time.Duration) Trimmer {
 // MakeLengthTrimmer creates a trimmer function that reduces the repository
 // history to a given number of commits
 func MakeLengthTrimmer(commitcount int) Trimmer {
+	log.Println("Trim requested")
 	count := commitcount
 	return func(commit *Release) (trim bool) {
 		if count >= 0 {
@@ -37,33 +40,27 @@ func MakeLengthTrimmer(commitcount int) Trimmer {
 //   If the release history is already shorter than the Trimmer allows, or
 // the release history has previous been trimmed to a shorter length than would
 // be allowed, the original parentid is returned.
-func TrimReleaseHistory(store Archiver, parentid StoreID, trimmer Trimmer) (id StoreID, err error) {
-	parent, err := store.GetRelease(parentid)
-	if err != nil {
-		return nil, err
-	}
-
-	curr := parentid
+func (release *Release) TrimHistory(store Archiver, trimmer Trimmer) error {
+	curr := release.ParentID
 	trimCount := int32(0)
 	activeTrim := int32(0)
 
 	for {
 		if StoreID(curr).String() == store.EmptyFileID().String() {
 			// We reached an empty commit before we decided to trim
-			// so just return the untrimmed origin StoreID
-			return parentid, nil
+			return nil
 		}
 
 		if activeTrim == 1 {
 			// The current commit is the last commit from previously
 			// active trimming, the release history is short enough
 			// already
-			return parentid, nil
+			return nil
 		}
 
 		c, err := store.GetRelease(curr)
 		if err != nil {
-			return parentid, err
+			return errors.New("error while trimming, " + err.Error())
 		}
 
 		if c.TrimAfter != 0 {
@@ -88,18 +85,13 @@ func TrimReleaseHistory(store Archiver, parentid StoreID, trimmer Trimmer) (id S
 	}
 
 	if trimCount > 0 {
-		release := *parent
-		release.ParentID = parentid
-		release.Actions = []ReleaseLogAction{
+		log.Println("Trim did something")
+		release.Actions = append(release.Actions,
 			ReleaseLogAction{
 				Type:        ActionTRIM,
 				Description: fmt.Sprintf("Release history trimmed to %d revisions", trimCount),
-			},
-		}
-		release.Date = time.Now()
+			})
 		release.TrimAfter = trimCount
-		return store.AddRelease(&release)
-	} else {
-		return parentid, nil
 	}
+	return nil
 }
