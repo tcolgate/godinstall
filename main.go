@@ -126,6 +126,15 @@ func main() {
 					Value: ".*_*-*",
 					Usage: "Rules for package pruning",
 				},
+				cli.BoolFlag{
+					Name:  "auto-trim",
+					Usage: "Automatically trim branch history",
+				},
+				cli.IntFlag{
+					Name:  "auto-trim-length",
+					Value: 10,
+					Usage: "Rules for package pruning",
+				},
 			},
 			Usage:  "run a repository server",
 			Action: CmdServe,
@@ -155,6 +164,8 @@ func CmdServe(c *cli.Context) {
 	privringFile := c.String("gpg-privring")
 	signerEmail := c.String("signer-email")
 	pruneRulesStr := c.String("prune")
+	autoTrim := c.Bool("auto-trim")
+	trimLen := c.Int("auto-trim-length")
 
 	flag.Parse()
 
@@ -266,8 +277,16 @@ func CmdServe(c *cli.Context) {
 		return
 	}
 
-	getTrimmer := func() Trimmer {
-		return MakeLengthTrimmer(4)
+	var getTrimmer func() Trimmer
+
+	if autoTrim {
+		getTrimmer = func() Trimmer {
+			return MakeLengthTrimmer(trimLen)
+		}
+	} else {
+		getTrimmer = func() Trimmer {
+			return nil
+		}
 	}
 
 	archive := NewAptBlobArchive(
