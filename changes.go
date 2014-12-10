@@ -86,6 +86,53 @@ type ChangesItemFile struct {
 	data     io.Reader
 }
 
+// Check if signatures and policy are enough to validate this changes
+// file, return true or false, and the details of who signed it, if
+// they were in our keyring
+func checkDebianChangesValidated(kr openpgp.KeyRing, br io.Reader, msg *clearsign.Block) (bool, *openpgp.Entity) {
+	var validated bool
+	var signedBy *openpgp.Entity
+
+	if kr == nil {
+		log.Println("Validation requested, but keyring is null")
+		validated = false
+	} else {
+		var err error
+		signedBy, err = openpgp.CheckDetachedSignature(kr, br, msg.ArmoredSignature.Body)
+		if err == nil {
+			validated = true
+		} else {
+			validated = false
+		}
+	}
+	br = bytes.NewReader(msg.Plaintext)
+	return validated, signedBy
+}
+
+// Check any clear signed signature
+func verifyDebianChangesSign(b []byte) (io.Reader, *clearsign.Block, bool) {
+	var br io.Reader
+	var signed bool
+
+	msg, rest := clearsign.Decode(b)
+	switch {
+	case msg == nil && len(rest) > 0:
+		{
+			signed = false
+			br = bytes.NewReader(rest)
+		}
+	case msg != nil && len(msg.Plaintext) > 0:
+		{
+			signed = true
+			br = bytes.NewReader(msg.Bytes)
+			if len(rest) > 0 {
+				log.Println("trailing content in signed control file will be ignored")
+			}
+		}
+	}
+	return br, msg, signed
+}
+
 // ParseDebianChanges parses a debian chnages file into a ChangesFile object
 // and verify any signature against keys in GPG keyring kr.
 //
@@ -99,43 +146,16 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p ChangesFile, err 
 		return
 	}
 
-	var br io.Reader
-	msg, rest := clearsign.Decode(b)
-	switch {
-	case msg == nil && len(rest) > 0:
-		{
-			c.signed = false
-			br = bytes.NewReader(rest)
-		}
-	case msg != nil && len(msg.Plaintext) > 0:
-		{
-			c.signed = true
-			br = bytes.NewReader(msg.Bytes)
-			if len(rest) > 0 {
-				log.Println("trailing content in signed control file will be ignored")
-			}
-		}
-	}
+	br, msg, signed := verifyDebianChangesSign(b)
+	c.signed = signed
 
 	if c.signed {
-		if kr == nil {
-			log.Println("Validation requested, but keyring is null")
-			c.validated = false
-		} else {
-			c.signedBy, err = openpgp.CheckDetachedSignature(kr, br, msg.ArmoredSignature.Body)
-			if err == nil {
-				c.validated = true
-			} else {
-				c.validated = false
-			}
-		}
-		br = bytes.NewReader(msg.Plaintext)
+		validated, signedBy := checkDebianChangesValidated(kr, br, msg)
 	} else {
 		c.validated = false
 	}
 
 	paragraphs, err := ParseDebianControl(br)
-
 	if err != nil {
 		return c, err
 	}
@@ -145,7 +165,6 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p ChangesFile, err 
 	}
 
 	files, ok := paragraphs[0].GetValues("Files")
-
 	if !ok {
 		return ChangesFile{}, errors.New("No Files section in changes")
 	}
