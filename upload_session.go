@@ -15,22 +15,6 @@ import (
 	"code.google.com/p/go.crypto/openpgp"
 )
 
-// UploadItem describes a specific item to be uploaded along
-// with the changes file
-type UploadItem struct {
-	Filename         string
-	StoreID          StoreID
-	Size             int64
-	Md5              string
-	Sha1             string
-	Sha256           string
-	Uploaded         bool
-	SignedBy         []string
-	UploadHookResult HookOutput
-
-	data io.Reader
-}
-
 // UploadSessioner defines an interface for managing an session used for
 // uploading a set of files for integration with the repository, and communicating
 // the status and completion of the session
