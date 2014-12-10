@@ -106,6 +106,7 @@ func checkDebianChangesValidated(kr openpgp.KeyRing, br io.Reader, msg *clearsig
 		}
 	}
 	br = bytes.NewReader(msg.Plaintext)
+
 	return validated, signedBy
 }
 
@@ -131,6 +132,73 @@ func verifyDebianChangesSign(b []byte) (io.Reader, *clearsign.Block, bool) {
 		}
 	}
 	return br, msg, signed
+}
+
+func changesToItemFiles(para *ControlParagraph) ([]ChangesItemFile, error) {
+	itemFiles := make([]ChangesItemFile, 0)
+
+	md5s, ok := para.GetValues("Files")
+	if !ok {
+		return []ChangesItemFile{}, errors.New("No Files section in changes")
+	}
+
+	for _, f := range md5s {
+		fileDesc := strings.Fields(*f)
+		if len(fileDesc) == 5 {
+			size, _ := strconv.ParseInt(fileDesc[1], 10, 64)
+			cf := ChangesItemFile{
+				Name: fileDesc[4],
+				Size: size,
+				Md5:  []byte(fileDesc[0]),
+			}
+			itemFiles = append(itemFiles, cf)
+		}
+	}
+
+	sha1s, ok := para.GetValues("Checksums-Sha1")
+	if ok {
+		for _, s := range sha1s {
+			fileDesc := strings.Fields(*s)
+			if len(fileDesc) == 3 {
+				name := fileDesc[2]
+				ok := false
+				for j, f := range itemFiles {
+					if name == f.Name {
+						ok = true
+						itemFiles[j].Sha1 = []byte(fileDesc[0])
+						break
+					}
+				}
+
+				if !ok {
+					log.Printf("Ignoring sha1 for file not listed in Files: %s", name)
+				}
+			}
+		}
+	}
+
+	sha256s, ok := para.GetValues("Checksums-Sha256")
+	if ok {
+		for _, s := range sha256s {
+			fileDesc := strings.Fields(*s)
+			if len(fileDesc) == 3 {
+				name := fileDesc[2]
+				ok := false
+				for j, f := range itemFiles {
+					if name == f.Name {
+						ok = true
+						itemFiles[j].Sha256 = []byte(fileDesc[0])
+						break
+					}
+				}
+
+				if !ok {
+					log.Printf("Ignoring sha256 for file not listed in Files: %s", name)
+				}
+			}
+		}
+	}
+	return itemFiles, nil
 }
 
 // ParseDebianChanges parses a debian chnages file into a ChangesFile object
@@ -164,67 +232,9 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p ChangesFile, err 
 		return ChangesFile{}, errors.New("No valid paragraphs in changes")
 	}
 
-	files, ok := paragraphs[0].GetValues("Files")
-	if !ok {
-		return ChangesFile{}, errors.New("No Files section in changes")
-	}
-
-	c.Files = make([]ChangesItem, 0)
-	for _, f := range files {
-		fileDesc := strings.Fields(*f)
-		if len(fileDesc) == 5 {
-			size, _ := strconv.ParseInt(fileDesc[1], 10, 64)
-			cf := ChangesItem{
-				Filename: fileDesc[4],
-				Size:     size,
-				Md5:      fileDesc[0],
-			}
-			c.Files = append(c.Files, cf)
-		}
-	}
-
-	sha1s, ok := paragraphs[0].GetValues("Checksums-Sha1")
-	if ok {
-		for _, s := range sha1s {
-			fileDesc := strings.Fields(*s)
-			if len(fileDesc) == 3 {
-				name := fileDesc[2]
-				ok := false
-				for j, f := range c.Files {
-					if name == f.Filename {
-						ok = true
-						c.Files[j].Sha1 = fileDesc[0]
-						break
-					}
-				}
-
-				if !ok {
-					log.Printf("Ignoring sha1 for file not listed in Files: %s", name)
-				}
-			}
-		}
-	}
-
-	sha256s, ok := paragraphs[0].GetValues("Checksums-Sha256")
-	if ok {
-		for _, s := range sha256s {
-			fileDesc := strings.Fields(*s)
-			if len(fileDesc) == 3 {
-				name := fileDesc[2]
-				ok := false
-				for j, f := range c.Files {
-					if name == f.Filename {
-						ok = true
-						c.Files[j].Sha256 = fileDesc[0]
-						break
-					}
-				}
-
-				if !ok {
-					log.Printf("Ignoring sha256 for file not listed in Files: %s", name)
-				}
-			}
-		}
+	files, err := changesToItemFiles(paragraphs[0])
+	if err != nil {
+		return ChangesFile{}, err
 	}
 
 	return c, err
