@@ -237,6 +237,9 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p ChangesFile, err 
 		return ChangesFile{}, err
 	}
 
+	// Need to process these now, attribute each to each to either a source, or
+	// binary package
+
 	return c, err
 }
 
