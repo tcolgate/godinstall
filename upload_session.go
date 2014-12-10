@@ -22,7 +22,7 @@ type UploadSessioner interface {
 	ID() string                              // return the UUID for this session
 	BranchName() string                      // return the release this update is for
 	Directory() string                       // return the base directory for the verified uploaded files
-	Items() map[string]*ChangesItem          // return the changes file for this session
+	Items() []*ChangesItem                   // return the changes file for this session
 	AddItem(*ChangesItem) AptServerResponder // Add the given item to this session
 	Close()                                  // Close, and clear up, any remaining files
 	Done() chan struct{}                     // This returns a channel that anounces copletion
@@ -79,7 +79,7 @@ func (s *uploadSession) MarshalJSON() (j []byte, err error) {
 	return
 }
 
-func (s *uploadSession) Items() map[string]*ChangesItem {
+func (s *uploadSession) Items() []*ChangesItem {
 	return s.changes.Files
 }
 
@@ -234,7 +234,15 @@ func (s *uploadSession) AddItem(upload *ChangesItem) AptServerResponder {
 
 func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 	// Check that there is an upload slot
-	expectedFile, ok := s.changes.Files[upload.Filename]
+	ok := false
+	var expectedFile *ChangesItem
+	for _, f := range s.changes.Files {
+		if upload.Filename == f.Filename {
+			ok = true
+			expectedFile, ok = f, true
+			break
+		}
+	}
 	if !ok {
 		return errors.New("File not listed in upload set")
 	}

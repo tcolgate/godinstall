@@ -19,12 +19,12 @@ import (
 // ChangesFile represents a debian changes file. A changes file
 // describes a set of files for upload to a repositry
 type ChangesFile struct {
-	Original  StoreID                 // The original uploaded changes file
-	loneDeb   bool                    // Is this really a lone deb file upload?
-	signed    bool                    // Whether this changes file signed
-	validated bool                    //  Whether the signature is valid
-	signedBy  *openpgp.Entity         // The pgp entity that signed the file
-	Files     map[string]*ChangesItem // Descriptions of files to be included in this upload
+	Original  StoreID         // The original uploaded changes file
+	loneDeb   bool            // Is this really a lone deb file upload?
+	signed    bool            // Whether this changes file signed
+	validated bool            //  Whether the signature is valid
+	signedBy  *openpgp.Entity // The pgp entity that signed the file
+	Files     []*ChangesItem  // Descriptions of files to be included in this upload
 }
 
 // ChangesItem represents an individual item referred to by a changes file, with
@@ -107,7 +107,7 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err
 		return nil, errors.New("No Files section in changes")
 	}
 
-	c.Files = make(map[string]*ChangesItem)
+	c.Files = make([]*ChangesItem, 0)
 	for _, f := range files {
 		fileDesc := strings.Fields(*f)
 		if len(fileDesc) == 5 {
@@ -117,7 +117,7 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err
 				Size:     size,
 				Md5:      fileDesc[0],
 			}
-			c.Files[cf.Filename] = &cf
+			c.Files = append(c.Files, &cf)
 		}
 	}
 
@@ -127,9 +127,17 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err
 			fileDesc := strings.Fields(*s)
 			if len(fileDesc) == 3 {
 				name := fileDesc[2]
-				f, ok := c.Files[name]
+				ok := false
+				var file *ChangesItem
+				for _, f := range c.Files {
+					if name == f.Filename {
+						ok = true
+						file = f
+						break
+					}
+				}
 				if ok {
-					f.Sha1 = fileDesc[0]
+					file.Sha1 = fileDesc[0]
 				} else {
 					log.Printf("Ignoring sha1 for file not listed in Files: %s", name)
 				}
@@ -143,9 +151,17 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p *ChangesFile, err
 			fileDesc := strings.Fields(*s)
 			if len(fileDesc) == 3 {
 				name := fileDesc[2]
-				f, ok := c.Files[name]
+				ok := false
+				var file *ChangesItem
+				for _, f := range c.Files {
+					if name == f.Filename {
+						ok = true
+						file = f
+						break
+					}
+				}
 				if ok {
-					f.Sha256 = fileDesc[0]
+					file.Sha256 = fileDesc[0]
 				} else {
 					log.Printf("Ignoring sha256 for file not listed in Files: %s", name)
 				}

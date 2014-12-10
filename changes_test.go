@@ -11,7 +11,7 @@ import (
 var testParseDebianChanges = []struct {
 	s      string
 	krStr  string
-	expect map[string]ChangesItem
+	expect []ChangesItem
 	signed bool
 	valid  bool
 }{
@@ -34,14 +34,22 @@ func TestParseDebianChanges(t *testing.T) {
 			if tt.expect != nil {
 				match := true
 
-				for k, v := range tt.expect {
-					f, ok := c.Files[k]
+				for _, v := range tt.expect {
+					var file *ChangesItem
+					ok := false
+					for _, f := range c.Files {
+						if v.Filename == f.Filename {
+							ok = true
+							file = f
+							break
+						}
+					}
 
 					if !ok {
 						match = false
 						break
 					}
-					if !reflect.DeepEqual(v, *f) {
+					if !reflect.DeepEqual(v, *file) {
 						match = false
 						break
 					}
@@ -127,15 +135,15 @@ uiTJMgKpAOxBFeEzO1quFyWnQePIjQ2zWVaTwqDPiZNQ6+377gCrC4Fu+SYdmlQ=
 =JixZ
 -----END PGP SIGNATURE-----
 `
-var testResult = map[string]ChangesItem{
-	"collectd_5.4.0-3.dsc": ChangesItem{
+var testResult = []ChangesItem{
+	ChangesItem{
 		Filename: "collectd_5.4.0-3.dsc",
 		Size:     2416,
 		Md5:      "cd9aa41b337352fd160f326523a9c3d8",
 		Sha1:     "7670839693da39075134c1a1f5faad6623df70af",
 		Sha256:   "c0679d60f28ceecd09b3c000361c691e373dba599e3878135bc36bede14e109d",
 	},
-	"collectd_5.4.0-3.diff.gz": ChangesItem{
+	ChangesItem{
 		Filename: "collectd_5.4.0-3.diff.gz",
 		Size:     76417,
 		Md5:      "d1270867f1c9517dd92016ea9f2d5afe",

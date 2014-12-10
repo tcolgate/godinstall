@@ -19,7 +19,7 @@ type ArchiveStorer interface {
 	SetReleaseTag(string, StoreID) error
 
 	AddDeb(file *ChangesItem) (*ReleaseIndexItem, error)
-	ItemsFromChanges(files map[string]*ChangesItem) ([]*ReleaseIndexItem, error)
+	ItemsFromChanges(files []*ChangesItem) ([]*ReleaseIndexItem, error)
 
 	GetReleaseRoot(seed Release) (StoreID, error)
 	AddRelease(data *Release) (StoreID, error)
@@ -266,14 +266,14 @@ func (r archiveBlobStore) AddDeb(file *ChangesItem) (*ReleaseIndexItem, error) {
 	return &item, nil
 }
 
-func (r archiveBlobStore) ItemsFromChanges(files map[string]*ChangesItem) ([]*ReleaseIndexItem, error) {
+func (r archiveBlobStore) ItemsFromChanges(files []*ChangesItem) ([]*ReleaseIndexItem, error) {
 	var err error
 
 	// Build repository items
 	var result []*ReleaseIndexItem
-	for i, file := range files {
+	for _, file := range files {
 		switch {
-		case strings.HasSuffix(i, ".deb"):
+		case strings.HasSuffix(file.Filename, ".deb"):
 			item, err := r.AddDeb(file)
 			if err != nil {
 				return nil, err

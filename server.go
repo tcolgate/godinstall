@@ -225,8 +225,8 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 									changes = &ChangesFile{
 										loneDeb: true,
 									}
-									changes.Files = make(map[string]*ChangesItem)
-									changes.Files[otherParts[0].Filename] = &ChangesItem{
+									changes.Files = make([]*ChangesItem, 1)
+									changes.Files[0] = &ChangesItem{
 										Filename: otherParts[0].Filename,
 									}
 								}
