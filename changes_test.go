@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
 )
@@ -11,11 +12,11 @@ import (
 var testParseDebianChanges = []struct {
 	s      string
 	krStr  string
-	expect []ChangesItem
+	expect ChangesFile
 	signed bool
 	valid  bool
 }{
-	{testInvalidUnsigned, "", nil, false, false},
+	{testInvalidUnsigned, "", ChangesFile{}, false, false},
 	{testUnsigned, "", testResult, false, false},
 	{testSignedValid, "", testResult, true, false},
 	{testSignedValid, testKrStr, testResult, true, true},
@@ -76,16 +77,44 @@ func TestParseDebianChanges(t *testing.T) {
 }
 
 var testInvalidUnsigned = `Just some random malformed rubbish`
-var testUnsigned = `Checksums-Sha1: 
- 7670839693da39075134c1a1f5faad6623df70af 2416 collectd_5.4.0-3.dsc
- 8f06307bf1c17b83351fccdd7a93b4a822ecbdf4 76417 collectd_5.4.0-3.diff.gz
+
+var testUnsigned = `Format: 1.8
+Date: Fri, 28 Nov 2014 12:00:50 +0000
+Source: whacky-package
+Binary: whacky-package whacky-package-assets whacky-package-assets-1417610953
+Architecture: source amd64
+Version: 1.0.0
+Distribution: UNRELEASED
+Urgency: low
+Maintainer: Tristan Colgate-McFarlane <TristanC@acme.com>
+Changed-By: michael <michael@acme.com>
+Description: 
+ whacky-package - Acme Whacky Web Site
+ whacky-package-assets - Virtual package for Acme Whacky Web Site Assets
+ whacky-package-assets-1417610953 - Acme Whacky Web Site Assets
+Changes: 
+ whacky-package (1.0.0) UNRELEASED; urgency=low
+ .
+   * Initial release.
+Checksums-Sha1: 
+ 3c74c3f289c51f85237fcd40e5d8c4371c33cfe3 744 whacky-package_1.0.0.dsc
+ 778f77115127a934afbf1d2ac7086eaeb3adced9 38524512 whacky-package_1.0.0.tar.gz
+ 455f8c36ffa6d09c9b4edd265db04aa4661a1955 54960116 whacky-package_1.0.0_amd64.deb
+ edb564f5ede2252aa510af0e67bf649c56e6a357 1050 whacky-package-assets_1.0.0_amd64.deb
+ e384e065839e4d64b255c14d5c3ba806052fe988 10091104 whacky-package-assets-1417610953_1.0.0_amd64.deb
 Checksums-Sha256: 
- c0679d60f28ceecd09b3c000361c691e373dba599e3878135bc36bede14e109d 2416 collectd_5.4.0-3.dsc
- e6d7f21737d2146a9bb30a46137fbd0f00be7971e8c3edc6e66a5981498a261e 76417 collectd_5.4.0-3.diff.gz
+ fee3db6b1e065c91fd78647c708167269a4e4cda1a8315f793cc0f9a5fd128bb 744 whacky-package_1.0.0.dsc
+ 7f1df53706f434b762f274c7b1ad84bdb624681350fdbf009f4afff33f1bf5c7 38524512 whacky-package_1.0.0.tar.gz
+ 00846c0d0038cd8927959ea5d3c5a5b87eb7c76a74178e0dd7fd8b983be4e201 54960116 whacky-package_1.0.0_amd64.deb
+ 23cfa1d5f5c7bd392278472343d01cf05f9d462d834c92a48ff0c44ecf6b7932 1050 whacky-package-assets_1.0.0_amd64.deb
+ 997a5b2571954a6ca16802e7ff0f15672310a106e773ccb02684a467592495c4 10091104 whacky-package-assets-1417610953_1.0.0_amd64.deb
 Files: 
- cd9aa41b337352fd160f326523a9c3d8 2416 utils optional collectd_5.4.0-3.dsc
- d1270867f1c9517dd92016ea9f2d5afe 76417 utils optional collectd_5.4.0-3.diff.gz
- `
+ 2c41fac0eea1b8418ee6e1017aa86851 744 utils extra whacky-package_1.0.0.dsc
+ 2ff43945d0c4610f79dd23146708f196 38524512 utils extra whacky-package_1.0.0.tar.gz
+ 3d64879e2934e24fd8c4a4b2a379bb8d 54960116 utils extra whacky-package_1.0.0_amd64.deb
+ eec26a9aac712cb265dde5faf079ab26 1050 utils extra whacky-package-assets_1.0.0_amd64.deb
+ 76ec08542b9e2aeba4d6f144d861ec6d 10091104 utils extra whacky-package-assets-1417610953_1.0.0_amd64.deb`
+
 var testSignedValid = `-----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
@@ -135,20 +164,102 @@ uiTJMgKpAOxBFeEzO1quFyWnQePIjQ2zWVaTwqDPiZNQ6+377gCrC4Fu+SYdmlQ=
 =JixZ
 -----END PGP SIGNATURE-----
 `
-var testResult = []ChangesItem{
-	ChangesItem{
-		Filename: "collectd_5.4.0-3.dsc",
-		Size:     2416,
-		Md5:      "cd9aa41b337352fd160f326523a9c3d8",
-		Sha1:     "7670839693da39075134c1a1f5faad6623df70af",
-		Sha256:   "c0679d60f28ceecd09b3c000361c691e373dba599e3878135bc36bede14e109d",
+
+var testResult = ChangesFile{
+	Original:     []byte(""),
+	Date:         time.Time{},
+	Distribution: "UNRELEASED",
+	Maintainer:   "Tristan Colgate-McFarlane <TristanC@acme.com>",
+	ChangedBy:    "michael <michael@acme.com>",
+	Urgency:      "low",
+	Description:  "",
+	Closes:       "",
+	SignedBy:     "",
+	SourceItem: ChangesItem{
+		Type:         ChangesSourceItem,
+		Name:         "",
+		Version:      DebVersion{},
+		Architecture: "source",
+		Component:    "",
+		Suite:        "",
+		ControlID:    []byte(""),
+		Files: []ChangesItemFile{
+			ChangesItemFile{
+				Name:             "", // File name as it will appear in the repo
+				StoreID:          []byte{},
+				Size:             0,
+				Md5:              []byte{},
+				Sha1:             []byte{},
+				Sha256:           []byte{},
+				SignedBy:         []string{},
+				UploadHookResult: HookOutput{},
+			},
+		},
 	},
-	ChangesItem{
-		Filename: "collectd_5.4.0-3.diff.gz",
-		Size:     76417,
-		Md5:      "d1270867f1c9517dd92016ea9f2d5afe",
-		Sha1:     "8f06307bf1c17b83351fccdd7a93b4a822ecbdf4",
-		Sha256:   "e6d7f21737d2146a9bb30a46137fbd0f00be7971e8c3edc6e66a5981498a261e",
+	BinaryItems: []ChangesItem{
+		ChangesItem{
+			Type:         ChangesSourceItem,
+			Name:         "",
+			Version:      DebVersion{},
+			Architecture: "source",
+			Component:    "",
+			Suite:        "",
+			ControlID:    []byte(""),
+			Files: []ChangesItemFile{
+				ChangesItemFile{
+					Name:             "whacky-package_1.0.0_amd64.deb", // File name as it will appear in the repo
+					StoreID:          []byte{},
+					Size:             54960116,
+					Md5:              []byte{},
+					Sha1:             []byte{},
+					Sha256:           []byte{},
+					SignedBy:         []string{},
+					UploadHookResult: HookOutput{},
+				},
+			},
+		},
+		ChangesItem{
+			Type:         ChangesSourceItem,
+			Name:         "",
+			Version:      DebVersion{},
+			Architecture: "source",
+			Component:    "",
+			Suite:        "",
+			ControlID:    []byte(""),
+			Files: []ChangesItemFile{
+				ChangesItemFile{
+					Name:             "whacky-package-assets_1.0.0_amd64.deb", // File name as it will appear in the repo
+					StoreID:          []byte{},
+					Size:             1050,
+					Md5:              []byte{},
+					Sha1:             []byte{},
+					Sha256:           []byte{},
+					SignedBy:         []string{},
+					UploadHookResult: HookOutput{},
+				},
+			},
+		},
+		ChangesItem{
+			Type:         ChangesSourceItem,
+			Name:         "",
+			Version:      DebVersion{},
+			Architecture: "source",
+			Component:    "",
+			Suite:        "",
+			ControlID:    []byte(""),
+			Files: []ChangesItemFile{
+				ChangesItemFile{
+					Name:             "whacky-package-assets-1417610953_1.0.0_amd64.deb", // File name as it will appear in the repo
+					StoreID:          []byte{},
+					Size:             10091104,
+					Md5:              []byte{},
+					Sha1:             []byte{},
+					Sha256:           []byte{},
+					SignedBy:         []string{},
+					UploadHookResult: HookOutput{},
+				},
+			},
+		},
 	},
 }
 

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/clearsign"
@@ -19,28 +20,70 @@ import (
 // ChangesFile represents a debian changes file. A changes file
 // describes a set of files for upload to a repositry
 type ChangesFile struct {
-	Original  StoreID         // The original uploaded changes file
-	loneDeb   bool            // Is this really a lone deb file upload?
-	signed    bool            // Whether this changes file signed
-	validated bool            //  Whether the signature is valid
-	signedBy  *openpgp.Entity // The pgp entity that signed the file
-	Files     []ChangesItem   // Descriptions of files to be included in this upload
+	Original     StoreID // The original uploaded changes file
+	Date         time.Time
+	SourceItem   ChangesItem
+	BinaryItems  []ChangesItem
+	Distribution string
+	Maintainer   string
+	Urgency      string
+	ChangedBy    string
+	Description  string
+	Closes       string
+	SignedBy     string
+
+	// These fields are only needed during upload and should no be stored
+	// in the index. They contain information which is redundant once
+	// the upload is shown to be correct
+	loneDeb       bool            // Is this really a lone deb file upload?
+	signed        bool            // Whether this changes file signed
+	validated     bool            // Whether the signature is valid
+	signedBy      *openpgp.Entity // The pgp entity that signed the file
+	binaryNames   []string
+	sourceName    string
+	architectures []string
 }
+
+// ReleaseIndexItemType is used to differentiate source and binary repository items
+type ChangesItemType int
+
+// An uninitialised repo item
+// A binary item (a deb)
+// a source item (dsc, and related files)
+const (
+	ChangesUnknownItem ChangesItemType = 1 << iota
+	ChangesBinaryItem  ChangesItemType = 2
+	ChangesSourceItem  ChangesItemType = 3
+)
 
 // ChangesItem represents an individual item referred to by a changes file, with
 // the expected size and related hashes
 type ChangesItem struct {
-	Filename         string
+	Type         ChangesItemType // The type of file
+	Name         string
+	Version      DebVersion
+	Suite        string
+	Component    string
+	Architecture string
+	ControlID    StoreID           // StoreID for the control data
+	Files        []ChangesItemFile // This list of files that make up this item
+}
+
+// ReleaseIndexItemFile repesent one file that makes up part of an
+// item in the repository. A Binary item will only have one
+// file (the deb package), but a Source item may have many
+type ChangesItemFile struct {
+	Name             string // File name as it will appear in the repo
 	StoreID          StoreID
 	Size             int64
-	Md5              string
-	Sha1             string
-	Sha256           string
-	Uploaded         bool
+	Md5              []byte
+	Sha1             []byte
+	Sha256           []byte
 	SignedBy         []string
 	UploadHookResult HookOutput
 
-	data io.Reader
+	uploaded bool
+	data     io.Reader
 }
 
 // ParseDebianChanges parses a debian chnages file into a ChangesFile object
