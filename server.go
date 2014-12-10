@@ -204,7 +204,7 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 				} else {
 					if session == "" {
 						// We don't have an active session, lets create one
-						var changes *ChangesFile
+						var changes ChangesFile
 						if changesReader != nil {
 							changes, err = ParseDebianChanges(changesReader, a.PubRing)
 							if err != nil {
@@ -222,18 +222,18 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 									}
 									// No chnages file in the request, we need to create
 									// a changes session based on the deb
-									changes = &ChangesFile{
+									changes = ChangesFile{
 										loneDeb: true,
 									}
-									changes.Files = make([]*ChangesItem, 1)
-									changes.Files[0] = &ChangesItem{
+									changes.Files = make([]ChangesItem, 1)
+									changes.Files[0] = ChangesItem{
 										Filename: otherParts[0].Filename,
 									}
 								}
 							}
 
 						}
-						session, err = a.SessionManager.Add(branchName, changes)
+						session, err = a.SessionManager.Add(branchName, &changes)
 						if err != nil {
 							resp = AptServerMessage(http.StatusBadRequest, err.Error())
 						} else {

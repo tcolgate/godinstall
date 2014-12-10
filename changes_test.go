@@ -35,7 +35,7 @@ func TestParseDebianChanges(t *testing.T) {
 				match := true
 
 				for _, v := range tt.expect {
-					var file *ChangesItem
+					var file ChangesItem
 					ok := false
 					for _, f := range c.Files {
 						if v.Filename == f.Filename {
@@ -49,7 +49,7 @@ func TestParseDebianChanges(t *testing.T) {
 						match = false
 						break
 					}
-					if !reflect.DeepEqual(v, *file) {
+					if !reflect.DeepEqual(v, file) {
 						match = false
 						break
 					}
@@ -68,7 +68,7 @@ func TestParseDebianChanges(t *testing.T) {
 				}
 			}
 		} else {
-			if !(c == nil && tt.expect == nil) {
+			if !(reflect.DeepEqual(c, ChangesFile{}) && tt.expect == nil) {
 				t.Errorf("%d. failed: %q\n", i, err.Error())
 			}
 		}
