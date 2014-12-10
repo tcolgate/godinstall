@@ -21,20 +21,21 @@ import (
 // DebPackageInfoer for describing extracting information relating to
 // a debian package
 type DebPackageInfoer interface {
-	Parse() error
 	Name() (string, error)
 	Version() (DebVersion, error)
 	Description() (string, error)
 	Maintainer() (string, error)
-	Control() (*ControlParagraph, error) // Map of all the package metadata
+	Architecture() (string, error)
+	Control() (*ControlFile, error) // Map of all the package metadata
 
 	IsSigned() (bool, error)            // This package contains a dpkg-sig signature
-	IsValidated() (bool, error)         // The signature has been validated against provided keyring
+	IsVerified() (bool, error)          // The signature has been verified against provided keyring
 	SignedBy() (*openpgp.Entity, error) // The entity that signed the package
 
 	Md5() ([]byte, error)
 	Sha1() ([]byte, error)
 	Sha256() ([]byte, error)
+	Size() (int64, error)
 }
 
 // A set of signatures as contained in a dpkg-gig signed package
@@ -56,11 +57,11 @@ type debSigsFile struct {
 // files contained within.
 type debPackage struct {
 	reader  io.Reader          // the reader pointing to the file
-	keyRing openpgp.EntityList // Keyring for verification, nil if no signature is to be validated
+	keyRing openpgp.EntityList // Keyring for verification, nil if no signature is to be verified
 
-	parsed    bool // Have we already parsed this file.
-	signed    bool // Whether this changes file signed
-	validated bool // Whether the signature is valid
+	parsed   bool // Have we already parsed this file.
+	signed   bool // Whether this changes file signed
+	verified bool // Whether the signature is valid
 
 	signatures map[string]*debSigsFile // Details of any signature files contained
 	calcedSigs map[string]debSigs      // Calculated signature of the contained files
@@ -69,6 +70,7 @@ type debPackage struct {
 	md5    []byte // Package md5
 	sha1   []byte // Package sha1
 	sha256 []byte // Package sha256
+	size   int64  // Package size
 
 	controlMap *ControlParagraph // This content of the debian/control file
 }
@@ -89,12 +91,13 @@ func parseSigsFile(sig string, kr openpgp.EntityList) (*debSigsFile, error) {
 	result.signedBy, _ = openpgp.CheckDetachedSignature(kr, bsig, msg.ArmoredSignature.Body)
 
 	sigDataReader := bytes.NewReader(msg.Plaintext)
-	paragraphs, _ := ParseDebianControl(sigDataReader)
+	controlFile, _ := ParseDebianControl(sigDataReader, nil)
+	control := controlFile.Data[0]
 
-	strVersion, _ := paragraphs[0].GetValue("Version")
+	strVersion, _ := control.GetValue("Version")
 	result.version, _ = strconv.Atoi(strVersion)
 
-	fileData, _ := paragraphs[0].GetValues("Files")
+	fileData, _ := control.GetValues("Files")
 	for i := range fileData {
 		if *fileData[i] == "" {
 			continue
@@ -127,17 +130,6 @@ func NewDebPackage(r io.Reader, kr openpgp.EntityList) DebPackageInfoer {
 }
 
 // Does this package contain signatures
-func (d *debPackage) Parse() error {
-	var err error
-
-	if !d.parsed {
-		err = d.parseDebPackage()
-	}
-
-	return err
-}
-
-// Does this package contain signatures
 func (d *debPackage) IsSigned() (bool, error) {
 	var err error
 
@@ -151,9 +143,9 @@ func (d *debPackage) IsSigned() (bool, error) {
 	return d.signed, nil
 }
 
-// Are any of the packages validated by our provided
+// Are any of the packages verified by our provided
 // keyring
-func (d *debPackage) IsValidated() (bool, error) {
+func (d *debPackage) IsVerified() (bool, error) {
 	var err error
 
 	if !d.parsed {
@@ -163,7 +155,7 @@ func (d *debPackage) IsValidated() (bool, error) {
 		}
 	}
 
-	return d.validated, nil
+	return d.verified, nil
 }
 
 // Who signed the package
@@ -181,7 +173,7 @@ func (d *debPackage) SignedBy() (*openpgp.Entity, error) {
 }
 
 // Generic access to the metadata for the package
-func (d *debPackage) Control() (*ControlParagraph, error) {
+func (d *debPackage) Control() (*ControlFile, error) {
 	var err error
 
 	if !d.parsed {
@@ -191,7 +183,9 @@ func (d *debPackage) Control() (*ControlParagraph, error) {
 		}
 	}
 
-	return d.controlMap, nil
+	return &ControlFile{
+		Data: []*ControlParagraph{d.controlMap},
+	}, nil
 }
 
 // The package name
@@ -205,7 +199,7 @@ func (d *debPackage) Version() (debver DebVersion, err error) {
 	if err != nil {
 		return
 	}
-	return DebVersionFromString(verStr)
+	return ParseDebVersion(verStr)
 }
 
 // The package description
@@ -216,6 +210,11 @@ func (d *debPackage) Description() (string, error) {
 // The package maintainer contact details
 func (d *debPackage) Maintainer() (string, error) {
 	return d.getMandatoryControl("Maintainer")
+}
+
+// The package maintainer contact details
+func (d *debPackage) Architecture() (string, error) {
+	return d.getMandatoryControl("Architecture")
 }
 
 // Retried any peace of metadata that is mandatory
@@ -243,7 +242,7 @@ func (d *debPackage) getControl(key string) (string, bool, error) {
 	}
 
 	ctrl, err := d.Control()
-	result, ok := ctrl.GetValue(key)
+	result, ok := ctrl.Data[0].GetValue(key)
 
 	return result, ok, nil
 }
@@ -287,6 +286,19 @@ func (d *debPackage) Sha256() ([]byte, error) {
 	return d.sha256, nil
 }
 
+func (d *debPackage) Size() (int64, error) {
+	var err error
+
+	if !d.parsed {
+		err = d.parseDebPackage()
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return d.size, nil
+}
+
 // parse a debian pacakge.. Debian packages are ar archives containing;
 //  data.tar.gz - The actual package content - changelog is in here
 //  contro.tar.gz - The control data from when the package was built
@@ -299,14 +311,14 @@ func (d *debPackage) parseDebPackage() (err error) {
 	arReader := ar.NewReader(pkgtee)
 	d.signatures = make(map[string]*debSigsFile)
 
-	var control bytes.Buffer
+	var controlBytes bytes.Buffer
 	var controlReader io.Reader
 
 	// We'll keep a running set of file signatures to
 	// compare with any included signatures
 	d.calcedSigs = make(map[string]debSigs)
 	d.signed = false
-	d.validated = false
+	d.verified = false
 
 	// We walk over each file in the ar archive, parsing
 	// as we go
@@ -354,7 +366,7 @@ func (d *debPackage) parseDebPackage() (err error) {
 					break
 				}
 				if tarHeader.Name == "./control" {
-					io.Copy(&control, tarReader)
+					io.Copy(&controlBytes, tarReader)
 				}
 			}
 		default:
@@ -372,20 +384,22 @@ func (d *debPackage) parseDebPackage() (err error) {
 	d.md5 = pkghasher.MD5Sum()
 	d.sha1 = pkghasher.SHA1Sum()
 	d.sha256 = pkghasher.SHA256Sum()
+	d.size = pkghasher.Count()
 
-	if control.Len() == 0 {
+	if controlBytes.Len() == 0 {
 		return errors.New("did not find control file in debian archive")
 	}
 
-	controlReader = bytes.NewReader(control.Bytes())
-	paragraphs, err := ParseDebianControl(controlReader)
+	controlReader = bytes.NewReader(controlBytes.Bytes())
+	controlFile, err := ParseDebianControl(controlReader, nil)
 	if err != nil {
 		return errors.New("parsing control failed, " + err.Error())
 	}
+	control := controlFile.Data[0]
 
 	// For each signature file we find, we'll check if we can
-	// validate it, and if it covers all included files
-	d.validated = false
+	// verify it, and if it covers all included files
+	d.verified = false
 	for s := range d.signatures {
 		sigs := d.signatures[s].signatures
 		testSigs := make(map[string]debSigs)
@@ -399,13 +413,13 @@ func (d *debPackage) parseDebPackage() (err error) {
 		}
 
 		if reflect.DeepEqual(testSigs, sigs) {
-			d.validated = true
+			d.verified = true
 			d.signedBy = d.signatures[s].signedBy
 			break
 		}
 	}
 
-	d.controlMap = paragraphs[0]
+	d.controlMap = control
 	d.parsed = true
 
 	return nil

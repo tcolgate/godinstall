@@ -20,14 +20,15 @@ print "Uploading changes file: " + changesfile
 controlFile = {'debfiles': open(changesfile, 'rb')}
 r = requests.post(baseurl, files=controlFile)
 
-respData = json.loads(r.raw.read())
+respData = json.loads(r.content)
 sessionID = respData["Message"]["SessionID"]
 
-for f in respData["Message"]["Changes"]["Files"]:
+for f in respData["Message"]["Expecting"]:
   file = {'debfiles': open(f, 'rb')}
   r = requests.post(baseurl + "/" + sessionID, files=file)
   print "Uploading file: " + f
+  print r.content
 
 if r.status_code != 200:
-  print "Upload failed: " + r.raw
+  print "Upload failed: " + r.content
   sys.exit(1)

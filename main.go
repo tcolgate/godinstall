@@ -91,20 +91,20 @@ func main() {
 					Usage: "A pattern to match package prefixes to split into directories in the pool",
 				},
 				cli.BoolTFlag{
-					Name:  "validate-changes",
-					Usage: "Validate signatures on changes files",
+					Name:  "verify-changes",
+					Usage: "Verify signatures on changes files",
 				},
 				cli.BoolTFlag{
-					Name:  "validate-changes-sufficient",
-					Usage: "If we are given a signed chnages file, we wont validate individual debs",
+					Name:  "verify-changes-sufficient",
+					Usage: "If we are given a signed chnages file, we wont verify individual debs",
 				},
 				cli.BoolTFlag{
 					Name:  "accept-lone-debs",
 					Usage: "Accept individual debs for upload",
 				},
 				cli.BoolTFlag{
-					Name:  "validate-debs",
-					Usage: "Validate signatures on deb files",
+					Name:  "verify-debs",
+					Usage: "Verify signatures on deb files",
 				},
 				cli.StringFlag{
 					Name:  "gpg-pubring",
@@ -156,10 +156,10 @@ func CmdServe(c *cli.Context) {
 	preGenHook := c.String("pre-gen-hook")
 	postGenHook := c.String("post-gen-hook")
 	poolPattern := c.String("pool-pattern")
-	validateChanges := c.Bool("validate-changes")
-	validateChangesSufficient := c.Bool("validate-changes-sufficient")
+	verifyChanges := c.Bool("verify-changes")
+	verifyChangesSufficient := c.Bool("verify-changes-sufficient")
 	acceptLoneDebs := c.Bool("accept-lone-debs")
-	validateDebs := c.Bool("validate-debs")
+	verifyDebs := c.Bool("verify-debs")
 	pubringFile := c.String("gpg-pubring")
 	privringFile := c.String("gpg-privring")
 	signerEmail := c.String("signer-email")
@@ -210,7 +210,7 @@ func CmdServe(c *cli.Context) {
 		}
 	}
 
-	if validateChanges || validateDebs {
+	if verifyChanges || verifyDebs {
 		if privRing == nil || pubRing == nil {
 			log.Println("Validation requested, but keyrings not loaded")
 			return
@@ -305,9 +305,9 @@ func CmdServe(c *cli.Context) {
 		&tmpDir,
 		archive,
 		NewScriptHook(&uploadHook),
-		validateChanges,
-		validateChangesSufficient,
-		validateDebs,
+		verifyChanges,
+		verifyChangesSufficient,
+		verifyDebs,
 		pubRing,
 		updateChan,
 	)

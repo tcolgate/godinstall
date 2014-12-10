@@ -2,11 +2,11 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -22,7 +22,7 @@ type Archiver interface {
 	Dists() map[string]StoreID
 	GetDist(name string) (*Release, error)
 	SetDist(name string, newrel StoreID) error
-	AddSession(session UploadSessioner) (respStatus int, respObj string, err error)
+	AddUpload(session *UploadSession) (respStatus int, respObj string, err error)
 	SignerID() *openpgp.Entity
 	ArchiveStorer
 }
@@ -109,7 +109,7 @@ func (a *archiveStoreArchive) ReifyRelease(id StoreID) (err error) {
 	}
 
 	distBase := *a.base + "/dists/" + release.CodeName
-	distAlias := *a.base + "/dists/" + release.SuiteName
+	distAlias := *a.base + "/dists/" + release.Suite
 
 	clearTime := time.Now()
 	clearDist := func() {
@@ -134,6 +134,33 @@ func (a *archiveStoreArchive) ReifyRelease(id StoreID) (err error) {
 		log.Printf("Reifying component %v", component.Name)
 
 		componentBase := distBase + "/" + component.Name
+
+		// Reify the compressed sources file
+		sourcesBase := componentBase + "/source"
+
+		err = a.Link(component.SourcesGz, sourcesBase+"/Sources.gz")
+		if err != nil {
+			return err
+		}
+
+		// Reify the uncompressed sources file
+		gzreader, err := os.Open(sourcesBase + "/Sources.gz")
+		defer gzreader.Close()
+		if err != nil {
+			return err
+		}
+		srcs, err := os.Create(sourcesBase + "/Sources")
+		defer srcs.Close()
+		if err != nil {
+			return err
+		}
+		gunzipper, err := gzip.NewReader(gzreader)
+		defer gunzipper.Close()
+		if err != nil {
+			return err
+		}
+
+		io.Copy(srcs, gunzipper)
 
 		for _, arch := range component.Architectures {
 			archBase := componentBase + "/binary-" + arch.Name
@@ -163,29 +190,6 @@ func (a *archiveStoreArchive) ReifyRelease(id StoreID) (err error) {
 			io.Copy(pkgs, gunzipper)
 		}
 
-		// Reify the compressed sources file
-		/*
-			sourcesBase := componentBase + "/source"
-
-				err = a.Link(component.SourcesGz, sourcesBase+"/Sources.gz")
-				if err != nil {
-					return err
-				}
-
-				// Reify the uncompressed packages file
-				gzreader, err := os.Open(sourcesBase + "/Sources.gz")
-				defer gzreader.Close()
-				if err != nil {
-					return err
-				}
-				pkgs, err := os.Create(sourcesBase + "/Sources")
-				defer pkgs.Close()
-				if err != nil {
-					return err
-				}
-
-				io.Copy(pkgs, gzreader)
-		*/
 	}
 
 	err = a.Link(release.Release, distBase+"/Release")
@@ -227,18 +231,42 @@ func (a *archiveStoreArchive) updatePool(release *Release) error {
 	os.RemoveAll(poolBase)
 
 	for {
-		item, err := index.NextItem()
+		e, err := index.NextEntry()
 		if err != nil {
 			if err != io.EOF {
 				return err
 			}
 			break
 		}
-		for i := range item.Files {
-			file := item.Files[i]
-			path := a.PublicDir() + "/" + release.PoolFilePath(file.Name)
-			filepath := path + file.Name
-			err = a.Link(file.ID, filepath)
+
+		srcName := e.SourceItem.Name
+		srcVersion := e.SourceItem.Version.String()
+		poolpath := fmt.Sprintf("%s/%s%s/%s/",
+			a.PublicDir(),
+			release.PoolFilePath(srcName),
+			srcName,
+			srcVersion,
+		)
+
+		err = a.Link(e.ChangesID, poolpath+"changes")
+		if err != nil {
+			return err
+		}
+
+		for _, s := range e.SourceItem.Files {
+			filename := s.Name
+			path := poolpath + filename
+			err = a.Link(s.StoreID, path)
+			log.Println(path)
+			if err != nil {
+				return err
+			}
+		}
+
+		for _, b := range e.BinaryItems {
+			filename := b.Files[0].Name
+			path := poolpath + filename
+			err = a.Link(b.Files[0].StoreID, path)
 			if err != nil {
 				return err
 			}
@@ -258,24 +286,24 @@ func (a *archiveStoreArchive) SignerID() *openpgp.Entity {
 	return a.signerID
 }
 
-func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus int, respObj string, err error) {
+func (a *archiveStoreArchive) AddUpload(session *UploadSession) (respStatus int, respObj string, err error) {
 	respStatus = http.StatusOK
 	respObj = "Index committed"
-	branchName := session.BranchName()
 
-	items, err := a.ItemsFromChanges(session.Items())
+	entry, err := NewReleaseIndexEntry(session)
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "Collating repository items failed, " + err.Error()
 		return respStatus, respObj, err
 	}
 
+	branchName := session.ReleaseName
 	heads := a.Dists()
 	head, ok := heads[branchName]
 	if !ok {
 		head, err = a.GetReleaseRoot(Release{
 			CodeName:    branchName,
-			SuiteName:   "stable",
+			Suite:       "stable",
 			PoolPattern: a.defPoolPattern,
 		})
 		if err != nil {
@@ -285,24 +313,19 @@ func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus in
 		}
 	}
 
-	newidx, actions, err := a.mergeItemsIntoRelease(head, items)
+	newidx, actions, err := a.mergeEntryIntoRelease(head, entry)
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "Creating new index failed, " + err.Error()
 	}
 
-	newhead, err := NewRelease(a, head, newidx, a.getTrimmer(), actions)
-	if err != nil {
-		respStatus = http.StatusInternalServerError
-		respObj = "Creating updated commit failed, " + err.Error()
-		return respStatus, respObj, err
-	}
-
+	realchange := false
 	for _, item := range actions {
 		switch item.Type {
 		case ActionADD:
 			{
 				log.Println("Added " + item.Description)
+				realchange = true
 			}
 		case ActionSKIPPRESENT:
 			{
@@ -315,10 +338,12 @@ func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus in
 		case ActionPRUNE:
 			{
 				log.Println("Pruned old item " + item.Description)
+				realchange = true
 			}
 		case ActionDELETE:
 			{
 				log.Println("Deleted " + item.Description)
+				realchange = true
 			}
 		case ActionTRIM:
 			{
@@ -329,6 +354,19 @@ func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus in
 				log.Println(item.Description)
 			}
 		}
+	}
+
+	if !realchange {
+		respStatus = http.StatusOK
+		respObj = "No changes to index to cmmit"
+		return respStatus, respObj, err
+	}
+
+	newhead, err := NewRelease(a, head, newidx, a.getTrimmer(), actions)
+	if err != nil {
+		respStatus = http.StatusInternalServerError
+		respObj = "Creating updated commit failed, " + err.Error()
+		return respStatus, respObj, err
 	}
 
 	a.SetDist(branchName, newhead)
@@ -343,118 +381,4 @@ func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus in
 
 	a.GarbageCollect()
 	return
-}
-
-// Merge the content of index into the parent commit and return a new index
-func (a archiveStoreArchive) mergeItemsIntoRelease(parentid StoreID, items []*ReleaseIndexItem) (result StoreID, actions []ReleaseLogAction, err error) {
-	parent, err := a.GetRelease(parentid)
-	actions = make([]ReleaseLogAction, 0)
-	if err != nil {
-		return nil, actions, errors.New("error getting parent commit, " + err.Error())
-	}
-
-	parentidx, err := a.OpenReleaseIndex(parent.IndexID)
-	if err != nil {
-		return nil, actions, errors.New("error getting parent commit index, " + err.Error())
-	}
-	defer parentidx.Close()
-
-	mergedidx, err := a.AddReleaseIndex()
-	if err != nil {
-		return nil, actions, errors.New("error adding new index, " + err.Error())
-	}
-
-	left, err := parentidx.NextItem()
-
-	right := items
-	sort.Sort(ByReleaseIndexItemOrder(right))
-
-	pruner := a.pruneRules.MakePruner()
-
-	for {
-		if err != nil {
-			break
-		}
-
-		if len(right) > 0 {
-			cmpItems := ReleaseIndexItemOrder(&left, right[0])
-			if cmpItems < 0 { // New item not needed yet
-				if !pruner(&left) {
-					mergedidx.AddItem(&left)
-				} else {
-					actions = append(actions, ReleaseLogAction{
-						Type:        ActionPRUNE,
-						Description: left.Name + " " + left.Architecture + " " + left.Version.String(),
-					})
-				}
-				left, err = parentidx.NextItem()
-				continue
-			} else if cmpItems == 0 { // New item identical to existing
-				if !pruner(&left) {
-					mergedidx.AddItem(&left)
-					item := right[0]
-					actions = append(actions, ReleaseLogAction{
-						Type:        ActionSKIPPRESENT,
-						Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
-					})
-				} else {
-					actions = append(actions, ReleaseLogAction{
-						Type:        ActionSKIPPRUNE,
-						Description: left.Name + " " + left.Architecture + " " + left.Version.String(),
-					})
-				}
-				left, err = parentidx.NextItem()
-				right = right[1:]
-				continue
-			} else {
-				item := right[0]
-				if !pruner(item) {
-					mergedidx.AddItem(item)
-					actions = append(actions, ReleaseLogAction{
-						Type:        ActionADD,
-						Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
-					})
-				} else {
-					actions = append(actions, ReleaseLogAction{
-						Type:        ActionPRUNE,
-						Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
-					})
-				}
-				right = right[1:]
-				continue
-			}
-		} else {
-			if !pruner(&left) {
-				mergedidx.AddItem(&left)
-			} else {
-				actions = append(actions, ReleaseLogAction{
-					Type:        ActionPRUNE,
-					Description: left.Name + " " + left.Architecture + " " + left.Version.String(),
-				})
-			}
-			left, err = parentidx.NextItem()
-			continue
-		}
-	}
-
-	// output any items that are left
-	for _, item := range right {
-		if !pruner(item) {
-			mergedidx.AddItem(item)
-			actions = append(actions, ReleaseLogAction{
-				Type:        ActionADD,
-				Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
-			})
-		} else {
-			actions = append(actions, ReleaseLogAction{
-				Type:        ActionPRUNE,
-				Description: item.Name + " " + item.Architecture + " " + item.Version.String(),
-			})
-		}
-		right = right[1:]
-		continue
-	}
-
-	id, err := mergedidx.Close()
-	return StoreID(id), actions, err
 }

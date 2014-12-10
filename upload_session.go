@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -8,107 +9,83 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"code.google.com/p/go-uuid/uuid"
-	"code.google.com/p/go.crypto/openpgp"
 )
 
-// UploadSessioner defines an interface for managing an session used for
-// uploading a set of files for integration with the repository, and communicating
-// the status and completion of the session
-type UploadSessioner interface {
-	ID() string                              // return the UUID for this session
-	BranchName() string                      // return the release this update is for
-	Directory() string                       // return the base directory for the verified uploaded files
-	Items() []ChangesItem                    // return the changes file for this session
-	AddItem(*ChangesItem) AptServerResponder // Add the given item to this session
-	Close()                                  // Close, and clear up, any remaining files
-	Done() chan struct{}                     // This returns a channel that anounces copletion
-	Status() AptServerResponder              // Return the status of this session
-	json.Marshaler                           // All session implementations should serialize to JSON
+type UploadFile struct {
+	Name             string
+	Received         bool
+	Size             int64
+	SignedBy         []string   `json:",omitempty"`
+	UploadHookResult HookOutput `json:",omitempty"`
+	pkg              DebPackageInfoer
+	reader           io.Reader
+	storeID          StoreID
+	controlID        StoreID
 }
 
 // Base session information
-type uploadSession struct {
-	SessionID    string             // Name of the session
-	branchName   string             // The release this is meant for
-	validateDebs bool               // Validate uploaded. deb files
-	keyRing      openpgp.EntityList // Keyring for validation
-	dir          string             // Temporary directory for storage
-	uploadHook   HookRunner         // A hook to run after a successful upload
-	requireSig   bool               // Check debian package signatures
-	store        ArchiveStorer      // Blob store to keep files in
-	finished     chan UpdateRequest // A channel to anounce completion and trigger a repo update
-	changes      *ChangesFile       // The changes file for this session
-	ttl          time.Duration      // How long should this session stick around for
+type UploadSession struct {
+	SessionID   string                 // Name of the session
+	ReleaseName string                 // The release this is meant for
+	Expecting   map[string]*UploadFile // The files we are expecting in this upload
+	LoneDeb     bool                   // Is user attempting to upload a lone deb
+	Complete    bool                   // The files we are expecting in this upload
+	Ttl         time.Duration          // How long should this session stick around for
+
+	usm       *UploadSessionManager
+	dir       string       // Temporary directory for storage
+	changes   *ChangesFile // The changes file for this session
+	changesID StoreID      // The raw changes file as uploaded
 
 	// Channels for requests
 	// TODO revisit this
-	incoming  chan addItemMsg   // New item upload requests
-	close     chan closeMsg     // A channel for close messages
-	getstatus chan getStatusMsg // A channel for responding to status requests
+	finished  chan UpdateRequest // A channel to anounce completion and trigger a repo update
+	incoming  chan addItemMsg    // New item upload requests
+	close     chan closeMsg      // A channel for close messages
+	getstatus chan getStatusMsg  // A channel for responding to status requests
 
 	// output session
 	// TODO revisit this
 	done chan struct{} // A channel to be informed of closure on
 }
 
-func (s *uploadSession) ID() string {
+func (s *UploadSession) ID() string {
 	return s.SessionID
 }
 
-func (s *uploadSession) Directory() string {
+func (s *UploadSession) Directory() string {
 	return s.dir
 }
 
-func (s *uploadSession) BranchName() string {
-	return s.branchName
-}
-
-func (s *uploadSession) MarshalJSON() (j []byte, err error) {
-	resp := struct {
-		SessionID string
-		Changes   ChangesFile
-	}{
-		s.SessionID,
-		*s.changes,
-	}
-	j, err = json.Marshal(resp)
-	return
-}
-
-func (s *uploadSession) Items() []ChangesItem {
-	return s.changes.Files
+func (s *UploadSession) MarshalJSON() (j []byte, err error) {
+	return json.Marshal(*s)
 }
 
 // NewUploadSession creates a session for uploading using a changes
 // file to describe the set of files to be uploaded
 func NewUploadSession(
-	branchName string,
-	changes *ChangesFile,
-	validateDebs bool,
-	keyRing openpgp.EntityList,
+	releaseName string,
+	changesReader io.Reader,
 	tmpDirBase *string,
-	store ArchiveStorer,
-	uploadHook HookRunner,
 	finished chan UpdateRequest,
-	TTL time.Duration,
-) UploadSessioner {
-	var s uploadSession
-	s.branchName = branchName
-	s.validateDebs = validateDebs
-	s.keyRing = keyRing
+	loneDeb bool,
+	uploadSessionManager *UploadSessionManager,
+) (UploadSession, error) {
+	var s UploadSession
+	s.SessionID = uuid.New()
+	s.ReleaseName = releaseName
+	s.usm = uploadSessionManager
+	s.Ttl = s.usm.TTL
+	s.LoneDeb = loneDeb
 	s.done = make(chan struct{})
 	s.finished = finished
-	s.SessionID = uuid.New()
-	s.changes = changes
-	s.uploadHook = uploadHook
-	s.store = store
 	s.dir = *tmpDirBase + "/" + s.SessionID
-	s.store = store
-	s.ttl = TTL
+	s.Expecting = make(map[string]*UploadFile, 0)
 
 	os.Mkdir(s.dir, os.FileMode(0755))
 
@@ -116,15 +93,51 @@ func NewUploadSession(
 	s.close = make(chan closeMsg)
 	s.getstatus = make(chan getStatusMsg)
 
+	if !s.LoneDeb {
+		changesWriter, err := s.usm.Store.Store()
+		if err != nil {
+			return UploadSession{}, err
+		}
+		io.Copy(changesWriter, changesReader)
+		changesWriter.Close()
+		s.changesID, err = changesWriter.Identity()
+		if err != nil {
+			return UploadSession{}, err
+		}
+
+		changesReader, _ = s.usm.Store.Open(s.changesID)
+		changes, err := ParseDebianChanges(changesReader, s.usm.PubRing)
+
+		if s.usm.VerifyChanges && !changes.Control.Signed && !loneDeb {
+			err = errors.New("Changes file was not signed")
+			return UploadSession{}, err
+		}
+
+		if s.usm.VerifyChanges && !changes.Control.SignatureVerified && !loneDeb {
+			err = errors.New("Changes file could not be verified")
+			return UploadSession{}, err
+		}
+
+		s.changes = &changes
+		if err != nil {
+			return UploadSession{}, err
+		}
+
+		s.Expecting = map[string]*UploadFile{}
+		for k := range changes.FileHashes {
+			s.Expecting[k.Name] = &UploadFile{Name: k.Name}
+		}
+	}
+
 	go s.handler()
 
-	return &s
+	return s, nil
 }
 
 type closeMsg struct{}
 
 type addItemMsg struct {
-	file *ChangesItem
+	file *UploadFile
 	resp chan AptServerResponder
 }
 
@@ -134,19 +147,19 @@ type getStatusMsg struct {
 
 // All item additions to this session are
 // serialized through this routine
-func (s *uploadSession) handler() {
-	s.store.DisableGarbageCollector()
+func (s *UploadSession) handler() {
+	s.usm.Store.DisableGarbageCollector()
 
 	defer func() {
 		err := os.RemoveAll(s.dir)
 		if err != nil {
 			log.Println(err)
 		}
-		s.store.EnableGarbageCollector()
+		s.usm.Store.EnableGarbageCollector()
 		close(s.done)
 	}()
 
-	timeout := time.After(s.ttl)
+	timeout := time.After(s.Ttl)
 	for {
 		select {
 		case <-timeout:
@@ -163,7 +176,7 @@ func (s *uploadSession) handler() {
 			}
 		case msg := <-s.incoming:
 			{
-				err := s.doAddItem(msg.file)
+				err := s.doAddFile(msg.file)
 
 				if err != nil {
 					msg.resp <- AptServerMessage(http.StatusBadRequest, err.Error())
@@ -171,8 +184,8 @@ func (s *uploadSession) handler() {
 				}
 
 				complete := true
-				for _, f := range s.changes.Files {
-					if !f.Uploaded {
+				for _, uf := range s.Expecting {
+					if !uf.Received {
 						complete = false
 					}
 				}
@@ -180,6 +193,8 @@ func (s *uploadSession) handler() {
 				if !complete {
 					msg.resp <- AptServerMessage(http.StatusAccepted, s)
 					break
+				} else {
+					s.Complete = true
 				}
 
 				// We're done, lets call out to the server to update
@@ -201,64 +216,66 @@ func (s *uploadSession) handler() {
 	}
 }
 
-func (s *uploadSession) Close() {
+func (s *UploadSession) Close() {
 	s.close <- closeMsg{}
 }
 
-func (s *uploadSession) Done() chan struct{} {
+func (s *UploadSession) Done() chan struct{} {
 	return s.done
 }
 
-func (s *uploadSession) Status() AptServerResponder {
+func (s *UploadSession) Status() AptServerResponder {
 	c := make(chan AptServerResponder)
-	go func() {
-		s.getstatus <- getStatusMsg{
-			resp: c,
-		}
-	}()
-	resp := <-c
-	return resp
+	s.getstatus <- getStatusMsg{
+		resp: c,
+	}
+	return <-c
 }
 
-func (s *uploadSession) AddItem(upload *ChangesItem) AptServerResponder {
+func (s *UploadSession) AddFile(upload *UploadFile) AptServerResponder {
 	c := make(chan AptServerResponder)
-	go func() {
-		s.incoming <- addItemMsg{
-			file: upload,
-			resp: c,
-		}
-	}()
-	resp := <-c
-	return resp
+	s.incoming <- addItemMsg{
+		file: upload,
+		resp: c,
+	}
+	return <-c
 }
 
-func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
-	// Check that there is an upload slot
-	ok := false
-	var expectedFile ChangesItem
-	for _, f := range s.changes.Files {
-		if upload.Filename == f.Filename {
-			ok = true
-			expectedFile, ok = f, true
-			break
+func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
+	var uf *UploadFile
+	var expectedFileIdx ChangesFilesIndex
+	var ok bool
+
+	if !s.LoneDeb {
+		uf, ok = s.Expecting[upload.Name]
+		if !ok {
+			return errors.New("File not listed in upload set")
+		}
+		if uf.Received {
+			return errors.New("File already uploaded")
+		}
+
+		// Check that there is an upload slot
+		ok = false
+		for k := range s.changes.FileHashes {
+			if upload.Name == k.Name {
+				expectedFileIdx, ok = k, true
+				break
+			}
+		}
+		if !ok {
+			return errors.New("File not listed in upload hashes")
 		}
 	}
-	if !ok {
-		return errors.New("File not listed in upload set")
-	}
 
-	if expectedFile.Uploaded {
-		return errors.New("File already uploaded")
-	}
-
-	storeFilename := s.dir + "/" + upload.Filename
-	blob, err := s.store.Store()
+	storeFilename := s.dir + "/" + upload.Name
+	blob, err := s.usm.Store.Store()
 	hasher := MakeWriteHasher(blob)
 	if err != nil {
 		return errors.New("Upload to store failed: " + err.Error())
 	}
 
-	_, err = io.Copy(hasher, upload.data)
+	_, err = io.Copy(hasher, upload.reader)
 	if err != nil {
 		return errors.New("Upload to store failed: " + err.Error())
 	}
@@ -272,62 +289,115 @@ func (s *uploadSession) doAddItem(upload *ChangesItem) (err error) {
 	if err != nil {
 		return errors.New("Retrieving upload blob id failed: " + err.Error())
 	}
-	expectedFile.StoreID = id
 
-	md5 := hex.EncodeToString(hasher.MD5Sum())
-	sha1 := hex.EncodeToString(hasher.SHA1Sum())
-	sha256 := hex.EncodeToString(hasher.SHA256Sum())
+	md5 := hasher.MD5Sum()
+	sha1 := hasher.SHA1Sum()
+	sha256 := hasher.SHA256Sum()
+	size, _ := s.usm.Store.Size(id)
 
-	if s.changes.loneDeb {
-		expectedFile.Md5 = md5
-		expectedFile.Sha1 = sha1
-		expectedFile.Sha256 = sha256
-	}
+	switch {
+	case strings.HasSuffix(upload.Name, ".deb"):
+		{
+			f, _ := s.usm.Store.Open(id)
+			defer f.Close()
+			pkg := NewDebPackage(f, s.usm.PubRing)
+			_, err = pkg.Name()
+			if err != nil {
+				return errors.New("upload deb failed,  " + err.Error())
+			}
+			f.Close()
 
-	if !s.changes.loneDeb && (expectedFile.Md5 != md5 ||
-		expectedFile.Sha1 != sha1 ||
-		expectedFile.Sha256 != sha256) {
-		err = errors.New("Uploaded file hashes do not match")
-		return err
-	}
-
-	if strings.HasSuffix(upload.Filename, ".deb") {
-		// We should verify the signature
-		f, _ := s.store.Open(id)
-		if s.validateDebs {
-			pkg := NewDebPackage(f, s.keyRing)
-
-			signed, _ := pkg.IsSigned()
-			validated, _ := pkg.IsValidated()
-
-			if signed && validated {
-				signedBy, _ := pkg.SignedBy()
-				i := 0
-				for k := range signedBy.Identities {
-					expectedFile.SignedBy[i] = k
-					i++
+			if s.LoneDeb {
+				s.changes, err = LoneChanges(pkg, upload.Name, s.ReleaseName)
+				if err != nil {
+					return errors.New("Generating changes file failed,  " + err.Error())
 				}
-			} else {
-				err = errors.New("Package could not be validated")
-				return err
+				changesWriter, err := s.usm.Store.Store()
+				if err != nil {
+					return errors.New("Generating changes file failed,  " + err.Error())
+				}
+				FormatChangesFile(changesWriter, s.changes)
+				changesWriter.Close()
+				s.changesID, err = changesWriter.Identity()
+				if err != nil {
+					return errors.New("Generating changes file failed,  " + err.Error())
+				}
+
+				newFile := *upload
+				s.Expecting[upload.Name] = &newFile
+				uf = s.Expecting[upload.Name]
+			}
+
+			uf.pkg = pkg
+
+			// Store the control information
+			ctrl, err := uf.pkg.Control()
+			if err != nil {
+				return errors.New("Retrieving control file failed, " + err.Error())
+			}
+
+			ctrl.Data[0].SetValue("Size", strconv.FormatInt(size, 10))
+			ctrl.Data[0].SetValue("MD5sum", hex.EncodeToString(md5))
+			ctrl.Data[0].SetValue("SHA1", hex.EncodeToString(sha1))
+			ctrl.Data[0].SetValue("SHA256", hex.EncodeToString(sha256))
+
+			uf.controlID, err = s.usm.Store.AddControlFile(*ctrl)
+			if err != nil {
+				return errors.New("Storing control file failed, " + err.Error())
+			}
+
+			// We should verify the signature
+			if s.usm.VerifyDebs {
+				signed, _ := uf.pkg.IsSigned()
+				verified, _ := uf.pkg.IsVerified()
+
+				if signed && verified {
+					signedBy, _ := uf.pkg.SignedBy()
+					for k := range signedBy.Identities {
+						uf.SignedBy = append(uf.SignedBy, k)
+					}
+				} else {
+					err = errors.New("Package could not be verified")
+					return err
+				}
+			}
+		}
+	case strings.HasSuffix(upload.Name, ".dsc"):
+		{
+			f, _ := s.usm.Store.Open(id)
+			defer f.Close()
+			ctrl, err := ParseDebianControl(f, s.usm.PubRing)
+			if err != nil {
+				return errors.New("Parsing dsc failed, " + err.Error())
+			}
+			uf.controlID, err = s.usm.Store.AddControlFile(ctrl)
+			if err != nil {
+				return errors.New("Storing control file failed, " + err.Error())
 			}
 		}
 	}
 
-	err = s.store.Link(id, storeFilename)
+	if !s.LoneDeb && (bytes.Compare(s.changes.FileHashes[expectedFileIdx]["md5"], md5) != 0 ||
+		bytes.Compare(s.changes.FileHashes[expectedFileIdx]["sha1"], sha1) != 0 ||
+		bytes.Compare(s.changes.FileHashes[expectedFileIdx]["sha256"], sha256) != 0) {
+		err = errors.New("Uploaded file hashes do not match")
+		return err
+	}
+
+	err = s.usm.Store.Link(id, storeFilename)
 	if err != nil {
 		return errors.New("Error linking store file: " + err.Error())
 	}
 
-	expectedFile.Size, _ = s.store.Size(id)
-
-	expectedFile.UploadHookResult = s.uploadHook.Run(storeFilename)
-	if expectedFile.UploadHookResult.err != nil {
+	uf.storeID = id
+	uf.Size = size
+	uf.UploadHookResult = s.usm.UploadHook.Run(storeFilename)
+	if uf.UploadHookResult.err != nil {
 		os.Remove(storeFilename)
-		err = errors.New("Upload " + expectedFile.UploadHookResult.Error())
+		err = errors.New("Upload " + uf.UploadHookResult.Error())
 	}
 
-	expectedFile.Uploaded = true
+	uf.Received = true
 
 	return
 }

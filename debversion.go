@@ -29,8 +29,8 @@ func (d *DebVersion) String() string {
 	return output
 }
 
-// DebVersionFromString converts a string to the debian version components
-func DebVersionFromString(str string) (version DebVersion, err error) {
+// ParseDebVersion converts a string to the debian version components
+func ParseDebVersion(str string) (version DebVersion, err error) {
 	epochSplit := strings.SplitN(str, ":", 2)
 	if len(epochSplit) > 1 {
 		var epoch int64
@@ -158,4 +158,13 @@ func compareComponent(a string, b string) int {
 	}
 
 	return 0
+}
+
+// Useful for writing tests
+func MustParseDebVersion(str string) (version DebVersion) {
+	ver, err := ParseDebVersion(str)
+	if err != nil {
+		panic(err)
+	}
+	return ver
 }

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"expvar"
-	"io"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -15,10 +15,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// The maximum amount of RAM to use when parsing
-// mime object in requests.
-var mimeMemoryBufferSize = int64(64000000)
-
 // AptServer describes a web server
 type AptServer struct {
 	MaxReqs    int                // The maximum nuber of concurrent requests we'll handle
@@ -28,9 +24,9 @@ type AptServer struct {
 
 	AcceptLoneDebs bool // Whether we should allow individual deb uploads
 
-	Archive        Archiver             // The generator for updating the repo
-	SessionManager UploadSessionManager // The session manager
-	UpdateChannel  chan UpdateRequest   // A channel to recieve update requests
+	Archive        Archiver              // The generator for updating the repo
+	SessionManager *UploadSessionManager // The session manager
+	UpdateChannel  chan UpdateRequest    // A channel to recieve update requests
 
 	PreGenHook  HookRunner // A hook to run before we run the genrator
 	PostGenHook HookRunner // A hooke to run after successful regeneration
@@ -194,12 +190,19 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 		switch r.Method {
 		case "GET":
 			{
-				resp = a.SessionManager.Status(session)
+				s, ok := a.SessionManager.GetSession(session)
+				if !ok {
+					resp = AptServerMessage(http.StatusNotFound, "File not found")
+					w.WriteHeader(resp.GetStatus())
+					w.Write(resp.GetMessage())
+					return
+				}
+
+				resp = s.Status()
 			}
 		case "PUT", "POST":
 			{
 				changesReader, otherParts, err := ChangesFromHTTPRequest(r)
-
 				if err != nil {
 					resp = AptServerMessage(http.StatusBadRequest, err.Error())
 					w.WriteHeader(resp.GetStatus())
@@ -209,33 +212,8 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 
 				if session == "" {
 					// We don't have an active session, lets create one
-					var changes ChangesFile
+					var loneDeb bool
 					if changesReader != nil {
-						changesWriter, err := a.Archive.Store()
-						if err != nil {
-							resp = AptServerMessage(http.StatusBadRequest, err.Error())
-							w.WriteHeader(resp.GetStatus())
-							w.Write(resp.GetMessage())
-							return
-						}
-						io.Copy(changesWriter, changesReader)
-						changesWriter.Close()
-						changesID, err := changesWriter.Identity()
-						if err != nil {
-							resp = AptServerMessage(http.StatusBadRequest, err.Error())
-							w.WriteHeader(resp.GetStatus())
-							w.Write(resp.GetMessage())
-							return
-						}
-
-						changes, err = ParseDebianChanges(changesReader, a.PubRing)
-						if err != nil {
-							resp = AptServerMessage(http.StatusBadRequest, err.Error())
-							w.WriteHeader(resp.GetStatus())
-							w.Write(resp.GetMessage())
-							return
-						}
-						changes.StoreID = changesID
 					} else {
 						if !a.AcceptLoneDebs {
 							err = errors.New("No debian changes file in request")
@@ -261,18 +239,10 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 							return
 						}
 
-						// No chnages file in the request, we need to create
-						// a changes session based on the deb
-						changes = &ChangesFile{
-							loneDeb: true,
-						}
-						changes.Files = make(map[string]*ChangesItem)
-						changes.Files[otherParts[0].Filename] = &ChangesItem{
-							Filename: otherParts[0].Filename,
-						}
+						loneDeb = true
 					}
 
-					session, err = a.SessionManager.Add(branchName, changes)
+					session, err = a.SessionManager.NewSession(branchName, changesReader, loneDeb)
 					if err != nil {
 						resp = AptServerMessage(http.StatusBadRequest, err.Error())
 						w.WriteHeader(resp.GetStatus())
@@ -289,7 +259,6 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 					}
 					http.SetCookie(w, &cookie)
 				}
-
 				if err != nil {
 					resp = AptServerMessage(http.StatusBadRequest, err.Error())
 					w.WriteHeader(resp.GetStatus())
@@ -297,7 +266,31 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 					return
 				}
 
-				resp = a.SessionManager.AddItems(session, otherParts)
+				sess, ok := a.SessionManager.GetSession(session)
+				if !ok {
+					resp = AptServerMessage(http.StatusNotFound, "File Not Found")
+					w.WriteHeader(resp.GetStatus())
+					w.Write(resp.GetMessage())
+					return
+				}
+
+				resp = sess.Status()
+
+				for _, part := range otherParts {
+					fh, err := part.Open()
+					if err != nil {
+						resp = AptServerMessage(http.StatusBadRequest, fmt.Sprintf("Error opening mime item, %s", err.Error()))
+						w.WriteHeader(resp.GetStatus())
+						w.Write(resp.GetMessage())
+						return
+					}
+
+					uf := UploadFile{
+						Name:   part.Filename,
+						reader: fh,
+					}
+					resp = sess.AddFile(&uf)
+				}
 			}
 		}
 
@@ -392,7 +385,7 @@ func (a *AptServer) makeDistsHandler() http.HandlerFunc {
 // CompletedUpload describes a finished session, the details of the session,
 // and the output of any hooks
 type CompletedUpload struct {
-	Session           UploadSessioner
+	Session           *UploadSession
 	PreGenHookOutput  HookOutput
 	PostGenHookOutput HookOutput
 }
@@ -401,11 +394,11 @@ type CompletedUpload struct {
 // presentation of a completed session to the user
 func (s CompletedUpload) MarshalJSON() (j []byte, err error) {
 	resp := struct {
-		Session           UploadSessioner
+		Session           UploadSession
 		PreGenHookOutput  HookOutput
 		PostGenHookOutput HookOutput
 	}{
-		s.Session,
+		*s.Session,
 		s.PreGenHookOutput,
 		s.PostGenHookOutput,
 	}
@@ -438,12 +431,8 @@ func (a *AptServer) Updater() {
 					completedsession.PreGenHookOutput = hookResult
 				}
 
-				respStatus, respObj, err = a.Archive.AddSession(session)
-
-				if err != nil {
-					respStatus = http.StatusInternalServerError
-					respObj = "Archive regeneration failed, " + err.Error()
-				} else {
+				respStatus, respObj, err = a.Archive.AddUpload(session)
+				if err == nil {
 					hookResult := a.PostGenHook.Run(session.ID())
 					completedsession.PostGenHookOutput = hookResult
 				}
@@ -465,5 +454,5 @@ func (a *AptServer) Updater() {
 // at present
 type UpdateRequest struct {
 	resp    chan AptServerResponder
-	session UploadSessioner
+	session *UploadSession
 }

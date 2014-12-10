@@ -1,7 +1,6 @@
 package main
 
 import (
-	"compress/gzip"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -12,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"compress/gzip"
 
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/clearsign"
@@ -37,7 +38,7 @@ type Release struct {
 	ParentID    StoreID
 	IndexID     StoreID
 	CodeName    string
-	SuiteName   string
+	Suite       string
 	Description string
 	Version     string
 	Date        time.Time
@@ -94,9 +95,25 @@ type archTempData struct {
 	PackagesGzID         StoreID
 }
 
-type compTempData map[string]*archTempData
+type compTempData struct {
+	archs               map[string]*archTempData
+	sourcesFileWriter   *WriteHasher
+	sourcesGzFile       *WriteHasher
+	sourcesGzStore      StoreWriteCloser
+	sourcesGzFileWriter io.WriteCloser
+	sourcesWriter       io.Writer
+	sourcesSize         int64
+	sourcesMD5          string
+	sourcesSHA1         string
+	sourcesSHA256       string
+	sourcesGzSize       int64
+	sourcesGzMD5        string
+	sourcesGzSHA1       string
+	sourcesGzSHA256     string
+	SourcesGzID         StoreID
+}
 
-type relTempData map[string]compTempData
+type relTempData map[string]*compTempData
 
 // NewRelease creates a new release object in the specified store, based on the
 // parent and built using the passed in index, and associated set of
@@ -114,37 +131,10 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 	}
 
 	release.CodeName = parent.CodeName
-	release.SuiteName = parent.SuiteName
+	release.Suite = parent.Suite
 	release.Description = parent.Description
 	release.Version = parent.Version
 	release.PoolPattern = parent.PoolPattern
-
-	// For the moment we'll only have the main component
-
-	/*
-		sourcesFile, err := a.store.Store()
-		sourcesMD5er := md5.New()
-		sourcesSHA1er := sha1.New()
-		sourcesSHA256er := sha256.New()
-		sourcesHashedWriter := io.MultiWriter(
-			sourcesFile,
-			sourcesMD5er,
-			sourcesSHA1er,
-			sourcesSHA256er)
-
-		sourcesGzFile, err := a.store.Store()
-		sourcesGzMD5er := md5.New()
-		sourcesGzSHA1er := sha1.New()
-		sourcesGzSHA256er := sha256.New()
-		sourcesGzHashedWriter := io.MultiWriter(
-			sourcesGzFile,
-			sourcesGzMD5er,
-			sourcesGzSHA1er,
-			sourcesGzSHA256er)
-		sourcesGzWriter := gzip.NewWriter(sourcesGzHashedWriter)
-
-		sourcesWriter := io.MultiWriter(sourcesHashedWriter, sourcesGzWriter)
-	*/
 
 	// We want to merge all packages of arch all into each binary-$arch
 	// so we walk the package index in a first pass to find all the archs
@@ -158,40 +148,32 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 	}
 
 	for {
-		item, err := preIndex.NextItem()
+		e, err := preIndex.NextEntry()
 		if err != nil {
 			break
 		}
+		for _, b := range e.BinaryItems {
+			archName := b.Architecture
+			archMap[archName] = true
 
-		switch item.Type {
-		case BINARY:
-			control, err := store.GetBinaryControlFile(item.ControlID)
-			if err != nil {
-				log.Println("Error retrieving control file for ", item, err)
-				continue
-			}
-
-			archName, ok := control[0].GetValue("Architecture")
-			if ok {
-				archMap[archName] = true
-			}
-
-			compName := "main"
-			_, ok = control[0].GetValue("Section")
-			if !ok {
-				log.Println("control file does not contain section, default component to main")
-			} else {
-				// Should try and guess a component from the section ala reprepro
-				compName = "main"
-			}
+			compName := b.Component
 
 			comp, ok := relMap[compName]
 			if !ok {
-				relMap[compName] = make(compTempData, 0)
+				relMap[compName] = &compTempData{}
 				comp = relMap[compName]
+				comp.sourcesFileWriter = MakeWriteHasher(ioutil.Discard)
+				comp.sourcesGzStore, err = store.Store()
+				if err != nil {
+					return nil, err
+				}
+				comp.sourcesGzFile = MakeWriteHasher(comp.sourcesGzStore)
+				comp.sourcesGzFileWriter = gzip.NewWriter(comp.sourcesGzFile)
+				comp.sourcesWriter = io.MultiWriter(comp.sourcesFileWriter, comp.sourcesGzFileWriter)
+				comp.archs = make(map[string]*archTempData, 0)
 			}
 
-			arch, ok := comp[archName]
+			arch, ok := comp.archs[archName]
 			if !ok {
 				// This is a new arch in this component
 				arch = new(archTempData)
@@ -204,10 +186,11 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 				arch.packagesGzFile = MakeWriteHasher(arch.packagesGzStore)
 				arch.packagesGzFileWriter = gzip.NewWriter(arch.packagesGzFile)
 				arch.packagesWriter = io.MultiWriter(arch.packagesFileWriter, arch.packagesGzFileWriter)
-				comp[archName] = arch
+				comp.archs[archName] = arch
 			}
 		}
 	}
+
 	preIndex.Close()
 
 	archNames := make(sort.StringSlice, 0)
@@ -226,33 +209,43 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 	defer index.Close()
 
 	for {
-		item, err := index.NextItem()
+		e, err := index.NextEntry()
 		if err != nil {
 			break
 		}
 
-		switch item.Type {
-		case BINARY:
-			control, err := store.GetBinaryControlFile(item.ControlID)
+		s := e.SourceItem
+
+		srcName := s.Name
+		srcVersion := s.Version.String()
+		poolpath := fmt.Sprintf("%s%s/%s/",
+			release.PoolFilePath(srcName),
+			srcName,
+			srcVersion,
+		)
+
+		if len(s.ControlID) != 0 {
+			srcCtrl, err := store.GetControlFile(s.ControlID)
 			if err != nil {
-				log.Println("Error retrieving control file for ", item, err)
+				log.Println("Could not retrieve control data, " + err.Error())
+				continue
+			}
+			srcCtrl.Data[0].SetValue("Directory", poolpath)
+			pkgStr, _ := srcCtrl.Data[0].GetValue("Source")
+			srcCtrl.Data[0].SetValue("Package", pkgStr)
+			srcComp, ok := relMap[s.Component]
+			if !ok {
+				log.Println("No Componenet for source item")
 				continue
 			}
 
-			archName, ok := control[0].GetValue("Architecture")
-			if !ok {
-				log.Println("control file does not contain architecture, default to all")
-				archName = "all"
-			}
+			FormatDpkgControlFile(srcComp.sourcesWriter, srcCtrl)
+			srcComp.sourcesWriter.Write([]byte("\n"))
+		}
 
-			compName := "main"
-			_, ok = control[0].GetValue("Section")
-			if !ok {
-				log.Println("control file does not contain section, default component to main")
-			} else {
-				// Should try and guess a component from the section ala reprepro
-				compName = "main"
-			}
+		for _, b := range e.BinaryItems {
+			archName := b.Architecture
+			compName := b.Component
 
 			comp, ok := relMap[compName]
 			if !ok {
@@ -260,53 +253,33 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 				continue
 			}
 
-			arch, ok := comp[archName]
+			arch, ok := comp.archs[archName]
 			if !ok {
 				log.Println("New file appeared in index!")
 				continue
 			}
 
-			filename, ok := control[0].GetValue("Filename")
-			if !ok {
-				log.Println("control file does not contain filename")
+			filename := b.Files[0].Name
+			path := poolpath + filename
+			control, err := store.GetControlFile(b.ControlID)
+			if err != nil {
+				log.Println("Could not retrieve control data, " + err.Error())
 				continue
 			}
-			poolpath := release.PoolFilePath(filename)
-			path := poolpath + filename
-			control[0].SetValue("Filename", path)
+			control.Data[0].SetValue("Filename", path)
 
-			FormatControlFile(arch.packagesWriter, control)
+			FormatDpkgControlFile(arch.packagesWriter, control)
 			arch.packagesWriter.Write([]byte("\n"))
 
 			if archName == "all" {
 				for _, otherArchName := range archNames {
-					otherArch, _ := comp[otherArchName]
-					FormatControlFile(otherArch.packagesWriter, control)
+					otherArch, _ := comp.archs[otherArchName]
+					FormatDpkgControlFile(otherArch.packagesWriter, control)
 					otherArch.packagesWriter.Write([]byte("\n"))
 				}
 			}
-			/*
-				case SOURCE:
-					control, _ := RetrieveSourceControlFile(a.store, item.ControlID)
-					control[0]["Package"] = control[0]["Source"]
-					delete(control[0], "Source")
-					FormatControlFile(sourcesWriter, control)
-					sourcesWriter.Write([]byte("\n"))
-			*/
 		}
 	}
-
-	/*
-		sourcesFile.Close()
-		//sourcesMD5 := hex.EncodeToString(sourcesMD5er.Sum(nil))
-		//sourcesSHA1 := hex.EncodeToString(sourcesSHA1er.Sum(nil))
-		sourcesSHA256 := hex.EncodeToString(sourcesSHA256er.Sum(nil))
-
-		sourcesGzWriter.Close()
-		//sourcesGzMD5 := hex.EncodeToString(sourcesGzMD5er.Sum(nil))
-		//sourcesGzSHA1 := hex.EncodeToString(sourcesGzSHA1er.Sum(nil))
-		sourcesGzSHA256 := hex.EncodeToString(sourcesGzSHA256er.Sum(nil))
-	*/
 
 	release.Components = make([]Component, 0)
 
@@ -317,7 +290,22 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 	compNames.Sort()
 
 	for _, compName := range compNames {
-		archsMap := relMap[compName]
+		c := relMap[compName]
+
+		c.sourcesSize = c.sourcesFileWriter.Count()
+		c.sourcesMD5 = hex.EncodeToString(c.sourcesFileWriter.MD5Sum())
+		c.sourcesSHA1 = hex.EncodeToString(c.sourcesFileWriter.SHA1Sum())
+		c.sourcesSHA256 = hex.EncodeToString(c.sourcesFileWriter.SHA256Sum())
+
+		c.sourcesGzFileWriter.Close()
+		c.sourcesGzStore.Close()
+		c.sourcesGzMD5 = hex.EncodeToString(c.sourcesGzFile.MD5Sum())
+		c.sourcesGzSHA1 = hex.EncodeToString(c.sourcesGzFile.SHA1Sum())
+		c.sourcesGzSHA256 = hex.EncodeToString(c.sourcesGzFile.SHA256Sum())
+		c.SourcesGzID, _ = c.sourcesGzStore.Identity()
+		c.sourcesGzSize, _ = store.Size(c.SourcesGzID)
+
+		archsMap := c.archs
 
 		var archs []Architecture
 		archNames := make(sort.StringSlice, 0)
@@ -351,38 +339,45 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 		comp := Component{
 			Name:          compName,
 			Architectures: archs,
+			SourcesGz:     c.SourcesGzID,
 		}
 		release.Components = append(release.Components, comp)
 	}
 
-	/*
-		sourcesInfo, _ := os.Stat(*a.Repo.RepoBase + "/Sources")
-		sourcesGzInfo, _ := os.Stat(*a.Repo.RepoBase + "/Sources.gz")
-	*/
-
-	releaseControl := make(ControlFile, 1)
+	releaseControl := ControlFile{}
 	para := MakeControlParagraph()
-	releaseControl[0] = &para
 
 	releaseStartFields := []string{"Origin", "Suite", "Codename"}
 	releaseEndFields := []string{"SHA256"}
-	releaseControl[0].SetValue("Origin", "GoDInstall")
-	releaseControl[0].SetValue("Suite", release.SuiteName)
-	releaseControl[0].SetValue("Codename", release.CodeName)
+	para.SetValue("Origin", "GoDInstall")
+	para.SetValue("Suite", release.Suite)
+	para.SetValue("Codename", release.CodeName)
 
 	archNames = append(archNames, "all")
 	archNames.Sort()
-	releaseControl[0].SetValue("Architectures", strings.Join(archNames, " "))
-
-	releaseControl[0].SetValue("Components", strings.Join(compNames, " "))
-
-	releaseControl[0].AddValue("MD5Sum", "")
+	para.SetValue("Architectures", strings.Join(archNames, " "))
+	para.SetValue("Components", strings.Join(compNames, " "))
+	para.AddValue("MD5Sum", "")
 
 	for i := range release.Components {
 		comp := release.Components[i]
+		c := relMap[comp.Name]
+		srcsLine := fmt.Sprintf("%v %d %v/source/Sources",
+			c.sourcesMD5,
+			c.sourcesSize,
+			comp.Name,
+		)
+		para.AddValue("MD5Sum", srcsLine)
+		srcsGzLine := fmt.Sprintf("%v %d %v/source/Sources.gz",
+			c.sourcesMD5,
+			c.sourcesSize,
+			comp.Name,
+		)
+		para.AddValue("MD5Sum", srcsGzLine)
+
 		for j := range release.Components[i].Architectures {
 			arch := comp.Architectures[j]
-			archFiles := relMap[comp.Name][arch.Name]
+			archFiles := relMap[comp.Name].archs[arch.Name]
 
 			pkgsLine := fmt.Sprintf("%v %d %v/binary-%v/Packages",
 				archFiles.packagesMD5,
@@ -390,16 +385,18 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 				comp.Name,
 				arch.Name,
 			)
-			releaseControl[0].AddValue("MD5Sum", pkgsLine)
+			para.AddValue("MD5Sum", pkgsLine)
 			pkgsGzLine := fmt.Sprintf("%v %d %v/binary-%v/Packages.gz",
 				archFiles.packagesGzMD5,
 				archFiles.packagesGzSize,
 				comp.Name,
 				arch.Name,
 			)
-			releaseControl[0].AddValue("MD5Sum", pkgsGzLine)
+			para.AddValue("MD5Sum", pkgsGzLine)
 		}
 	}
+
+	releaseControl.Data = append(releaseControl.Data, &para)
 
 	// This is a little convoluted. We'll ultimately write to this, but it may be
 	// writing to unsigned and signed releases, or just the unsigned, depending

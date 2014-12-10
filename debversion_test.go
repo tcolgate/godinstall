@@ -35,11 +35,11 @@ var testDebVersionComparison = []struct {
 func TestDebVersionComparison(t *testing.T) {
 	for i, tt := range testDebVersionComparison {
 		var err error
-		aVer, err := DebVersionFromString(tt.a)
+		aVer, err := ParseDebVersion(tt.a)
 		if err != nil {
 			t.Errorf("%d. failed: %q\n", i, err.Error())
 		}
-		bVer, err := DebVersionFromString(tt.b)
+		bVer, err := ParseDebVersion(tt.b)
 		if err != nil {
 			t.Errorf("%d. failed: %q\n", i, err.Error())
 		}
@@ -59,7 +59,7 @@ func TestDebVersionComparison(t *testing.T) {
 	}
 }
 
-var testDebVersionFromString = []struct {
+var testParseDebVersion = []struct {
 	in  string
 	out *DebVersion
 	err error
@@ -73,10 +73,10 @@ var testDebVersionFromString = []struct {
 	{"2.3~pre13.wheezy1", &DebVersion{0, "2.3~pre13.wheezy1", ""}, nil},
 }
 
-func TestDebVersionFromString(t *testing.T) {
-	for i, tt := range testDebVersionFromString {
+func TestParseDebVersion(t *testing.T) {
+	for i, tt := range testParseDebVersion {
 		var err error
-		inVer, err := DebVersionFromString(tt.in)
+		inVer, err := ParseDebVersion(tt.in)
 
 		if inVer != *tt.out || err != tt.err {
 			t.Errorf("%d. failed: expected %q got %q\n", i, tt.out, inVer)
@@ -84,7 +84,7 @@ func TestDebVersionFromString(t *testing.T) {
 	}
 }
 
-var testDebVersionToString = []struct {
+var testDebVersionString = []struct {
 	in  *DebVersion
 	out string
 }{
@@ -96,8 +96,8 @@ var testDebVersionToString = []struct {
 	{&DebVersion{1, "1:1.0-1", "1~1"}, "1:1:1.0-1-1~1"},
 }
 
-func TestDebVersionToString(t *testing.T) {
-	for i, tt := range testDebVersionToString {
+func TestDebVersionString(t *testing.T) {
+	for i, tt := range testDebVersionString {
 		outStr := tt.in.String()
 
 		if outStr != tt.out {

@@ -1,33 +1,22 @@
 package main
 
 import (
-	"errors"
-	"mime/multipart"
-	"net/http"
+	"io"
 	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
 )
 
-// UploadSessionManager is responsible for maintaing a set of upload
-// session  It creates sessions, times them out, amd acts as a request
-// muxer to pass requests on to invidiuvidual managers
-type UploadSessionManager interface {
-	Add(string, *ChangesFile) (string, error)
-	Status(string) AptServerResponder
-	AddItems(string, []*multipart.FileHeader) AptServerResponder
-}
-
-// uploadSessionManager is a concreate implmentation of the UploadSessionManager
-type uploadSessionManager struct {
-	TTL                       time.Duration
-	TmpDir                    *string
-	Store                     ArchiveStorer
-	UploadHook                HookRunner
-	ValidateChanges           bool
-	ValidateChangesSufficient bool
-	ValidateDebs              bool
-	PubRing                   openpgp.EntityList
+// UploadSessionManager is a concreate implmentation of the UploadSessionManager
+type UploadSessionManager struct {
+	TTL                     time.Duration
+	TmpDir                  *string
+	Store                   ArchiveStorer
+	UploadHook              HookRunner
+	VerifyChanges           bool
+	VerifyChangesSufficient bool
+	VerifyDebs              bool
+	PubRing                 openpgp.EntityList
 
 	finished chan UpdateRequest
 	sessMap  *SafeMap
@@ -41,21 +30,21 @@ func NewUploadSessionManager(
 	tmpDir *string,
 	store ArchiveStorer,
 	uploadHook HookRunner,
-	validateChanges bool,
-	validateChangesSufficient bool,
-	validateDebs bool,
+	verifyChanges bool,
+	verifyChangesSufficient bool,
+	verifyDebs bool,
 	pubRing openpgp.EntityList,
 	finished chan UpdateRequest,
-) UploadSessionManager {
-	return &uploadSessionManager{
-		TTL:                       TTL,
-		TmpDir:                    tmpDir,
-		Store:                     store,
-		UploadHook:                uploadHook,
-		ValidateChanges:           validateChanges,
-		ValidateChangesSufficient: validateChangesSufficient,
-		ValidateDebs:              validateDebs,
-		PubRing:                   pubRing,
+) *UploadSessionManager {
+	return &UploadSessionManager{
+		TTL:                     TTL,
+		TmpDir:                  tmpDir,
+		Store:                   store,
+		UploadHook:              uploadHook,
+		VerifyChanges:           verifyChanges,
+		VerifyChangesSufficient: verifyChangesSufficient,
+		VerifyDebs:              verifyDebs,
+		PubRing:                 pubRing,
 
 		finished: finished,
 		sessMap:  NewSafeMap(),
@@ -63,120 +52,52 @@ func NewUploadSessionManager(
 }
 
 // This retrieves a given upload session by the session's id
-func (usm *uploadSessionManager) GetSession(sid string) (UploadSessioner, bool) {
+func (usm *UploadSessionManager) GetSession(sid string) (UploadSession, bool) {
 	val := usm.sessMap.Get(sid)
 	if val == nil {
-		return nil, false
+		return UploadSession{}, false
 	}
 
 	switch t := val.(type) {
 	default:
 		{
-			return nil, false
+			return UploadSession{}, false
 		}
-	case UploadSessioner:
+	case UploadSession:
 		{
-			return t.(UploadSessioner), true
+			return UploadSession(t), true
 		}
 	}
 }
 
 // Add a new upload session based on the details from the passed
 // debian changes file.
-func (usm *uploadSessionManager) Add(branchName string, changes *ChangesFile) (string, error) {
+func (usm *UploadSessionManager) NewSession(branchName string, changesReader io.Reader, loneDeb bool) (string, error) {
 	var err error
 
-	if usm.ValidateChanges && !changes.signed && !changes.loneDeb {
-		err = errors.New("Changes file was not signed")
-		return "", err
-	}
-
-	if usm.ValidateChanges && !changes.validated && !changes.loneDeb {
-		err = errors.New("Changes file could not be validated")
-		return "", err
-	}
-
-	// Should we check signatures on individual debs?
-	var validateDebSign bool
-	if usm.ValidateChanges && changes.validated && usm.ValidateChangesSufficient && !changes.loneDeb {
-		validateDebSign = false
-	} else {
-		validateDebSign = usm.ValidateDebs
-	}
-
-	s := NewUploadSession(
+	s, err := NewUploadSession(
 		branchName,
-		changes,
-		validateDebSign,
-		usm.PubRing,
+		changesReader,
 		usm.TmpDir,
-		usm.Store,
-		usm.UploadHook,
 		usm.finished,
-		usm.TTL,
+		loneDeb,
+		usm,
 	)
+
+	if err != nil {
+		return "", err
+	}
 
 	usm.sessMap.Set(s.ID(), s)
+	go usm.cleanup(s)
+
 	return s.ID(), nil
-}
-
-// This retrieves the status of a given session as a
-// HTTP response.
-// TODO Should probably refactor this to just return the
-// status and and error and consutrct the response elswhere
-func (usm *uploadSessionManager) Status(s string) (resp AptServerResponder) {
-	session, ok := usm.GetSession(s)
-
-	if !ok {
-		resp = AptServerMessage(
-			http.StatusNotFound,
-			"Unknown Session",
-		)
-	} else {
-		resp = session.Status()
-	}
-
-	return
-}
-
-// This add am uploaded file containued in the mime section,
-// to the session identified by the string
-func (usm *uploadSessionManager) AddItems(
-	s string,
-	otherParts []*multipart.FileHeader) (resp AptServerResponder) {
-
-	session, ok := usm.GetSession(s)
-
-	if !ok {
-		resp = AptServerMessage(
-			http.StatusBadRequest,
-			"Unknown Session",
-		)
-		return
-	}
-
-	resp = AptServerMessage(
-		http.StatusCreated,
-		session,
-	)
-
-	if len(otherParts) > 0 {
-		for _, f := range otherParts {
-			reader, _ := f.Open()
-			resp = session.AddItem(&ChangesItem{
-				Filename: f.Filename,
-				data:     reader,
-			})
-		}
-	}
-
-	return
 }
 
 // This is used as a go routine manages the upload session and is used
 // to serialize all actions on the given session.
 // TODO need to revisit this
-func (usm *uploadSessionManager) handler(s UploadSessioner) {
+func (usm *UploadSessionManager) cleanup(s UploadSession) {
 	select {
 	case <-s.Done():
 		{

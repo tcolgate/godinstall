@@ -25,11 +25,19 @@ availability), along with optional validation of signed changes and debs.
 
 ## Mis(sing)-Features
 
-- Sources, Content-?, Trnslations not  currently handled
-- The objects in the blob store are likely to change
-- Only a single component is populated at present
+- Content-?, Trnslations not  currently handled
+- Only a single component(main) is populated at present
 - Package name + version + arch must be unique accross all componenets in a
   repository (not merely main + other)
+- The objects in the blob store should be fairly stable now, some changes may
+  still be needed
+- Changes files are the basic unit of version control. All architectures for a
+  package must be included in one changes file at present. Repeated upgrades
+  of changes files for the same package name and version will be ignored
+- Uploading a lone deb that is already covered by a previous changes upload
+  will have undefined results. Especially if the package name does not match
+  the source package name of the original upload. This will be fixed once I can
+  figure out how it should behave.
 
 ## Example
 
@@ -53,8 +61,8 @@ ignore the gpg settings
 
 ```
 $ godinstall serve -repo-base ./testrepo \
-             -validate-changes=false \
-             -validate-debs=false
+             -verify-changes=false \
+             -verify-debs=false
 ```
 
 To upload a package, either upload all the files and the changes file in one PUT:
