@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"expvar"
+	"io"
 	"log"
 	"net/http"
 
@@ -201,60 +202,102 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 
 				if err != nil {
 					resp = AptServerMessage(http.StatusBadRequest, err.Error())
-				} else {
-					if session == "" {
-						// We don't have an active session, lets create one
-						var changes ChangesFile
-						if changesReader != nil {
-							changes, err = ParseDebianChanges(changesReader, a.PubRing)
-							if err != nil {
-								resp = AptServerMessage(http.StatusBadRequest, err.Error())
-							}
-						} else {
-							if !a.AcceptLoneDebs {
-								err = errors.New("No debian changes file in request")
-							} else {
-								if len(otherParts) != 1 {
-									err = errors.New("Too many files in upload request without changes file present")
-								} else {
-									if !strings.HasSuffix(otherParts[0].Filename, ".deb") {
-										err = errors.New("Lone files for upload must end in .deb")
-									}
-									// No chnages file in the request, we need to create
-									// a changes session based on the deb
-									changes = ChangesFile{
-										loneDeb: true,
-									}
-									changes.SourceItems = make([]ChangesItem, 1)
-									changes.BinaryItems = make([]ChangesItem, 1)
-									changes.BinaryItems[0] = ChangesItem{
-										Filename: otherParts[0].Filename,
-									}
-								}
-							}
+					w.WriteHeader(resp.GetStatus())
+					w.Write(resp.GetMessage())
+					return
+				}
 
-						}
-						session, err = a.SessionManager.Add(branchName, &changes)
+				if session == "" {
+					// We don't have an active session, lets create one
+					var changes ChangesFile
+					if changesReader != nil {
+						changesWriter, err := a.Archive.Store()
 						if err != nil {
 							resp = AptServerMessage(http.StatusBadRequest, err.Error())
-						} else {
-							cookie := http.Cookie{
-								Name:     a.CookieName,
-								Value:    session,
-								Expires:  time.Now().Add(a.TTL),
-								HttpOnly: false,
-								Path:     "/upload",
-							}
-							http.SetCookie(w, &cookie)
+							w.WriteHeader(resp.GetStatus())
+							w.Write(resp.GetMessage())
+							return
+						}
+						io.Copy(changesWriter, changesReader)
+						changesWriter.Close()
+						changesID, err := changesWriter.Identity()
+						if err != nil {
+							resp = AptServerMessage(http.StatusBadRequest, err.Error())
+							w.WriteHeader(resp.GetStatus())
+							w.Write(resp.GetMessage())
+							return
+						}
+
+						changes, err = ParseDebianChanges(changesReader, a.PubRing)
+						if err != nil {
+							resp = AptServerMessage(http.StatusBadRequest, err.Error())
+							w.WriteHeader(resp.GetStatus())
+							w.Write(resp.GetMessage())
+							return
+						}
+						changes.StoreID = changesID
+					} else {
+						if !a.AcceptLoneDebs {
+							err = errors.New("No debian changes file in request")
+							resp = AptServerMessage(http.StatusBadRequest, err.Error())
+							w.WriteHeader(resp.GetStatus())
+							w.Write(resp.GetMessage())
+							return
+						}
+
+						if len(otherParts) != 1 {
+							err = errors.New("Too many files in upload request without changes file present")
+							resp = AptServerMessage(http.StatusBadRequest, err.Error())
+							w.WriteHeader(resp.GetStatus())
+							w.Write(resp.GetMessage())
+							return
+						}
+
+						if !strings.HasSuffix(otherParts[0].Filename, ".deb") {
+							err = errors.New("Lone files for upload must end in .deb")
+							resp = AptServerMessage(http.StatusBadRequest, err.Error())
+							w.WriteHeader(resp.GetStatus())
+							w.Write(resp.GetMessage())
+							return
+						}
+
+						// No chnages file in the request, we need to create
+						// a changes session based on the deb
+						changes = &ChangesFile{
+							loneDeb: true,
+						}
+						changes.Files = make(map[string]*ChangesItem)
+						changes.Files[otherParts[0].Filename] = &ChangesItem{
+							Filename: otherParts[0].Filename,
 						}
 					}
 
+					session, err = a.SessionManager.Add(branchName, changes)
 					if err != nil {
 						resp = AptServerMessage(http.StatusBadRequest, err.Error())
-					} else {
-						resp = a.SessionManager.AddItems(session, otherParts)
+						w.WriteHeader(resp.GetStatus())
+						w.Write(resp.GetMessage())
+						return
 					}
+
+					cookie := http.Cookie{
+						Name:     a.CookieName,
+						Value:    session,
+						Expires:  time.Now().Add(a.TTL),
+						HttpOnly: false,
+						Path:     "/upload",
+					}
+					http.SetCookie(w, &cookie)
 				}
+
+				if err != nil {
+					resp = AptServerMessage(http.StatusBadRequest, err.Error())
+					w.WriteHeader(resp.GetStatus())
+					w.Write(resp.GetMessage())
+					return
+				}
+
+				resp = a.SessionManager.AddItems(session, otherParts)
 			}
 		}
 
