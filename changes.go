@@ -19,6 +19,7 @@ import (
 // ChangesFile represents a debian changes file. A changes file
 // describes a set of files for upload to a repositry
 type ChangesFile struct {
+	Original  StoreID                 // The original uploaded changes file
 	loneDeb   bool                    // Is this really a lone deb file upload?
 	signed    bool                    // Whether this changes file signed
 	validated bool                    //  Whether the signature is valid

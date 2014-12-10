@@ -367,7 +367,7 @@ func (a archiveStoreArchive) mergeItemsIntoRelease(parentid StoreID, items []*Re
 	left, err := parentidx.NextItem()
 
 	right := items
-	sort.Sort(ByReleaseIndexOrder(right))
+	sort.Sort(ByReleaseIndexItemOrder(right))
 
 	pruner := a.pruneRules.MakePruner()
 
@@ -377,7 +377,7 @@ func (a archiveStoreArchive) mergeItemsIntoRelease(parentid StoreID, items []*Re
 		}
 
 		if len(right) > 0 {
-			cmpItems := ReleaseIndexOrder(&left, right[0])
+			cmpItems := ReleaseIndexItemOrder(&left, right[0])
 			if cmpItems < 0 { // New item not needed yet
 				if !pruner(&left) {
 					mergedidx.AddItem(&left)

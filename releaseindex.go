@@ -2,6 +2,46 @@ package main
 
 import "bytes"
 
+// ReleaseIndexEntry represents a set of packages and is
+// maps closely to the changes files used to upload.
+type ReleaseIndexEntry struct {
+	Name        string
+	Version     DebVersion
+	SourceItem  ReleaseIndexItem
+	BinaryItems []ReleaseIndexItem
+	ChangesID   StoreID // StoreID for the changes data
+}
+
+// ByReleaseIndexEntryOrder implements sort.Interface for []ReleaseIndexEntry.
+// Packages are sorted by:
+//  - Alphabetical package name
+//  - Reverse Version
+type ByReleaseIndexEntryOrder []*ReleaseIndexEntry
+
+func (a ByReleaseIndexEntryOrder) Len() int      { return len(a) }
+func (a ByReleaseIndexEntryOrder) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByReleaseIndexEntryOrder) Less(i, j int) bool {
+	res := ReleaseIndexEntryOrder(a[i], a[j])
+	if res < 0 {
+		return true
+	}
+	return false
+}
+
+// ReleaseIndexOrder implements  the order we want items to appear in the index
+func ReleaseIndexEntryOrder(a, b *ReleaseIndexEntry) int {
+	nameCmp := bytes.Compare([]byte(a.Name), []byte(b.Name))
+	if nameCmp != 0 {
+		return nameCmp
+	}
+
+	// We'll use reverse order for the version, to make pruning
+	// a touch easier
+	debCmp := DebVersionCompare(b.Version, a.Version)
+
+	return debCmp
+}
+
 // ReleaseIndexItemType is used to differentiate source and binary repository items
 type ReleaseIndexItemType int
 
@@ -14,7 +54,7 @@ const (
 	SOURCE  ReleaseIndexItemType = 3
 )
 
-// A ReleaseIndexItem is either deb, or a dsc describing
+// ReleaseIndexItem is either deb, or a dsc describing
 // a set of files for a source archive
 type ReleaseIndexItem struct {
 	Type         ReleaseIndexItemType // The type of file
@@ -34,17 +74,17 @@ type ReleaseIndexItemFile struct {
 	ID   StoreID // Store ID for the actual file
 }
 
-// ByReleaseIndexOrder implements sort.Interface for []ReleaseIndexItem.
+// ByReleaseIndexItemOrder implements sort.Interface for []ReleaseIndexItem.
 // Packages are sorted by:
 //  - Alphabetical package name
 //  - Alphabetical architecture
 //  - Reverse Version
-type ByReleaseIndexOrder []*ReleaseIndexItem
+type ByReleaseIndexItemOrder []*ReleaseIndexItem
 
-func (a ByReleaseIndexOrder) Len() int      { return len(a) }
-func (a ByReleaseIndexOrder) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a ByReleaseIndexOrder) Less(i, j int) bool {
-	res := ReleaseIndexOrder(a[i], a[j])
+func (a ByReleaseIndexItemOrder) Len() int      { return len(a) }
+func (a ByReleaseIndexItemOrder) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByReleaseIndexItemOrder) Less(i, j int) bool {
+	res := ReleaseIndexItemOrder(a[i], a[j])
 	if res < 0 {
 		return true
 	}
@@ -52,7 +92,7 @@ func (a ByReleaseIndexOrder) Less(i, j int) bool {
 }
 
 // ReleaseIndexOrder implements  the order we want items to appear in the index
-func ReleaseIndexOrder(a, b *ReleaseIndexItem) int {
+func ReleaseIndexItemOrder(a, b *ReleaseIndexItem) int {
 	nameCmp := bytes.Compare([]byte(a.Name), []byte(b.Name))
 	if nameCmp != 0 {
 		return nameCmp
