@@ -18,8 +18,8 @@ type ArchiveStorer interface {
 	GetReleaseTag(string) (StoreID, error)
 	SetReleaseTag(string, StoreID) error
 
-	AddDeb(file *ChangesItem) (*ReleaseItem, error)
-	ItemsFromChanges(files map[string]*ChangesItem) ([]*ReleaseItem, error)
+	AddDeb(file *ChangesItem) (*ReleaseIndexItem, error)
+	ItemsFromChanges(files map[string]*ChangesItem) ([]*ReleaseIndexItem, error)
 
 	GetReleaseRoot(seed Release) (StoreID, error)
 	AddRelease(data *Release) (StoreID, error)
@@ -216,8 +216,8 @@ func (r archiveBlobStore) SetReleaseTag(name string, id StoreID) error {
 	return r.SetRef(name, StoreID(id))
 }
 
-func (r archiveBlobStore) AddDeb(file *ChangesItem) (*ReleaseItem, error) {
-	var item ReleaseItem
+func (r archiveBlobStore) AddDeb(file *ChangesItem) (*ReleaseIndexItem, error) {
+	var item ReleaseIndexItem
 	item.Type = BINARY
 
 	pkgReader, err := r.Open(file.StoreID)
@@ -256,8 +256,8 @@ func (r archiveBlobStore) AddDeb(file *ChangesItem) (*ReleaseItem, error) {
 	item.Name, _ = pkg.Name()
 	item.Version, _ = pkg.Version()
 
-	fileSlice := make([]ReleaseItemFile, 1)
-	fileSlice[0] = ReleaseItemFile{
+	fileSlice := make([]ReleaseIndexItemFile, 1)
+	fileSlice[0] = ReleaseIndexItemFile{
 		Name: file.Filename,
 		ID:   file.StoreID,
 	}
@@ -266,11 +266,11 @@ func (r archiveBlobStore) AddDeb(file *ChangesItem) (*ReleaseItem, error) {
 	return &item, nil
 }
 
-func (r archiveBlobStore) ItemsFromChanges(files map[string]*ChangesItem) ([]*ReleaseItem, error) {
+func (r archiveBlobStore) ItemsFromChanges(files map[string]*ChangesItem) ([]*ReleaseIndexItem, error) {
 	var err error
 
 	// Build repository items
-	var result []*ReleaseItem
+	var result []*ReleaseIndexItem
 	for i, file := range files {
 		switch {
 		case strings.HasSuffix(i, ".deb"):
@@ -281,7 +281,7 @@ func (r archiveBlobStore) ItemsFromChanges(files map[string]*ChangesItem) ([]*Re
 			result = append(result, item)
 
 			//case strings.HasSuffix(i, ".dsc"):
-			//	var item ReleaseItemBinary
+			//	var item ReleaseIndexItemBinary
 			//	result = append(result, &item)
 		}
 	}
@@ -408,7 +408,7 @@ type repoReleaseIndexWriterHandle struct {
 	encoder *gob.Encoder
 }
 
-func (r *repoReleaseIndexWriterHandle) AddItem(item *ReleaseItem) (err error) {
+func (r *repoReleaseIndexWriterHandle) AddItem(item *ReleaseIndexItem) (err error) {
 	err = r.encoder.Encode(item)
 	return
 }
@@ -441,7 +441,7 @@ func (r archiveBlobStore) OpenReleaseIndex(id StoreID) (ReleaseIndexReader, erro
 	return &h, err
 }
 
-func (r *repoReleaseIndexReaderHandle) NextItem() (item ReleaseItem, err error) {
+func (r *repoReleaseIndexReaderHandle) NextItem() (item ReleaseIndexItem, err error) {
 	err = r.decoder.Decode(&item)
 	return
 }

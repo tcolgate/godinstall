@@ -24,7 +24,7 @@ type PruneRuleSet []*PruneRule
 // MakePruner creates a new pruner. The pruner is a function that takes
 // a repository item, and decides if it will be included or not (true
 // implies the item should be removed, false means it should be kept)
-func (rules PruneRuleSet) MakePruner() func(*ReleaseItem) bool {
+func (rules PruneRuleSet) MakePruner() func(*ReleaseIndexItem) bool {
 	currPkg := ""
 	currArch := ""
 	currEpoch := 0
@@ -34,7 +34,7 @@ func (rules PruneRuleSet) MakePruner() func(*ReleaseItem) bool {
 	currRevisionCnt := 0
 	var currRule *PruneRule
 
-	return func(item *ReleaseItem) (prune bool) {
+	return func(item *ReleaseIndexItem) (prune bool) {
 		if item.Name != currPkg || item.Architecture != currArch {
 			currPkg = item.Name
 			currArch = item.Architecture

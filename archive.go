@@ -346,7 +346,7 @@ func (a *archiveStoreArchive) AddSession(session UploadSessioner) (respStatus in
 }
 
 // Merge the content of index into the parent commit and return a new index
-func (a archiveStoreArchive) mergeItemsIntoRelease(parentid StoreID, items []*ReleaseItem) (result StoreID, actions []ReleaseLogAction, err error) {
+func (a archiveStoreArchive) mergeItemsIntoRelease(parentid StoreID, items []*ReleaseIndexItem) (result StoreID, actions []ReleaseLogAction, err error) {
 	parent, err := a.GetRelease(parentid)
 	actions = make([]ReleaseLogAction, 0)
 	if err != nil {

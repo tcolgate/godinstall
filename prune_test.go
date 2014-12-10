@@ -6,213 +6,213 @@ import (
 	"testing"
 )
 
-var testRepoPruneInput = []*ReleaseItem{
-	&ReleaseItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
+var testRepoPruneInput = []*ReleaseIndexItem{
+	&ReleaseIndexItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
-	&ReleaseItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
 
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "2"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", ""}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", ""}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 }
 
 // .*_*-*
-var testPruneOutput1 = []*ReleaseItem{
-	&ReleaseItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
+var testPruneOutput1 = []*ReleaseIndexItem{
+	&ReleaseIndexItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
-	&ReleaseItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
 
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "2"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", ""}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", ""}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 }
 
 // .*_*-0
-var testPruneOutput2 = []*ReleaseItem{
-	&ReleaseItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
+var testPruneOutput2 = []*ReleaseIndexItem{
+	&ReleaseIndexItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
-	&ReleaseItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
 
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 }
 
 // .*_*-2
-var testPruneOutput3 = []*ReleaseItem{
-	&ReleaseItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
+var testPruneOutput3 = []*ReleaseIndexItem{
+	&ReleaseIndexItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
-	&ReleaseItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
 
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "2"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 }
 
 // .*_0-*
-var testPruneOutput4 = []*ReleaseItem{
-	&ReleaseItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
+var testPruneOutput4 = []*ReleaseIndexItem{
+	&ReleaseIndexItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
-	&ReleaseItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
 
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
 
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
 }
 
 // .*_2-*
-var testPruneOutput5 = []*ReleaseItem{
-	&ReleaseItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
+var testPruneOutput5 = []*ReleaseIndexItem{
+	&ReleaseIndexItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
-	&ReleaseItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
 
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
 
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "2"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", ""}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", ""}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
 }
 
 // .*_0-0
-var testPruneOutput6 = []*ReleaseItem{
-	&ReleaseItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
+var testPruneOutput6 = []*ReleaseIndexItem{
+	&ReleaseIndexItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
-	&ReleaseItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
 
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
 
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
 }
 
 // .*_2-2
-var testPruneOutput7 = []*ReleaseItem{
-	&ReleaseItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
+var testPruneOutput7 = []*ReleaseIndexItem{
+	&ReleaseIndexItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
-	&ReleaseItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
 
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
 
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "2"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "1"}},
 }
 
 // pkgf_2-0,.*_0-0
-var testPruneOutput8 = []*ReleaseItem{
-	&ReleaseItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
+var testPruneOutput8 = []*ReleaseIndexItem{
+	&ReleaseIndexItem{Name: "pkga", Architecture: "amd64", Version: DebVersion{0, "1", ""}},
 
-	&ReleaseItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgb", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgc", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "amd64", Version: DebVersion{0, "1", "1"}},
 
-	&ReleaseItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
+	&ReleaseIndexItem{Name: "pkgd", Architecture: "source", Version: DebVersion{0, "2", "1"}},
 
-	&ReleaseItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
+	&ReleaseIndexItem{Name: "pkge", Architecture: "amd64", Version: DebVersion{0, "4", "1"}},
 
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
-	&ReleaseItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{1, "1", "1"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "3", "3"}},
+	&ReleaseIndexItem{Name: "pkgf", Architecture: "amd64", Version: DebVersion{0, "2", "2"}},
 }
 
 var testRepoPrune = []struct {
 	rules  string
-	output []*ReleaseItem
+	output []*ReleaseIndexItem
 }{
 	{".*_*-*", testPruneOutput1},
 	{".*_*-0", testPruneOutput2},
@@ -224,7 +224,7 @@ var testRepoPrune = []struct {
 	{"pkgf_2-0,.*_0-0", testPruneOutput8},
 }
 
-func formatTestItemList(items []*ReleaseItem) string {
+func formatTestItemList(items []*ReleaseIndexItem) string {
 	output := ""
 
 	for _, item := range items {
@@ -247,7 +247,7 @@ func TestPruneRules(t *testing.T) {
 			t.Errorf("TestPruneRules[%d]: ParPruneRules failed: %s", i, err.Error())
 		}
 		p := r.MakePruner()
-		var res []*ReleaseItem
+		var res []*ReleaseIndexItem
 		for _, j := range testRepoPruneInput {
 			if !p(j) {
 				res = append(res, j)
