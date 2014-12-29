@@ -20,13 +20,17 @@ type request struct {
 	err error
 }
 
-type response struct {
+type passResponse struct {
 	Message struct {
 		Complete  bool
 		Expecting map[string]struct {
 			Received bool
 		}
 	}
+}
+
+type failResponse struct {
+	Message string
 }
 
 // Streams upload directly from file -> mime/multipart -> pipe -> http-request
@@ -109,7 +113,16 @@ func cliUploadFile(c *http.Client, uri, firstfn string) error {
 				return err
 			}
 
-			var status response
+			if resp.StatusCode >= 400 {
+				var status failResponse
+				err = json.Unmarshal(body, &status)
+				if err != nil {
+					return err
+				}
+				return errors.New(status.Message)
+			}
+
+			var status passResponse
 			err = json.Unmarshal(body, &status)
 			if err != nil {
 				return err
