@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -241,7 +240,6 @@ func LoneChanges(pkg DebPackageInfoer, fileName, dist string) (*ChangesFile, err
 
 	ctrlFile, _ := pkg.Control()
 	origPara := ctrlFile.Data[0]
-	log.Println(origPara)
 	section, _ := origPara.GetValue("Section")
 	priority, _ := origPara.GetValue("Priority")
 	arch, _ := origPara.GetValue("Architecture")
