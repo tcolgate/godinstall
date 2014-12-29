@@ -8,8 +8,8 @@ import (
 // HookOutput wraps the exit code, and the output, of an executed
 // external hoo
 type HookOutput struct {
-	output []byte `json:",omitempty"` // Output of the commands
-	err    error  `json:",omitempty"` // Error information as returned by the hook
+	output []byte // Output of the commands
+	err    error  // Error information as returned by the hook
 }
 
 func (ho HookOutput) Error() string {

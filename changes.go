@@ -256,7 +256,7 @@ func LoneChanges(pkg DebPackageInfoer, fileName, dist string) (*ChangesFile, err
 	newPara.AddValue("Maintainer", maintainer)
 	newPara.AddValue("Distribution", dist)
 	newPara.AddValue("Description", "")
-	newPara.AddValue("Description", fmt.Sprintf("%s - %s", desc))
+	newPara.AddValue("Description", fmt.Sprintf("%s - %s", name, desc))
 	newPara.AddValue("Changes", "")
 
 	newPara.SetValue("Files", "")

@@ -79,8 +79,8 @@ func NewReleaseIndexEntry(u *UploadSession) (*ReleaseIndexEntry, error) {
 				return nil, fmt.Errorf(
 					"Uploaded file version for %s (%s) does not match changes file version %s",
 					f.Name,
-					uv,
-					binVersion,
+					uv.String(),
+					binVersion.String(),
 				)
 			}
 
