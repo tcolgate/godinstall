@@ -139,6 +139,18 @@ func main() {
 			Usage:  "run a repository server",
 			Action: CmdServe,
 		},
+		cli.Command{
+			Name: "upload",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "url",
+					Value: "http://localhost:3000/dists/master/upload",
+					Usage: "URL to upload to",
+				},
+			},
+			Usage:  "publish a package to a repository",
+			Action: CmdUpload,
+		},
 	}
 
 	app.Run(os.Args)
