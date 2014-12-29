@@ -1,3 +1,9 @@
+godinstall (0.6.0) precise; urgency=medium
+
+  * Non-maintainer upload.
+
+ -- tristan <tristan@localhost>  Mon, 29 Dec 2014 09:12:19 +0000
+
 godinstall (0.5.0) precise; urgency=low
 
   * Big refactor of on disk format to support
