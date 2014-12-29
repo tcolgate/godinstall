@@ -202,7 +202,6 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 			}
 		case "PUT", "POST":
 			{
-				log.Println("got here ", r)
 				changesReader, otherParts, err := ChangesFromHTTPRequest(r)
 				if err != nil {
 					resp = AptServerMessage(http.StatusBadRequest, err.Error())

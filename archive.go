@@ -257,7 +257,6 @@ func (a *archiveStoreArchive) updatePool(release *Release) error {
 			filename := s.Name
 			path := poolpath + filename
 			err = a.Link(s.StoreID, path)
-			log.Println(path)
 			if err != nil {
 				return err
 			}
