@@ -65,7 +65,13 @@ $ godinstall serve -repo-base ./testrepo \
              -verify-debs=false
 ```
 
-To upload a package, either upload all the files and the changes file in one PUT:
+The binary includes an upload client
+```
+$ cd mypkgsdir
+$ godinstall upload mypackage.changes
+```
+
+To upload a package via the api, either upload all the files and the changes file in one PUT:
 ```
 curl -v -c cookie.jar  -XPOST -F 'debfiles=@woot.changes' -F 'debfiles=@collectd-core_5.4.0-3_amd64.deb' -F 'debfiles=@collectd_5.4.0-3_amd64.deb'  http://localhost:3000/dists/mydist/upload/$SESSION
 ```
