@@ -162,7 +162,7 @@ func (r archiveBlobStore) runGC() {
 			size, _ := r.Size(id)
 			gcBytes += size
 			log.Println("Removing unused blob ", id.String())
-			//r.UnLink(id)
+			r.UnLink(id)
 		}
 	}
 	r.ForEach(f)
