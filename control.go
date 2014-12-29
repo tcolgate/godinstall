@@ -98,9 +98,12 @@ func ParseDebianControl(rawin io.Reader, kr openpgp.EntityList) (ControlFile, er
 		switch {
 		case line == "":
 			{
-				var newp = MakeControlParagraph()
-				c.Data = append(c.Data, &newp)
-				currfield = ""
+				// Skip empty sections, seen in some debs
+				if len(c.Data) != 0 {
+					var newp = MakeControlParagraph()
+					c.Data = append(c.Data, &newp)
+					currfield = ""
+				}
 			}
 		case line[0] == ' ', line[0] == '\t':
 			{
