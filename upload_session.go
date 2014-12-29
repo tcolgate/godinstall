@@ -16,26 +16,30 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 )
 
+// UploadFile holds information about a file that has been uploaded. It
+// includes the storage location. If it is a deb, or dsc, additional information
+// about signatures is provided
 type UploadFile struct {
 	Name             string
 	Received         bool
 	Size             int64
 	SignedBy         []string   `json:",omitempty"`
 	UploadHookResult HookOutput `json:",omitempty"`
-	pkg              DebPackageInfoer
-	reader           io.Reader
-	storeID          StoreID
-	controlID        StoreID
+
+	pkg       DebPackageInfoer
+	reader    io.Reader
+	storeID   StoreID
+	controlID StoreID
 }
 
-// Base session information
+// UploadSession holds the information relating to an active upload session
 type UploadSession struct {
 	SessionID   string                 // Name of the session
 	ReleaseName string                 // The release this is meant for
 	Expecting   map[string]*UploadFile // The files we are expecting in this upload
 	LoneDeb     bool                   // Is user attempting to upload a lone deb
 	Complete    bool                   // The files we are expecting in this upload
-	Ttl         time.Duration          // How long should this session stick around for
+	TTL         time.Duration          // How long should this session stick around for
 
 	usm       *UploadSessionManager
 	dir       string       // Temporary directory for storage
@@ -54,14 +58,17 @@ type UploadSession struct {
 	done chan struct{} // A channel to be informed of closure on
 }
 
+// ID returns the ID of this session
 func (s *UploadSession) ID() string {
 	return s.SessionID
 }
 
+// Directory  returns the working directory of this session
 func (s *UploadSession) Directory() string {
 	return s.dir
 }
 
+// MarshalJSON implements the json.Marshal interface
 func (s *UploadSession) MarshalJSON() (j []byte, err error) {
 	return json.Marshal(*s)
 }
@@ -80,7 +87,7 @@ func NewUploadSession(
 	s.SessionID = uuid.New()
 	s.ReleaseName = releaseName
 	s.usm = uploadSessionManager
-	s.Ttl = s.usm.TTL
+	s.TTL = s.usm.TTL
 	s.LoneDeb = loneDeb
 	s.done = make(chan struct{})
 	s.finished = finished
@@ -159,7 +166,7 @@ func (s *UploadSession) handler() {
 		close(s.done)
 	}()
 
-	timeout := time.After(s.Ttl)
+	timeout := time.After(s.TTL)
 	for {
 		select {
 		case <-timeout:
@@ -216,14 +223,19 @@ func (s *UploadSession) handler() {
 	}
 }
 
+// Close is used to indicate that a session is finished
 func (s *UploadSession) Close() {
 	s.close <- closeMsg{}
 }
 
+// Done returns a channels that can be used to be informed of
+// the completiong of a session
 func (s *UploadSession) Done() chan struct{} {
 	return s.done
 }
 
+// Status returns a server response indivating the running state
+// of the session
 func (s *UploadSession) Status() AptServerResponder {
 	c := make(chan AptServerResponder)
 	s.getstatus <- getStatusMsg{
@@ -232,6 +244,8 @@ func (s *UploadSession) Status() AptServerResponder {
 	return <-c
 }
 
+// AddFile adds an uploaded file to the given session, taking hashes,
+// and placing it in the archive store.
 func (s *UploadSession) AddFile(upload *UploadFile) AptServerResponder {
 	c := make(chan AptServerResponder)
 	s.incoming <- addItemMsg{

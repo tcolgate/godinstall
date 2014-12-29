@@ -160,7 +160,7 @@ func compareComponent(a string, b string) int {
 	return 0
 }
 
-// Useful for writing tests
+// MustParseDebVersion panic if debversion doesn't parse, Useful for writing tests
 func MustParseDebVersion(str string) (version DebVersion) {
 	ver, err := ParseDebVersion(str)
 	if err != nil {

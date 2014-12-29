@@ -18,12 +18,14 @@ import (
 
 const rfc2822DateLayout = "Mon, 02 Jan 2006 15:04:05 -0700"
 
-// ParseDebianDate parses an rc2822 date as used by debian
+// ParseDebianDate parses an rfc2822 date as used by debian
 // control files
 func ParseDebianDate(s string) (time.Time, error) {
 	return time.Parse(rfc2822DateLayout, s)
 }
 
+// DebFormatTime formats a go time.Time as per the debian standard
+// usage (rfc2822)
 func DebFormatTime(t time.Time) string {
 	return t.Format(rfc2822DateLayout)
 }

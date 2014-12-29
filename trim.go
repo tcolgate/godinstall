@@ -33,7 +33,7 @@ func MakeLengthTrimmer(commitcount int) Trimmer {
 	}
 }
 
-// TrimReleaseHistory works through the release history and attempts to apply
+// TrimHistory works through the release history and attempts to apply
 // the promvided Trimmer. If the current active release history is longer than
 // the trimmer allows, a new release will be created with the number of commits
 // after the parent release to trim beyond in the TrimAfter field.

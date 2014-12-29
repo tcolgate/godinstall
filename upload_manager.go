@@ -51,7 +51,7 @@ func NewUploadSessionManager(
 	}
 }
 
-// This retrieves a given upload session by the session's id
+// GetSession retrieves a given upload session by the session's id
 func (usm *UploadSessionManager) GetSession(sid string) (UploadSession, bool) {
 	val := usm.sessMap.Get(sid)
 	if val == nil {
@@ -70,7 +70,7 @@ func (usm *UploadSessionManager) GetSession(sid string) (UploadSession, bool) {
 	}
 }
 
-// Add a new upload session based on the details from the passed
+// NewSession adds a new upload session based on the details from the passed
 // debian changes file.
 func (usm *UploadSessionManager) NewSession(branchName string, changesReader io.Reader, loneDeb bool) (string, error) {
 	var err error

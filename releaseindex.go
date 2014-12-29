@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// ReleaseIndexEntryFile repesent one file that makes up part of an
+// ReleaseIndexEntryItemFile repesent one file that makes up part of an
 // item in the repository. A Binary item will only have one
 // file (the deb package), but a Source item may have many
 type ReleaseIndexEntryItemFile struct {
@@ -23,6 +23,8 @@ type ReleaseIndexEntryItemFile struct {
 	SignedBy []string
 }
 
+// ReleaseIndexEntryItem represents one item, binary or source, making up
+// part of a ReleaseIndexEntry
 type ReleaseIndexEntryItem struct {
 	Name         string
 	Version      DebVersion
@@ -40,7 +42,9 @@ type ReleaseIndexEntry struct {
 	ChangesID   StoreID // StoreID for the changes data
 }
 
-// NewReleaseIndexEntry
+// NewReleaseIndexEntry  turns an UploadSession (a collection of hash verified
+// files), into an entry suitable for adding to a release index, by indeitfying
+// binary items, and grouping source files into a source item.
 func NewReleaseIndexEntry(u *UploadSession) (*ReleaseIndexEntry, error) {
 	srcItem := ReleaseIndexEntryItem{
 		Name:         u.changes.Source,
@@ -125,7 +129,7 @@ func (a ByReleaseIndexEntryOrder) Less(i, j int) bool {
 	return false
 }
 
-// ReleaseIndexOrder implements  the order we want items to appear in the index
+// ReleaseIndexEntryOrder implements  the order we want items to appear in the index
 func ReleaseIndexEntryOrder(a, b *ReleaseIndexEntry) int {
 	nameCmp := bytes.Compare([]byte(a.SourceItem.Name), []byte(b.SourceItem.Name))
 	if nameCmp != 0 {
@@ -139,7 +143,7 @@ func ReleaseIndexEntryOrder(a, b *ReleaseIndexEntry) int {
 	return debCmp
 }
 
-// ByReleaseIndexEntryOrder implements sort.Interface for []ReleaseIndexEntry.
+// ByReleaseIndexEntryItemOrder implements sort.Interface for []ReleaseIndexItemEntry.
 // Packages are sorted by:
 //  - Alphabetical package name
 //  - Alphabetical architecture
@@ -156,7 +160,8 @@ func (a ByReleaseIndexEntryItemOrder) Less(i, j int) bool {
 	return false
 }
 
-// ReleaseIndexOrder implements  the order we want items to appear in the index
+// ReleaseIndexEntryItemOrder implements an order for individual items within
+// a ReleaseIndexEntry
 func ReleaseIndexEntryItemOrder(a, b *ReleaseIndexEntryItem) int {
 	nameCmp := bytes.Compare([]byte(a.Name), []byte(b.Name))
 	if nameCmp != 0 {

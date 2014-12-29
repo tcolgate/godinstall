@@ -425,7 +425,7 @@ func (d *debPackage) parseDebPackage() (err error) {
 	return nil
 }
 
-// FormatControlFile outputs a debian control file, with some commong fields in
+// FormatDpkgControlFile outputs a debian control file, with some commong fields in
 // a sensible order
 func FormatDpkgControlFile(ctrlWriter io.Writer, paragraphs ControlFile) {
 	debStartFields := []string{"Package", "Version", "Filename", "Directory", "Size"}

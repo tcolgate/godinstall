@@ -16,11 +16,18 @@ import (
 	"code.google.com/p/go.crypto/openpgp"
 )
 
+// ChangesFilesIndex is used to index individual entries in the list
+// of hashes in a changes file entry
 type ChangesFilesIndex struct {
 	Name string
 	Size int64
 }
+
+// ChangesFilesHashSet lists the results of the various hashes
 type ChangesFilesHashSet map[string][]byte
+
+// ChangesFilesHashMap maps a given file of a given size to a set
+// of hash results
 type ChangesFilesHashMap map[ChangesFilesIndex]ChangesFilesHashSet
 
 // ChangesFile represents a debian changes file. A changes file
