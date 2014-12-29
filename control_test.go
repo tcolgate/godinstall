@@ -33,9 +33,20 @@ var testDebControlEmptyStart = []string{
 	" val3",
 }
 
+var testDebControlEmptyStartResult = []string{
+	"Package: first",
+	"fieldb: bit of stuff",
+	"fieldc: and other stuff",
+	"thiny2: ",
+	" val1",
+	" val2",
+	" val3",
+}
+
 // Check that we output unknown fields in a consistant order
 func TestDebControlEmptyStart(t *testing.T) {
 	inStr := strings.Join(testDebControlEmptyStart, "\n") + "\n"
+	resStr := strings.Join(testDebControlEmptyStartResult, "\n") + "\n"
 
 	paragraphs, err := ParseDebianControl(strings.NewReader(inStr), nil)
 	if err != nil {
@@ -47,7 +58,7 @@ func TestDebControlEmptyStart(t *testing.T) {
 	debEndFields := []string{"MD5Sum", "MD5sum", "SHA1", "SHA256", "Description"}
 	WriteDebianControl(&buf, paragraphs, debStartFields, debEndFields)
 	outStr := string(buf.Bytes())
-	if outStr != inStr {
+	if outStr != resStr {
 		t.Errorf("\nExpected:\n%s\nGot:\n%s", inStr, outStr)
 	}
 }

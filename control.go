@@ -99,7 +99,7 @@ func ParseDebianControl(rawin io.Reader, kr openpgp.EntityList) (ControlFile, er
 		case line == "":
 			{
 				// Skip empty sections, seen in some debs
-				if len(c.Data) != 0 {
+				if len(*currpara) != 0 {
 					var newp = MakeControlParagraph()
 					c.Data = append(c.Data, &newp)
 					currfield = ""

@@ -365,7 +365,7 @@ func (d *debPackage) parseDebPackage() (err error) {
 				if err == io.EOF {
 					break
 				}
-				if tarHeader.Name == "./control" {
+				if tarHeader.Name == "./control" || tarHeader.Name == "control" {
 					io.Copy(&controlBytes, tarReader)
 				}
 			}
