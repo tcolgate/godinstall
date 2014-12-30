@@ -368,7 +368,12 @@ func (a *archiveStoreArchive) AddUpload(session *UploadSession) (respStatus int,
 		return respStatus, respObj, err
 	}
 
-	a.SetDist(branchName, newhead)
+	err = a.SetDist(branchName, newhead)
+	if err != nil {
+		respStatus = http.StatusInternalServerError
+		respObj = "Setting dist ref failed," + err.Error()
+		return respStatus, respObj, err
+	}
 	log.Printf("Branch %v set to %v", branchName, StoreID(newhead).String())
 
 	err = a.ReifyRelease(newhead)

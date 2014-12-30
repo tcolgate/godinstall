@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -280,6 +281,12 @@ func (t *sha1Store) SetRef(name string, id StoreID) error {
 	refsPath := t.baseDir + "/refs/"
 	refDir := refsPath
 
+	refLog, err := os.OpenFile(t.baseDir+"/reflog", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return errors.New("Could not open reflog, " + err.Error())
+	}
+	defer refLog.Close()
+
 	prefix := strings.LastIndex(name, "/")
 	if prefix > -1 {
 		refDir = refDir + name[0:prefix+1]
@@ -291,7 +298,30 @@ func (t *sha1Store) SetRef(name string, id StoreID) error {
 
 	refFile := refDir + name + ".ref"
 
-	err := os.MkdirAll(refDir, 0777)
+	newRef := false
+
+	oldRef, err := ioutil.ReadFile(refFile)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return errors.New("Could not read old reference, " + err.Error())
+		}
+		newRef = true
+	} else {
+		newRef = false
+	}
+
+	err = os.MkdirAll(refDir, 0777)
+	log.Println("MkdirAll on ", refDir, err)
+	if err != nil {
+		return err
+	}
+
+	if newRef {
+		_, err = refLog.WriteString(fmt.Sprintf("Create:%s:%s\n", refFile, id.String()))
+	} else {
+		_, err = refLog.WriteString(fmt.Sprintf("Update:%s:%s(%s)\n", refFile, id.String(), oldRef))
+	}
+	log.Println("Wrote reflog line", err)
 	if err != nil {
 		return err
 	}
