@@ -4,14 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"expvar"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/pprof"
+	"os"
+	"regexp"
 
 	"strings"
 	"time"
 
 	"code.google.com/p/go.crypto/openpgp"
+	"github.com/codegangsta/cli"
 	"github.com/gorilla/mux"
 )
 
@@ -443,4 +448,200 @@ func (a *AptServer) Updater() {
 type UpdateRequest struct {
 	resp    chan AptServerResponder
 	session *UploadSession
+}
+
+// CmdServe is the implementation of the godinstall "serve" command
+func CmdServe(c *cli.Context) {
+	// Setup CLI flags
+	listenAddress := c.String("listen")
+	ttl := c.String("ttl")
+	maxReqs := c.Int("max-requests")
+	repoBase := c.String("repo-base")
+	cookieName := c.String("cookie-name")
+	uploadHook := c.String("upload-hook")
+	preGenHook := c.String("pre-gen-hook")
+	postGenHook := c.String("post-gen-hook")
+	poolPattern := c.String("pool-pattern")
+	verifyChanges := c.Bool("verify-changes")
+	verifyChangesSufficient := c.Bool("verify-changes-sufficient")
+	acceptLoneDebs := c.Bool("accept-lone-debs")
+	verifyDebs := c.Bool("verify-debs")
+	pubringFile := c.String("gpg-pubring")
+	privringFile := c.String("gpg-privring")
+	signerEmail := c.String("signer-email")
+	pruneRulesStr := c.String("prune")
+	autoTrim := c.Bool("auto-trim")
+	trimLen := c.Int("auto-trim-length")
+
+	flag.Parse()
+
+	if repoBase == "" {
+		log.Println("You must pass --repo-base")
+		return
+	}
+
+	expire, err := time.ParseDuration(ttl)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	var pubRing openpgp.EntityList
+	if pubringFile != "" {
+		pubringReader, err := os.Open(pubringFile)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+
+		pubRing, err = openpgp.ReadKeyRing(pubringReader)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+	}
+
+	var privRing openpgp.EntityList
+	if privringFile != "" {
+		privringReader, err := os.Open(privringFile)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+
+		privRing, err = openpgp.ReadKeyRing(privringReader)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+	}
+
+	if verifyChanges || verifyDebs {
+		if privRing == nil || pubRing == nil {
+			log.Println("Validation requested, but keyrings not loaded")
+			return
+		}
+	}
+
+	var signerID *openpgp.Entity
+	if signerEmail != "" {
+		signerID = getKeyByEmail(privRing, signerEmail)
+		if signerID == nil {
+			log.Println("Can't find signer id in keyring")
+			return
+		}
+
+		err = signerID.PrivateKey.Decrypt([]byte(""))
+		if err != nil {
+			log.Println("Can't decrypt private key, " + err.Error())
+			return
+		}
+	}
+
+	updateChan := make(chan UpdateRequest)
+
+	storeDir := repoBase + "/store"
+	tmpDir := repoBase + "/tmp"
+	publicDir := repoBase + "/archive"
+
+	_, patherr := os.Stat(publicDir)
+	if os.IsNotExist(patherr) {
+		err = os.Mkdir(publicDir, 0777)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+	}
+	_, patherr = os.Stat(storeDir)
+	if os.IsNotExist(patherr) {
+		err = os.Mkdir(storeDir, 0777)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+	}
+
+	_, patherr = os.Stat(tmpDir)
+	if os.IsNotExist(patherr) {
+		err = os.Mkdir(tmpDir, 0777)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+	}
+
+	pruneRules, err := ParsePruneRules(pruneRulesStr)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	// We make sure the default pool pattern is a valid rege
+	_, err = regexp.CompilePOSIX("^(" + poolPattern + ")")
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	var getTrimmer func() Trimmer
+
+	if autoTrim {
+		getTrimmer = func() Trimmer {
+			return MakeLengthTrimmer(trimLen)
+		}
+	} else {
+		getTrimmer = func() Trimmer {
+			return nil
+		}
+	}
+
+	archive := NewAptBlobArchive(
+		privRing,
+		signerID,
+		&storeDir,
+		&tmpDir,
+		&publicDir,
+		pruneRules,
+		getTrimmer,
+		poolPattern,
+	)
+
+	uploadSessionManager := NewUploadSessionManager(
+		expire,
+		&tmpDir,
+		archive,
+		NewScriptHook(&uploadHook),
+		verifyChanges,
+		verifyChangesSufficient,
+		verifyDebs,
+		pubRing,
+		updateChan,
+	)
+
+	server := &AptServer{
+		MaxReqs:        maxReqs,
+		CookieName:     cookieName,
+		PreGenHook:     NewScriptHook(&preGenHook),
+		PostGenHook:    NewScriptHook(&postGenHook),
+		AcceptLoneDebs: acceptLoneDebs,
+
+		Archive:        archive,
+		SessionManager: uploadSessionManager,
+		UpdateChannel:  updateChan,
+		PubRing:        pubRing,
+	}
+
+	r := mux.NewRouter()
+
+	// We'll hook up all the normal debug business
+	r.HandleFunc("/debug/pprof/", pprof.Index)
+	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	r.Handle("/debug/vars", http.DefaultServeMux)
+
+	server.InitAptServer()
+	server.Register(r)
+
+	http.ListenAndServe(listenAddress, r)
 }
