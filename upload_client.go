@@ -22,6 +22,7 @@ type request struct {
 
 type passResponse struct {
 	Complete  bool
+	SessionID string
 	Expecting map[string]struct {
 		Received bool
 	}
@@ -85,6 +86,8 @@ func cliUploadFile(c *http.Client, uri, firstfn string) error {
 	switch {
 	case strings.HasSuffix(firstfn, ".deb"), strings.HasSuffix(firstfn, ".changes"):
 		fns := []string{firstfn}
+		sessionid := ""
+
 		for {
 			if len(fns) == 0 {
 				return nil
@@ -129,6 +132,11 @@ func cliUploadFile(c *http.Client, uri, firstfn string) error {
 			if status.Complete {
 				log.Printf("Completed %s", firstfn)
 				return nil
+			}
+
+			if sessionid == "" {
+				sessionid = status.SessionID
+				uri = uri + "/" + sessionid
 			}
 
 			for k, v := range status.Expecting {
