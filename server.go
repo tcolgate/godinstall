@@ -121,24 +121,15 @@ func AptServerMessage(status int, msg interface{}) AptServerResponder {
 	switch t := msg.(type) {
 	case json.Marshaler:
 		{
-			j, err = json.Marshal(
-				struct {
-					StatusCode int
-					Message    json.Marshaler
-				}{
-					status,
-					t,
-				})
+			j, err = json.Marshal(t)
 			resp.message = j
 		}
 	case string:
 		{
 			j, err = json.Marshal(
 				struct {
-					StatusCode int
-					Message    string
+					Message string
 				}{
-					status,
 					t,
 				})
 			resp.message = j
@@ -147,10 +138,8 @@ func AptServerMessage(status int, msg interface{}) AptServerResponder {
 		{
 			j, err = json.Marshal(
 				struct {
-					StatusCode int
-					Message    string
+					Message string
 				}{
-					status,
 					t.(string),
 				})
 			resp.message = j

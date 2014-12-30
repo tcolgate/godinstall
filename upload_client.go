@@ -21,11 +21,9 @@ type request struct {
 }
 
 type passResponse struct {
-	Message struct {
-		Complete  bool
-		Expecting map[string]struct {
-			Received bool
-		}
+	Complete  bool
+	Expecting map[string]struct {
+		Received bool
 	}
 }
 
@@ -128,12 +126,12 @@ func cliUploadFile(c *http.Client, uri, firstfn string) error {
 				return err
 			}
 
-			if status.Message.Complete {
+			if status.Complete {
 				log.Printf("Completed %s", firstfn)
 				return nil
 			}
 
-			for k, v := range status.Message.Expecting {
+			for k, v := range status.Expecting {
 				if !v.Received {
 					fns = append(fns, k)
 				}
