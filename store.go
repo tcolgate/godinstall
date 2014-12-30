@@ -311,7 +311,6 @@ func (t *sha1Store) SetRef(name string, id StoreID) error {
 	}
 
 	err = os.MkdirAll(refDir, 0777)
-	log.Println("MkdirAll on ", refDir, err)
 	if err != nil {
 		return err
 	}
@@ -321,9 +320,13 @@ func (t *sha1Store) SetRef(name string, id StoreID) error {
 	} else {
 		_, err = refLog.WriteString(fmt.Sprintf("Update:%s:%s(%s)\n", refFile, id.String(), oldRef))
 	}
-	log.Println("Wrote reflog line", err)
 	if err != nil {
-		return err
+		return errors.New("Failed writing reflog, " + err.Error())
+	}
+
+	err = refLog.Sync()
+	if err != nil {
+		return errors.New("Failed syncing reflog, " + err.Error())
 	}
 
 	err = ioutil.WriteFile(refFile, []byte(id.String()), 0777)
