@@ -97,10 +97,27 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 
 	go func() {
 		// We can't use defer to clean up the TempFile, as
-		// we must ensure it is delete before we return success
+		// we must ensure it is deleted before we return success
 		// to the calling channel. Should probably rewrite this
 
 		extraLink := <-doneChan
+
+		err := file.Sync()
+		if err != nil {
+			err = errors.New("failed to sync blob, " + err.Error())
+			os.Remove(file.Name())
+			writer.complete <- err
+			return
+		}
+
+		err = file.Close()
+		if err != nil {
+			err = errors.New("failed to close blob, " + err.Error())
+			os.Remove(file.Name())
+			writer.complete <- err
+			return
+		}
+
 		id, err := writer.Identity()
 		if err != nil {
 			err = errors.New("failed to rewtrieve hash of blob, " + err.Error())
