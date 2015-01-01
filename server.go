@@ -15,19 +15,15 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/go.crypto/openpgp"
 	"github.com/codegangsta/cli"
 	"github.com/gorilla/mux"
 )
 
 // AptServer describes a web server
 type AptServer struct {
-	MaxReqs    int                // The maximum nuber of concurrent requests we'll handle
-	CookieName string             // The session cookie name for uploads
-	TTL        time.Duration      // How long to keep session alive
-	PubRing    openpgp.EntityList // public keyring for checking changes files
-
-	AcceptLoneDebs bool // Whether we should allow individual deb uploads
+	MaxReqs    int           // The maximum nuber of concurrent requests we'll handle
+	CookieName string        // The session cookie name for uploads
+	TTL        time.Duration // How long to keep session alive
 
 	Archive        Archiver              // The generator for updating the repo
 	SessionManager *UploadSessionManager // The session manager
@@ -207,9 +203,17 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 
 				if session == "" {
 					// We don't have an active session, lets create one
+					rel, err := a.Archive.GetDist(branchName)
+					if err != nil {
+						resp = AptServerMessage(http.StatusBadRequest, err.Error())
+						w.WriteHeader(resp.GetStatus())
+						w.Write(resp.GetMessage())
+						return
+					}
+
 					var loneDeb bool
 					if changesReader == nil {
-						if !a.AcceptLoneDebs {
+						if !rel.Config().AcceptLoneDebs {
 							err = errors.New("No debian changes file in request")
 							resp = AptServerMessage(http.StatusBadRequest, err.Error())
 							w.WriteHeader(resp.GetStatus())
@@ -234,14 +238,6 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 						}
 
 						loneDeb = true
-					}
-
-					rel, err := a.Archive.GetDist(branchName)
-					if err != nil {
-						resp = AptServerMessage(http.StatusBadRequest, err.Error())
-						w.WriteHeader(resp.GetStatus())
-						w.Write(resp.GetMessage())
-						return
 					}
 
 					session, err = a.SessionManager.NewSession(rel, changesReader, loneDeb)
@@ -475,9 +471,6 @@ func CmdServe(c *cli.Context) {
 	verifyChangesSufficient := c.Bool("verify-changes-sufficient")
 	acceptLoneDebs := c.Bool("accept-lone-debs")
 	verifyDebs := c.Bool("verify-debs")
-	pubringFile := c.String("gpg-pubring")
-	privringFile := c.String("gpg-privring")
-	signerEmail := c.String("signer-email")
 	pruneRulesStr := c.String("prune")
 	autoTrim := c.Bool("auto-trim")
 	trimLen := c.Int("auto-trim-length")
@@ -493,58 +486,6 @@ func CmdServe(c *cli.Context) {
 	if err != nil {
 		log.Println(err.Error())
 		return
-	}
-
-	var pubRing openpgp.EntityList
-	if pubringFile != "" {
-		pubringReader, err := os.Open(pubringFile)
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
-
-		pubRing, err = openpgp.ReadKeyRing(pubringReader)
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
-	}
-
-	var privRing openpgp.EntityList
-	if privringFile != "" {
-		privringReader, err := os.Open(privringFile)
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
-
-		privRing, err = openpgp.ReadKeyRing(privringReader)
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
-	}
-
-	if verifyChanges || verifyDebs {
-		if privRing == nil || pubRing == nil {
-			log.Println("Validation requested, but keyrings not loaded")
-			return
-		}
-	}
-
-	var signerID *openpgp.Entity
-	if signerEmail != "" {
-		signerID = getKeyByEmail(privRing, signerEmail)
-		if signerID == nil {
-			log.Println("Can't find signer id in keyring")
-			return
-		}
-
-		err = signerID.PrivateKey.Decrypt([]byte(""))
-		if err != nil {
-			log.Println("Can't decrypt private key, " + err.Error())
-			return
-		}
 	}
 
 	updateChan := make(chan UpdateRequest)
@@ -586,7 +527,7 @@ func CmdServe(c *cli.Context) {
 	}
 
 	// We make sure the default pool pattern is a valid rege
-	_, err = regexp.CompilePOSIX("^(" + poolPattern + ")")
+	poolRe, err := regexp.CompilePOSIX("^(" + poolPattern + ")")
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -600,7 +541,7 @@ func CmdServe(c *cli.Context) {
 		PruneRules:              pruneRulesStr,
 		AutoTrim:                autoTrim,
 		AutoTrimLength:          trimLen,
-		PoolPattern:             poolPattern,
+		PoolPattern:             poolRegexp{poolRe},
 	}
 
 	archive := NewAptBlobArchive(

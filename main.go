@@ -11,22 +11,8 @@ import (
 	_ "expvar"
 	"os"
 
-	"code.google.com/p/go.crypto/openpgp"
 	"github.com/codegangsta/cli"
 )
-
-// Looks an email address up in a pgp keyring
-func getKeyByEmail(keyring openpgp.EntityList, email string) *openpgp.Entity {
-	for _, entity := range keyring {
-		for _, ident := range entity.Identities {
-			if ident.UserId.Email == email {
-				return entity
-			}
-		}
-	}
-
-	return nil
-}
 
 func main() {
 	app := cli.NewApp()
@@ -79,52 +65,37 @@ func main() {
 					Usage: "Script to run after archive regeneration",
 				},
 				cli.StringFlag{
-					Name:  "pool-pattern",
+					Name:  "default-pool-pattern",
 					Value: "[a-z]|lib[a-z]",
 					Usage: "A pattern to match package prefixes to split into directories in the pool",
 				},
 				cli.BoolTFlag{
-					Name:  "verify-changes",
+					Name:  "default-verify-changes",
 					Usage: "Verify signatures on changes files",
 				},
 				cli.BoolTFlag{
-					Name:  "verify-changes-sufficient",
+					Name:  "default-verify-changes-sufficient",
 					Usage: "If we are given a signed chnages file, we wont verify individual debs",
 				},
 				cli.BoolTFlag{
-					Name:  "accept-lone-debs",
+					Name:  "default-accept-lone-debs",
 					Usage: "Accept individual debs for upload",
 				},
 				cli.BoolTFlag{
-					Name:  "verify-debs",
+					Name:  "default-verify-debs",
 					Usage: "Verify signatures on deb files",
 				},
 				cli.StringFlag{
-					Name:  "gpg-pubring",
-					Value: "",
-					Usage: "Public keyring file",
-				},
-				cli.StringFlag{
-					Name:  "gpg-privring",
-					Value: "",
-					Usage: "Private keyring file",
-				},
-				cli.StringFlag{
-					Name:  "signer-email",
-					Value: "",
-					Usage: "Key Email to use for signing releases",
-				},
-				cli.StringFlag{
-					Name:  "prune",
+					Name:  "default-prune",
 					Value: ".*_*-*",
 					Usage: "Rules for package pruning",
 				},
 				cli.BoolFlag{
-					Name:  "auto-trim",
+					Name:  "default-auto-trim",
 					Usage: "Automatically trim branch history",
 				},
 				cli.IntFlag{
-					Name:  "auto-trim-length",
+					Name:  "default-auto-trim-length",
 					Value: 10,
 					Usage: "Rules for package pruning",
 				},

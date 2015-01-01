@@ -114,8 +114,13 @@ func NewUploadSession(
 			return UploadSession{}, err
 		}
 
+		kr, err := s.release.PubRing()
+		if err != nil {
+			return UploadSession{}, errors.New("Reading pubring failed failed,  " + err.Error())
+		}
+
 		changesReader, _ = s.usm.Store.Open(s.changesID)
-		changes, err := ParseDebianChanges(changesReader, rel.Config().PubRing())
+		changes, err := ParseDebianChanges(changesReader, kr)
 
 		if rel.Config().VerifyChanges && !changes.Control.Signed {
 			err = errors.New("Changes file was not signed")
@@ -316,7 +321,11 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 		{
 			f, _ := s.usm.Store.Open(id)
 			defer f.Close()
-			pkg := NewDebPackage(f, s.release.Config().PubRing())
+			kr, err := s.release.PubRing()
+			if err != nil {
+				return errors.New("Reading pubring failed failed,  " + err.Error())
+			}
+			pkg := NewDebPackage(f, kr)
 			_, err = pkg.Name()
 			if err != nil {
 				return errors.New("upload deb failed,  " + err.Error())
@@ -382,7 +391,11 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 		{
 			f, _ := s.usm.Store.Open(id)
 			defer f.Close()
-			ctrl, err := ParseDebianControl(f, s.release.Config().PubRing())
+			kr, err := s.release.PubRing()
+			if err != nil {
+				return errors.New("Reading pubring failed failed,  " + err.Error())
+			}
+			ctrl, err := ParseDebianControl(f, kr)
 			if err != nil {
 				return errors.New("Parsing dsc failed, " + err.Error())
 			}

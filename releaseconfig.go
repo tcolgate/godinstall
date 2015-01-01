@@ -1,11 +1,6 @@
 package main
 
-import (
-	"log"
-	"regexp"
-
-	"code.google.com/p/go.crypto/openpgp"
-)
+import "regexp"
 
 // ReleaseConfig is used for configuration options which can be set and managed
 // on a per-release basis. For instance, we may wish to vary the list of pgp
@@ -16,7 +11,7 @@ type ReleaseConfig struct {
 	VerifyDebs              bool
 	AcceptLoneDebs          bool
 
-	PoolPattern string
+	PoolPattern poolRegexp
 
 	AutoTrim       bool
 	AutoTrimLength int
@@ -26,40 +21,24 @@ type ReleaseConfig struct {
 	PublicKeyIDs []StoreID
 	SigningKeyID StoreID
 
-	poolPattern *regexp.Regexp
-	pruneRules  *PruneRuleSet
+	pruneRules *PruneRuleSet
 }
 
-type httpReleaseConfig struct {
-	VerifyChanges           *bool
-	VerifyChangesSufficient *bool
-	VerifyDebs              *bool
-	AcceptLoneDebs          *bool
-
-	PoolPattern string
-
-	AutoTrim       *bool
-	AutoTrimLength int
-
-	PruneRules string
-
-	PublicKeyIDs []string
-	SigningKeyID string
+type poolRegexp struct {
+	*regexp.Regexp
 }
 
-func (r *ReleaseConfig) PoolPatternRegexp() *regexp.Regexp {
-	if r.poolPattern == nil {
-		var err error
-		r.poolPattern, err = regexp.CompilePOSIX("^(" + r.PoolPattern + ")")
-		if err != nil {
-			log.Println("Failed to compile regexp for stored release config pool pattern, " + err.Error())
-		}
+func (r poolRegexp) BinaryMarshal() ([]byte, error) {
+	return []byte(r.String()), nil
+}
+
+func (r *poolRegexp) BinaryUnMarshal(bs []byte) error {
+	str := string(bs)
+	re, err := regexp.Compile(str)
+	if err != nil {
+		return err
 	}
-
-	return r.poolPattern
-}
-
-func (r *ReleaseConfig) SignerKey() *openpgp.Entity {
+	r = &poolRegexp{re}
 	return nil
 }
 
@@ -69,8 +48,4 @@ func (r *ReleaseConfig) MakeTrimmer() Trimmer {
 
 func (r *ReleaseConfig) MakePruner() Pruner {
 	return r.pruneRules.MakePruner()
-}
-
-func (r *ReleaseConfig) PubRing() openpgp.EntityList {
-	return nil
 }

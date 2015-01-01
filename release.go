@@ -407,7 +407,10 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 
 	var signedReleaseFile StoreWriteCloser
 	var signedReleaseWriter io.WriteCloser
-	signerKey := release.Config().SignerKey()
+	signerKey, err := release.SignerKey()
+	if err != nil {
+		return nil, err
+	}
 
 	if signerKey != nil {
 		signedReleaseFile, err = store.Store()
@@ -461,7 +464,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 func (r *Release) PoolFilePath(filename string) (poolpath string) {
 	poolpath = "pool/" + r.CodeName + "/"
 
-	matches := r.Config().PoolPatternRegexp().FindSubmatch([]byte(filename))
+	matches := r.Config().PoolPattern.FindSubmatch([]byte(filename))
 	if len(matches) > 0 {
 		poolpath = poolpath + string(matches[0]) + "/"
 	}
@@ -479,4 +482,26 @@ func (r *Release) Config() *ReleaseConfig {
 	}
 
 	return r.config
+}
+
+func (r *Release) SignerKey() (*openpgp.Entity, error) {
+	id := r.Config().SigningKeyID
+	rdr, err := r.store.Open(id)
+	if err != nil {
+		return nil, errors.New("failed to retrieve signing key, " + err.Error())
+	}
+
+	kr, err := openpgp.ReadArmoredKeyRing(rdr)
+	if err != nil {
+		return nil, errors.New("failed to retrieve signing key, " + err.Error())
+	}
+	if len(kr) != 0 {
+		return nil, fmt.Errorf("failed to retrieve signing key, wrong number of items in keyring, %v", len(kr))
+	}
+
+	return kr[0], nil
+}
+
+func (r *Release) PubRing() (openpgp.EntityList, error) {
+	return nil, nil
 }
