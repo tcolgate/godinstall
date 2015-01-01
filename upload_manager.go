@@ -3,20 +3,14 @@ package main
 import (
 	"io"
 	"time"
-
-	"code.google.com/p/go.crypto/openpgp"
 )
 
 // UploadSessionManager is a concreate implmentation of the UploadSessionManager
 type UploadSessionManager struct {
-	TTL                     time.Duration
-	TmpDir                  *string
-	Store                   ArchiveStorer
-	UploadHook              HookRunner
-	VerifyChanges           bool
-	VerifyChangesSufficient bool
-	VerifyDebs              bool
-	PubRing                 openpgp.EntityList
+	TTL        time.Duration
+	TmpDir     *string
+	Store      ArchiveStorer
+	UploadHook HookRunner
 
 	finished chan UpdateRequest
 	sessMap  *SafeMap
@@ -30,21 +24,13 @@ func NewUploadSessionManager(
 	tmpDir *string,
 	store ArchiveStorer,
 	uploadHook HookRunner,
-	verifyChanges bool,
-	verifyChangesSufficient bool,
-	verifyDebs bool,
-	pubRing openpgp.EntityList,
 	finished chan UpdateRequest,
 ) *UploadSessionManager {
 	return &UploadSessionManager{
-		TTL:                     TTL,
-		TmpDir:                  tmpDir,
-		Store:                   store,
-		UploadHook:              uploadHook,
-		VerifyChanges:           verifyChanges,
-		VerifyChangesSufficient: verifyChangesSufficient,
-		VerifyDebs:              verifyDebs,
-		PubRing:                 pubRing,
+		TTL:        TTL,
+		TmpDir:     tmpDir,
+		Store:      store,
+		UploadHook: uploadHook,
 
 		finished: finished,
 		sessMap:  NewSafeMap(),
@@ -72,15 +58,15 @@ func (usm *UploadSessionManager) GetSession(sid string) (UploadSession, bool) {
 
 // NewSession adds a new upload session based on the details from the passed
 // debian changes file.
-func (usm *UploadSessionManager) NewSession(branchName string, changesReader io.Reader, loneDeb bool) (string, error) {
+func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.Reader, loneDeb bool) (string, error) {
 	var err error
 
 	s, err := NewUploadSession(
-		branchName,
+		rel,
+		loneDeb,
 		changesReader,
 		usm.TmpDir,
 		usm.finished,
-		loneDeb,
 		usm,
 	)
 

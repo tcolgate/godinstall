@@ -24,6 +24,10 @@ type ArchiveStorer interface {
 	AddRelease(data *Release) (StoreID, error)
 	GetRelease(id StoreID) (*Release, error)
 
+	AddReleaseConfig(cfg ReleaseConfig) (StoreID, error)
+	GetReleaseConfig(id StoreID) (ReleaseConfig, error)
+	GetDefaultReleaseConfigID() (StoreID, error)
+
 	EmptyReleaseIndex() (StoreID, error)
 	AddReleaseIndex() (ReleaseIndexWriter, error)
 	OpenReleaseIndex(id StoreID) (ReleaseIndexReader, error)
@@ -40,16 +44,18 @@ type gcReq struct {
 
 type archiveBlobStore struct {
 	Storer
-	enableGCChan  chan gcReq
-	disableGCChan chan gcReq
-	runGCChan     chan gcReq
+	DefaultReleaseConfig ReleaseConfig
+	enableGCChan         chan gcReq
+	disableGCChan        chan gcReq
+	runGCChan            chan gcReq
 }
 
 // NewArchiveBlobStore This creates a new repository, based ona a content
 // addressable fs
-func NewArchiveBlobStore(storeDir string, tmpDir string) ArchiveStorer {
+func NewArchiveBlobStore(storeDir string, tmpDir string, defRelConfig ReleaseConfig) ArchiveStorer {
 	result := &archiveBlobStore{
 		Sha1Store(storeDir, tmpDir, 3),
+		defRelConfig,
 		make(chan gcReq),
 		make(chan gcReq),
 		make(chan gcReq),
@@ -457,6 +463,8 @@ func (r archiveBlobStore) GetRelease(id StoreID) (*Release, error) {
 	dec := gob.NewDecoder(reader)
 	dec.Decode(&rel)
 
+	rel.store = r
+
 	return &rel, nil
 }
 
@@ -499,6 +507,44 @@ func (r archiveBlobStore) AddRelease(data *Release) (StoreID, error) {
 	enc := gob.NewEncoder(writer)
 
 	enc.Encode(data)
+	writer.Close()
+	id, err := writer.Identity()
+	if err != nil {
+		return nil, err
+	}
+
+	return StoreID(id), nil
+}
+
+// GetReleaseConfig returns the release configuration stored in the given blob
+func (r archiveBlobStore) GetDefaultReleaseConfigID() (StoreID, error) {
+	return r.AddReleaseConfig(r.DefaultReleaseConfig)
+}
+
+// GetReleaseConfig returns the release configuration stored in the given blob
+func (r archiveBlobStore) GetReleaseConfig(id StoreID) (ReleaseConfig, error) {
+	var cfg ReleaseConfig
+	reader, err := r.Open(id)
+	if err != nil {
+		return ReleaseConfig{}, err
+	}
+	defer reader.Close()
+
+	dec := gob.NewDecoder(reader)
+	dec.Decode(&cfg)
+
+	return cfg, nil
+}
+
+// AddReleaseConfig stored a ReleaseConfig in the blob store, and returns the ID
+func (r archiveBlobStore) AddReleaseConfig(cfg ReleaseConfig) (StoreID, error) {
+	writer, err := r.Store()
+	if err != nil {
+		return nil, err
+	}
+	enc := gob.NewEncoder(writer)
+
+	enc.Encode(cfg)
 	writer.Close()
 	id, err := writer.Identity()
 	if err != nil {

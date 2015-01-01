@@ -21,10 +21,12 @@ type PruneRule struct {
 // PruneRuleSet is a group of pruning rules provided by the user
 type PruneRuleSet []*PruneRule
 
+type Pruner func(*ReleaseIndexEntry) bool
+
 // MakePruner creates a new pruner. The pruner is a function that takes
 // a repository item, and decides if it will be included or not (true
 // implies the item should be removed, false means it should be kept)
-func (rules PruneRuleSet) MakePruner() func(*ReleaseIndexEntry) bool {
+func (rules PruneRuleSet) MakePruner() Pruner {
 	currPkg := ""
 	currEpoch := 0
 	currVersion := ""

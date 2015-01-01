@@ -218,7 +218,7 @@ func (a archiveStoreArchive) mergeEntryIntoRelease(parentid StoreID, entry *Rele
 	right := []*ReleaseIndexEntry{entry}
 	sort.Sort(ByReleaseIndexEntryOrder(right))
 
-	pruner := a.pruneRules.MakePruner()
+	pruner := parent.Config().MakePruner()
 
 	for {
 		if err != nil {

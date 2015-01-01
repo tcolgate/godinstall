@@ -36,6 +36,8 @@ type AptServer struct {
 	PreGenHook  HookRunner // A hook to run before we run the genrator
 	PostGenHook HookRunner // A hooke to run after successful regeneration
 
+	DefaultReleaseConfig ReleaseConfig //
+
 	aptLocks *Governor // Locks to ensure the repo update is atomic
 
 	uploadHandler   http.HandlerFunc // HTTP handler for upload requests
@@ -44,7 +46,6 @@ type AptServer struct {
 	logHandler      http.HandlerFunc // HTTP handler for exposing the logs
 
 	getCount *expvar.Int // Download count
-
 }
 
 // InitAptServer setups, and starts  a server.
@@ -235,7 +236,15 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 						loneDeb = true
 					}
 
-					session, err = a.SessionManager.NewSession(branchName, changesReader, loneDeb)
+					rel, err := a.Archive.GetDist(branchName)
+					if err != nil {
+						resp = AptServerMessage(http.StatusBadRequest, err.Error())
+						w.WriteHeader(resp.GetStatus())
+						w.Write(resp.GetMessage())
+						return
+					}
+
+					session, err = a.SessionManager.NewSession(rel, changesReader, loneDeb)
 					if err != nil {
 						resp = AptServerMessage(http.StatusBadRequest, err.Error())
 						w.WriteHeader(resp.GetStatus())
@@ -570,7 +579,7 @@ func CmdServe(c *cli.Context) {
 		}
 	}
 
-	pruneRules, err := ParsePruneRules(pruneRulesStr)
+	_, err = ParsePruneRules(pruneRulesStr)
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -583,27 +592,22 @@ func CmdServe(c *cli.Context) {
 		return
 	}
 
-	var getTrimmer func() Trimmer
-
-	if autoTrim {
-		getTrimmer = func() Trimmer {
-			return MakeLengthTrimmer(trimLen)
-		}
-	} else {
-		getTrimmer = func() Trimmer {
-			return nil
-		}
+	defRelConfig := ReleaseConfig{
+		VerifyChanges:           verifyChanges,
+		VerifyChangesSufficient: verifyChangesSufficient,
+		VerifyDebs:              verifyDebs,
+		AcceptLoneDebs:          acceptLoneDebs,
+		PruneRules:              pruneRulesStr,
+		AutoTrim:                autoTrim,
+		AutoTrimLength:          trimLen,
+		PoolPattern:             poolPattern,
 	}
 
 	archive := NewAptBlobArchive(
-		privRing,
-		signerID,
 		&storeDir,
 		&tmpDir,
 		&publicDir,
-		pruneRules,
-		getTrimmer,
-		poolPattern,
+		defRelConfig,
 	)
 
 	uploadSessionManager := NewUploadSessionManager(
@@ -611,24 +615,20 @@ func CmdServe(c *cli.Context) {
 		&tmpDir,
 		archive,
 		NewScriptHook(&uploadHook),
-		verifyChanges,
-		verifyChangesSufficient,
-		verifyDebs,
-		pubRing,
 		updateChan,
 	)
 
 	server := &AptServer{
-		MaxReqs:        maxReqs,
-		CookieName:     cookieName,
-		PreGenHook:     NewScriptHook(&preGenHook),
-		PostGenHook:    NewScriptHook(&postGenHook),
-		AcceptLoneDebs: acceptLoneDebs,
+		MaxReqs:     maxReqs,
+		CookieName:  cookieName,
+		PreGenHook:  NewScriptHook(&preGenHook),
+		PostGenHook: NewScriptHook(&postGenHook),
 
 		Archive:        archive,
 		SessionManager: uploadSessionManager,
 		UpdateChannel:  updateChan,
-		PubRing:        pubRing,
+
+		DefaultReleaseConfig: defRelConfig,
 	}
 
 	r := mux.NewRouter()

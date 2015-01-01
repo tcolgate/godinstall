@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -47,9 +46,11 @@ type Release struct {
 	Release     StoreID
 	ReleaseGPG  StoreID
 	Actions     []ReleaseLogAction
-	PoolPattern string
 	TrimAfter   int32
-	poolPattern *regexp.Regexp
+	ConfigID    StoreID
+
+	store  ArchiveStorer
+	config *ReleaseConfig
 }
 
 // ReleaseLogActionType is used to document the list of actions
@@ -118,7 +119,7 @@ type relTempData map[string]*compTempData
 // NewRelease creates a new release object in the specified store, based on the
 // parent and built using the passed in index, and associated set of
 // actions
-func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimmer, actions []ReleaseLogAction) (id StoreID, err error) {
+func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []ReleaseLogAction) (id StoreID, err error) {
 	release := Release{}
 	release.ParentID = parentid
 	release.IndexID = indexid
@@ -134,7 +135,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 	release.Suite = parent.Suite
 	release.Description = parent.Description
 	release.Version = parent.Version
-	release.PoolPattern = parent.PoolPattern
+	release.ConfigID = parent.ConfigID
 
 	// We want to merge all packages of arch all into each binary-$arch
 	// so we walk the package index in a first pass to find all the archs
@@ -406,10 +407,11 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 
 	var signedReleaseFile StoreWriteCloser
 	var signedReleaseWriter io.WriteCloser
+	signerKey := release.Config().SignerKey()
 
-	if store.SignerID() != nil {
+	if signerKey != nil {
 		signedReleaseFile, err = store.Store()
-		signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, store.SignerID().PrivateKey, nil)
+		signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, signerKey.PrivateKey, nil)
 		if err != nil {
 			return nil, errors.New("Error InRelease clear-signer, " + err.Error())
 		}
@@ -423,7 +425,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 	unsignedReleaseFile.Close()
 	release.Release, _ = unsignedReleaseFile.Identity()
 
-	if store.SignerID() != nil {
+	if signerKey != nil {
 		signedReleaseWriter.Close()
 		signedReleaseFile.Close()
 		release.InRelease, _ = signedReleaseFile.Identity()
@@ -432,13 +434,14 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 		releaseReader, _ := store.Open(release.Release)
 		defer releaseReader.Close()
 		releaseGpgFile, _ := store.Store()
-		err = openpgp.ArmoredDetachSign(releaseGpgFile, store.SignerID(), releaseReader, nil)
+		err = openpgp.ArmoredDetachSign(releaseGpgFile, signerKey, releaseReader, nil)
 		releaseGpgFile.Close()
 		release.ReleaseGPG, _ = releaseGpgFile.Identity()
 	}
 
 	// Trim the release history if requested
-	if trimmer != nil {
+	if parent.Config().AutoTrim {
+		trimmer := parent.Config().MakeTrimmer()
 		err = release.TrimHistory(store, trimmer)
 		if err != nil {
 			return nil, err
@@ -458,19 +461,22 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, trimmer Trimm
 func (r *Release) PoolFilePath(filename string) (poolpath string) {
 	poolpath = "pool/" + r.CodeName + "/"
 
-	if r.poolPattern == nil {
-		var err error
-		r.poolPattern, err = regexp.CompilePOSIX("^(" + r.PoolPattern + ")")
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
-	}
-
-	matches := r.poolPattern.FindSubmatch([]byte(filename))
+	matches := r.Config().PoolPatternRegexp().FindSubmatch([]byte(filename))
 	if len(matches) > 0 {
 		poolpath = poolpath + string(matches[0]) + "/"
 	}
 
 	return
+}
+
+// Config returns the ReleaseConfig  for the release
+func (r *Release) Config() *ReleaseConfig {
+	if r.config == nil {
+		var err error
+		cfg, err := r.store.GetReleaseConfig(r.ConfigID)
+		log.Println(err)
+		r.config = &cfg
+	}
+
+	return r.config
 }

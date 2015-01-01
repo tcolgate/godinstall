@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"compress/gzip"
-
-	"code.google.com/p/go.crypto/openpgp"
 )
 
 // Archiver describes an interface for maintaining and generating
@@ -23,42 +21,28 @@ type Archiver interface {
 	GetDist(name string) (*Release, error)
 	SetDist(name string, newrel StoreID) error
 	AddUpload(session *UploadSession) (respStatus int, respObj string, err error)
-	SignerID() *openpgp.Entity
 	ArchiveStorer
 }
 
 // An Archiver that uses a version historied blob store
 type archiveStoreArchive struct {
-	PrivRing       openpgp.KeyRing // Private keyring cotaining singing key
-	signerID       *openpgp.Entity // The key to sign release file with
-	base           *string         // The base directory of the repository
-	pruneRules     PruneRuleSet    // Rules to use for pruning the repo
-	getTrimmer     func() Trimmer  // History Trimmer
-	defPoolPattern string          // Default pool pattern
-	ArchiveStorer                  // The blob store to use
+	base          *string // The base directory of the repository
+	ArchiveStorer         // The blob store to use
 }
 
 // NewAptBlobArchive creates a new Archiver that uses a version
 // historied content addressable store
 func NewAptBlobArchive(
-	privRing openpgp.KeyRing,
-	signerID *openpgp.Entity,
 	storeDir *string,
 	tmpDir *string,
 	publicDir *string,
-	pruneRules PruneRuleSet,
-	getTrimmer func() Trimmer,
-	defPoolPattern string,
+	defConfig ReleaseConfig,
 ) Archiver {
-	archivestore := NewArchiveBlobStore(*storeDir, *tmpDir)
+	archivestore := NewArchiveBlobStore(*storeDir, *tmpDir, defConfig)
+
 	return &archiveStoreArchive{
-		ArchiveStorer:  archivestore,
-		PrivRing:       privRing,
-		signerID:       signerID,
-		base:           publicDir,
-		pruneRules:     pruneRules,
-		getTrimmer:     getTrimmer,
-		defPoolPattern: defPoolPattern,
+		ArchiveStorer: archivestore,
+		base:          publicDir,
 	}
 }
 
@@ -197,7 +181,7 @@ func (a *archiveStoreArchive) ReifyRelease(id StoreID) (err error) {
 		return err
 	}
 
-	if a.SignerID() != nil {
+	if release.Config().SignerKey() != nil {
 		err = a.Link(release.InRelease, distBase+"/InRelease")
 		if err != nil {
 			return err
@@ -281,10 +265,6 @@ func (a *archiveStoreArchive) PublicDir() string {
 	return *a.base
 }
 
-func (a *archiveStoreArchive) SignerID() *openpgp.Entity {
-	return a.signerID
-}
-
 func (a *archiveStoreArchive) AddUpload(session *UploadSession) (respStatus int, respObj string, err error) {
 	respStatus = http.StatusOK
 	respObj = "Index committed"
@@ -300,10 +280,16 @@ func (a *archiveStoreArchive) AddUpload(session *UploadSession) (respStatus int,
 	heads := a.Dists()
 	head, ok := heads[branchName]
 	if !ok {
+		defCfgID, err := a.GetDefaultReleaseConfigID()
+		if err != nil {
+			respStatus = http.StatusInternalServerError
+			respObj = "Creating distro root failed getting default config ID for release, " + err.Error()
+			return respStatus, respObj, err
+		}
 		head, err = a.GetReleaseRoot(Release{
-			CodeName:    branchName,
-			Suite:       "stable",
-			PoolPattern: a.defPoolPattern,
+			CodeName: branchName,
+			Suite:    "stable",
+			ConfigID: defCfgID,
 		})
 		if err != nil {
 			respStatus = http.StatusInternalServerError
@@ -361,7 +347,7 @@ func (a *archiveStoreArchive) AddUpload(session *UploadSession) (respStatus int,
 		return respStatus, respObj, err
 	}
 
-	newhead, err := NewRelease(a, head, newidx, a.getTrimmer(), actions)
+	newhead, err := NewRelease(a, head, newidx, actions)
 	if err != nil {
 		respStatus = http.StatusInternalServerError
 		respObj = "Creating updated commit failed, " + err.Error()

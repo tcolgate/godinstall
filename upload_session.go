@@ -42,6 +42,7 @@ type UploadSession struct {
 	TTL         time.Duration          // How long should this session stick around for
 
 	usm       *UploadSessionManager
+	release   *Release
 	dir       string       // Temporary directory for storage
 	changes   *ChangesFile // The changes file for this session
 	changesID StoreID      // The raw changes file as uploaded
@@ -76,23 +77,24 @@ func (s *UploadSession) MarshalJSON() (j []byte, err error) {
 // NewUploadSession creates a session for uploading using a changes
 // file to describe the set of files to be uploaded
 func NewUploadSession(
-	releaseName string,
+	rel *Release,
+	loneDeb bool,
 	changesReader io.Reader,
 	tmpDirBase *string,
 	finished chan UpdateRequest,
-	loneDeb bool,
 	uploadSessionManager *UploadSessionManager,
 ) (UploadSession, error) {
 	var s UploadSession
 	s.SessionID = uuid.New()
-	s.ReleaseName = releaseName
+	s.ReleaseName = rel.Suite
+	s.release = rel
 	s.usm = uploadSessionManager
 	s.TTL = s.usm.TTL
-	s.LoneDeb = loneDeb
 	s.done = make(chan struct{})
 	s.finished = finished
 	s.dir = *tmpDirBase + "/" + s.SessionID
 	s.Expecting = make(map[string]*UploadFile, 0)
+	s.LoneDeb = loneDeb
 
 	os.Mkdir(s.dir, os.FileMode(0755))
 
@@ -113,14 +115,14 @@ func NewUploadSession(
 		}
 
 		changesReader, _ = s.usm.Store.Open(s.changesID)
-		changes, err := ParseDebianChanges(changesReader, s.usm.PubRing)
+		changes, err := ParseDebianChanges(changesReader, rel.Config().PubRing())
 
-		if s.usm.VerifyChanges && !changes.Control.Signed && !loneDeb {
+		if rel.Config().VerifyChanges && !changes.Control.Signed {
 			err = errors.New("Changes file was not signed")
 			return UploadSession{}, err
 		}
 
-		if s.usm.VerifyChanges && !changes.Control.SignatureVerified && !loneDeb {
+		if rel.Config().VerifyChanges && !changes.Control.SignatureVerified {
 			err = errors.New("Changes file could not be verified")
 			return UploadSession{}, err
 		}
@@ -314,7 +316,7 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 		{
 			f, _ := s.usm.Store.Open(id)
 			defer f.Close()
-			pkg := NewDebPackage(f, s.usm.PubRing)
+			pkg := NewDebPackage(f, s.release.Config().PubRing())
 			_, err = pkg.Name()
 			if err != nil {
 				return errors.New("upload deb failed,  " + err.Error())
@@ -361,7 +363,7 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 			}
 
 			// We should verify the signature
-			if s.usm.VerifyDebs {
+			if s.release.Config().VerifyDebs {
 				signed, _ := uf.pkg.IsSigned()
 				verified, _ := uf.pkg.IsVerified()
 
@@ -380,7 +382,7 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 		{
 			f, _ := s.usm.Store.Open(id)
 			defer f.Close()
-			ctrl, err := ParseDebianControl(f, s.usm.PubRing)
+			ctrl, err := ParseDebianControl(f, s.release.Config().PubRing())
 			if err != nil {
 				return errors.New("Parsing dsc failed, " + err.Error())
 			}
