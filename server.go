@@ -450,6 +450,24 @@ func (a *AptServer) makeDistsHandler() http.HandlerFunc {
 					http.StatusInternalServerError)
 			}
 			w.Write(output)
+		case "DELETE":
+			if !nameGiven {
+				http.Error(w,
+					http.StatusText(http.StatusMethodNotAllowed),
+					http.StatusMethodNotAllowed)
+			} else {
+				_, ok := dists[name]
+				if !ok {
+					http.NotFound(w, r)
+					return
+				}
+				err := a.Archive.DeleteDist(name)
+				if err != nil {
+					http.Error(w,
+						"failed to retrieve distribution details, "+err.Error(),
+						http.StatusInternalServerError)
+				}
+			}
 		default:
 			http.Error(w,
 				http.StatusText(http.StatusMethodNotAllowed),

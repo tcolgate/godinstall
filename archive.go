@@ -20,6 +20,7 @@ type Archiver interface {
 	Dists() map[string]StoreID
 	GetDist(name string) (*Release, error)
 	SetDist(name string, newrel StoreID) error
+	DeleteDist(name string) error
 	AddUpload(session *UploadSession) (respStatus int, respObj string, err error)
 	ArchiveStorer
 }
@@ -84,6 +85,13 @@ func (a *archiveStoreArchive) SetDist(name string, newrel StoreID) error {
 		return errors.New("Distribution name cannot include /")
 	}
 	return a.SetReleaseTag("heads/"+name, newrel)
+}
+
+func (a *archiveStoreArchive) DeleteDist(name string) error {
+	if strings.Index(name, "/") != -1 {
+		return errors.New("Distribution name cannot include /")
+	}
+	return a.DeleteReleaseTag("heads/" + name)
 }
 
 func (a *archiveStoreArchive) ReifyRelease(id StoreID) (err error) {

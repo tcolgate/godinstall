@@ -15,6 +15,7 @@ type ArchiveStorer interface {
 	ReleaseTags() map[string]StoreID
 	GetReleaseTag(string) (StoreID, error)
 	SetReleaseTag(string, StoreID) error
+	DeleteReleaseTag(string) error
 
 	//		AddDeb(file *ChangesItem) (*ReleaseIndexItem, error)
 	AddControlFile(data ControlFile) (StoreID, error)
@@ -240,6 +241,10 @@ func (r archiveBlobStore) GetReleaseTag(name string) (StoreID, error) {
 
 func (r archiveBlobStore) SetReleaseTag(name string, id StoreID) error {
 	return r.SetRef(name, StoreID(id))
+}
+
+func (r archiveBlobStore) DeleteReleaseTag(name string) error {
+	return r.DeleteRef(name)
 }
 
 /*

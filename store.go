@@ -59,6 +59,7 @@ type Storer interface {
 	EmptyFileID() StoreID                 // Return the StoreID for an 0 byte object
 	SetRef(name string, id StoreID) error // Set a reference
 	GetRef(name string) (StoreID, error)  // Get a reference
+	DeleteRef(name string) error          // Delete a reference
 	ListRefs() map[string]StoreID         // Get a reference
 	ForEach(f func(StoreID))              // Call function for each ID
 }
@@ -362,6 +363,13 @@ func (t *sha1Store) GetRef(name string) (StoreID, error) {
 	refid, err := StoreIDFromString(string(refStr))
 
 	return refid, err
+}
+
+func (t *sha1Store) DeleteRef(name string) error {
+	refsPath := t.baseDir + "/refs"
+	refFile := refsPath + "/" + name + ".ref"
+
+	return os.Remove(refFile)
 }
 
 func (t *sha1Store) ListRefs() map[string]StoreID {
