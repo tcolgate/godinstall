@@ -118,7 +118,7 @@ func cliUploadFile(c *http.Client, uri, firstfn string) error {
 				var status failResponse
 				err = json.Unmarshal(body, &status)
 				if err != nil {
-					return err
+					return errors.New(string(body))
 				}
 				return errors.New(status.Message)
 			}
