@@ -1,6 +1,9 @@
 package main
 
-import "regexp"
+import (
+	"log"
+	"regexp"
+)
 
 // ReleaseConfig is used for configuration options which can be set and managed
 // on a per-release basis. For instance, we may wish to vary the list of pgp
@@ -11,7 +14,7 @@ type ReleaseConfig struct {
 	VerifyDebs              bool
 	AcceptLoneDebs          bool
 
-	PoolPattern poolRegexp
+	PoolPattern string
 
 	AutoTrim       bool
 	AutoTrimLength int
@@ -22,30 +25,32 @@ type ReleaseConfig struct {
 	SigningKeyID StoreID
 
 	pruneRules *PruneRuleSet
-}
-
-type poolRegexp struct {
-	*regexp.Regexp
-}
-
-func (r poolRegexp) BinaryMarshal() ([]byte, error) {
-	return []byte(r.String()), nil
-}
-
-func (r *poolRegexp) BinaryUnMarshal(bs []byte) error {
-	str := string(bs)
-	re, err := regexp.Compile(str)
-	if err != nil {
-		return err
-	}
-	r = &poolRegexp{re}
-	return nil
+	poolRegex  *regexp.Regexp
 }
 
 func (r *ReleaseConfig) MakeTrimmer() Trimmer {
-	return nil
+	return MakeLengthTrimmer(r.AutoTrimLength)
 }
 
 func (r *ReleaseConfig) MakePruner() Pruner {
+	if r.pruneRules == nil {
+		rules, err := ParsePruneRules(r.PruneRules)
+		if err != nil {
+			log.Println("Error parsing stored prune rules", err)
+		}
+		r.pruneRules = &rules
+	}
 	return r.pruneRules.MakePruner()
+}
+
+func (r *ReleaseConfig) PoolRegexp() *regexp.Regexp {
+	if r.poolRegex == nil {
+		var err error
+		r.poolRegex, err = regexp.Compile(r.PoolPattern)
+		if err != nil {
+			log.Println("Error parsing stored pool pattern", err)
+		}
+	}
+
+	return r.poolRegex
 }

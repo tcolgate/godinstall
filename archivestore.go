@@ -66,6 +66,17 @@ func NewArchiveBlobStore(storeDir string, tmpDir string, defRelConfig ReleaseCon
 	return result
 }
 
+func (r archiveBlobStore) gcWalkReleaseConfig(used *SafeMap, id StoreID) {
+	used.Set(id.String(), true)
+
+	item, _ := r.GetReleaseConfig(id)
+
+	used.Set(item.SigningKeyID.String(), true)
+	for _, i := range item.PublicKeyIDs {
+		used.Set(i.String(), true)
+	}
+}
+
 func (r archiveBlobStore) gcWalkReleaseIndexEntryItem(used *SafeMap, item *ReleaseIndexEntryItem) {
 	ctrlid := item.ControlID
 	used.Set(ctrlid.String(), true)
@@ -116,6 +127,8 @@ func (r archiveBlobStore) gcWalkRelease(used *SafeMap, releaseID StoreID) {
 			used.Set(release.InRelease.String(), true)
 			used.Set(release.Release.String(), true)
 			used.Set(release.ReleaseGPG.String(), true)
+
+			r.gcWalkReleaseConfig(used, release.ConfigID)
 
 			for _, comp := range release.Components {
 				used.Set(comp.SourcesGz.String(), true)
@@ -468,8 +481,7 @@ func (r archiveBlobStore) GetRelease(id StoreID) (*Release, error) {
 	return &rel, nil
 }
 
-// GetReleaseRoot returns an ID suitable for use as the parent ID for a new
-// release
+// GetReleaseRags  Get all of the refs related to a relesse
 func (r archiveBlobStore) ReleaseTags() map[string]StoreID {
 	return r.ListRefs()
 }
@@ -482,6 +494,11 @@ func (r archiveBlobStore) GetReleaseRoot(seed Release) (StoreID, error) {
 	seed.ParentID = r.EmptyFileID()
 	seed.Date = time.Now()
 	seed.Actions = []ReleaseLogAction{}
+
+	seed.ConfigID, err = r.GetDefaultReleaseConfigID()
+	if err != nil {
+		return nil, errors.New("getting default config failed, " + err.Error())
+	}
 
 	seed.IndexID, err = r.EmptyReleaseIndex()
 	if err != nil {
@@ -544,8 +561,16 @@ func (r archiveBlobStore) AddReleaseConfig(cfg ReleaseConfig) (StoreID, error) {
 	}
 	enc := gob.NewEncoder(writer)
 
-	enc.Encode(cfg)
-	writer.Close()
+	err = enc.Encode(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	err = writer.Close()
+	if err != nil {
+		return nil, err
+	}
+
 	id, err := writer.Identity()
 	if err != nil {
 		return nil, err

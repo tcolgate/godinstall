@@ -24,6 +24,17 @@ func (i StoreID) String() string {
 	return hex.EncodeToString(i)
 }
 
+func (s StoreID) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + s.String() + "\""), nil
+}
+
+func (s *StoreID) UnMarshalJSON(j []byte) error {
+	b, err := hex.DecodeString(string(j))
+	sid := StoreID(b)
+	s = &sid
+	return err
+}
+
 // StoreIDFromString parses a string and returns the StoreID
 // that it would represent
 func StoreIDFromString(str string) (StoreID, error) {
@@ -60,7 +71,7 @@ type sha1Store struct {
 
 func (t *sha1Store) storeIDToPathName(id StoreID) (string, string, error) {
 	if len(id) != sha1.Size {
-		log.Println("ID: ", id)
+		log.Printf("Invalid store ID(%v)", id)
 		debug.PrintStack()
 		return "", "", errors.New("invalid StoreID " + string(id))
 	}

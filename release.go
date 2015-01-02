@@ -125,6 +125,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 	release.IndexID = indexid
 	release.Actions = actions
 	release.Date = time.Now()
+	release.store = store
 
 	parent, err := store.GetRelease(parentid)
 	if err != nil {
@@ -443,8 +444,8 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 	}
 
 	// Trim the release history if requested
-	if parent.Config().AutoTrim {
-		trimmer := parent.Config().MakeTrimmer()
+	if release.Config().AutoTrim {
+		trimmer := release.Config().MakeTrimmer()
 		err = release.TrimHistory(store, trimmer)
 		if err != nil {
 			return nil, err
@@ -464,7 +465,9 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 func (r *Release) PoolFilePath(filename string) (poolpath string) {
 	poolpath = "pool/" + r.CodeName + "/"
 
-	matches := r.Config().PoolPattern.FindSubmatch([]byte(filename))
+	re := r.Config().PoolRegexp()
+
+	matches := re.FindSubmatch([]byte(filename))
 	if len(matches) > 0 {
 		poolpath = poolpath + string(matches[0]) + "/"
 	}
@@ -486,6 +489,10 @@ func (r *Release) Config() *ReleaseConfig {
 
 func (r *Release) SignerKey() (*openpgp.Entity, error) {
 	id := r.Config().SigningKeyID
+	if len(id) == 0 {
+		return nil, nil
+	}
+
 	rdr, err := r.store.Open(id)
 	if err != nil {
 		return nil, errors.New("failed to retrieve signing key, " + err.Error())

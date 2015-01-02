@@ -36,10 +36,11 @@ type AptServer struct {
 
 	aptLocks *Governor // Locks to ensure the repo update is atomic
 
-	uploadHandler   http.HandlerFunc // HTTP handler for upload requests
 	downloadHandler http.HandlerFunc // HTTP handler for apt client downloads
 	distsHandler    http.HandlerFunc // HTTP handler for exposing the logs
 	logHandler      http.HandlerFunc // HTTP handler for exposing the logs
+	uploadHandler   http.HandlerFunc // HTTP handler for upload requests
+	configHandler   http.HandlerFunc // HTTP handler for upload requests
 
 	getCount *expvar.Int // Download count
 }
@@ -48,9 +49,10 @@ type AptServer struct {
 func (a *AptServer) InitAptServer() {
 	a.aptLocks = NewGovernor(a.MaxReqs)
 	a.downloadHandler = a.makeDownloadHandler()
-	a.uploadHandler = a.makeUploadHandler()
 	a.distsHandler = a.makeDistsHandler()
+	a.uploadHandler = a.makeUploadHandler()
 	a.logHandler = a.makeLogHandler()
+	a.configHandler = a.makeConfigHandler()
 
 	a.getCount = expvar.NewInt("GetRequests")
 
@@ -63,12 +65,11 @@ func (a *AptServer) Register(r *mux.Router) {
 	r.PathPrefix("/upload").HandlerFunc(a.uploadHandler)
 
 	r.HandleFunc("/dists", a.distsHandler)
+	r.HandleFunc("/dists/{name}", a.distsHandler)
+	r.HandleFunc("/dists/{name}/config", a.configHandler)
 	r.HandleFunc("/dists/{name}/log", a.logHandler)
-
 	r.HandleFunc("/dists/{name}/upload", a.uploadHandler)
 	r.HandleFunc("/dists/{name}/upload/{session}", a.uploadHandler)
-	r.PathPrefix("/upload").HandlerFunc(a.uploadHandler)
-	r.PathPrefix("/upload/{session}").HandlerFunc(a.uploadHandler)
 }
 
 // Construct the download handler for normal client downloads
@@ -205,9 +206,8 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 					// We don't have an active session, lets create one
 					rel, err := a.Archive.GetDist(branchName)
 					if err != nil {
-						resp = AptServerMessage(http.StatusBadRequest, err.Error())
-						w.WriteHeader(resp.GetStatus())
-						w.Write(resp.GetMessage())
+						w.WriteHeader(http.StatusNotFound)
+						w.Write([]byte("Unknown distribution " + branchName + ", " + err.Error()))
 						return
 					}
 
@@ -301,7 +301,6 @@ func (a *AptServer) makeUploadHandler() http.HandlerFunc {
 	}
 }
 
-// This build a function to despatch upload requests
 func (a *AptServer) makeLogHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -310,7 +309,7 @@ func (a *AptServer) makeLogHandler() http.HandlerFunc {
 		curr, err := a.Archive.GetDist(name)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("failed to retrieve store reference for branch " + name + ", " + err.Error()))
+			w.Write([]byte("failed to retrieve store reference for distribution " + name + ", " + err.Error()))
 			return
 		}
 
@@ -364,18 +363,135 @@ func (a *AptServer) makeLogHandler() http.HandlerFunc {
 // This build a function to enumerate the distributions
 func (a *AptServer) makeDistsHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		branches := a.Archive.Dists()
+		vars := mux.Vars(r)
+		name, nameGiven := vars["name"]
+		dists := a.Archive.Dists()
 
-		output, err := json.Marshal(branches)
+		switch r.Method {
+		case "GET":
+			if !nameGiven {
+				output, err := json.Marshal(dists)
+				if err != nil {
+					http.Error(w,
+						"failed to retrieve list of distributions, "+err.Error(),
+						http.StatusInternalServerError)
+				}
+				w.Write(output)
+			} else {
+				_, ok := dists[name]
+				if !ok {
+					http.NotFound(w, r)
+					return
+				}
+				rel, err := a.Archive.GetDist(name)
+				output, err := json.Marshal(rel)
+				if err != nil {
+					http.Error(w,
+						"failed to retrieve distribution details, "+err.Error(),
+						http.StatusInternalServerError)
+				}
+				w.Write(output)
+			}
+		case "PUT":
+			var rel *Release
+			var err error
 
+			_, exists := dists[name]
+			if exists {
+				http.Error(w,
+					"cannot update release directly",
+					http.StatusConflict)
+			} else {
+				seedrel := Release{
+					Suite: name,
+				}
+				rootid, err := a.Archive.GetReleaseRoot(seedrel)
+				if err != nil {
+					http.Error(w,
+						"Get reelase root failed"+err.Error(),
+						http.StatusInternalServerError)
+					return
+				}
+
+				emptyidx, err := a.Archive.EmptyReleaseIndex()
+				if err != nil {
+					http.Error(w,
+						"Get rempty release index failed"+err.Error(),
+						http.StatusInternalServerError)
+					return
+				}
+				newrelid, err := NewRelease(a.Archive, rootid, emptyidx, []ReleaseLogAction{})
+				if err != nil {
+					http.Error(w,
+						"Create new release failed, "+err.Error(),
+						http.StatusInternalServerError)
+					return
+				}
+				err = a.Archive.SetDist(name, newrelid)
+				if err != nil {
+					http.Error(w,
+						"Setting new dist tag failed, "+err.Error(),
+						http.StatusInternalServerError)
+					return
+				}
+				rel, err = a.Archive.GetDist(name)
+				if err != nil {
+					http.Error(w,
+						"retrieving new dist tag failed, "+err.Error(),
+						http.StatusInternalServerError)
+					return
+				}
+			}
+
+			output, err := json.Marshal(rel)
+			if err != nil {
+				http.Error(w,
+					"failed to retrieve distribution details, "+err.Error(),
+					http.StatusInternalServerError)
+			}
+			w.Write(output)
+		default:
+			http.Error(w,
+				http.StatusText(http.StatusMethodNotAllowed),
+				http.StatusMethodNotAllowed)
+		}
+		return
+	}
+}
+
+// This build a function to manage the config of a distribution
+func (a *AptServer) makeConfigHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		name := vars["name"]
+
+		rel, err := a.Archive.GetDist(name)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("failed to retrieve list of distributions, " + err.Error()))
+			http.Error(w,
+				fmt.Sprintf("distribution %v not found, %s", name, err.Error()),
+				http.StatusNotFound)
 			return
 		}
 
-		w.Write(output)
+		switch r.Method {
+		case "GET":
+			output, err := json.Marshal(rel.Config())
+			if err != nil {
+				http.Error(w,
+					"failed to marshal release config, "+err.Error(),
+					http.StatusInternalServerError)
+			}
 
+			w.Write(output)
+		case "PUT", "POST":
+			http.Error(w,
+				http.StatusText(http.StatusMethodNotAllowed),
+				http.StatusMethodNotAllowed)
+		default:
+			http.Error(w,
+				http.StatusText(http.StatusMethodNotAllowed),
+				http.StatusMethodNotAllowed)
+		}
 		return
 	}
 }
@@ -466,14 +582,14 @@ func CmdServe(c *cli.Context) {
 	uploadHook := c.String("upload-hook")
 	preGenHook := c.String("pre-gen-hook")
 	postGenHook := c.String("post-gen-hook")
-	poolPattern := c.String("pool-pattern")
-	verifyChanges := c.Bool("verify-changes")
-	verifyChangesSufficient := c.Bool("verify-changes-sufficient")
-	acceptLoneDebs := c.Bool("accept-lone-debs")
-	verifyDebs := c.Bool("verify-debs")
-	pruneRulesStr := c.String("prune")
-	autoTrim := c.Bool("auto-trim")
-	trimLen := c.Int("auto-trim-length")
+	poolPattern := c.String("default-pool-pattern")
+	verifyChanges := c.Bool("default-verify-changes")
+	verifyChangesSufficient := c.Bool("default-verify-changes-sufficient")
+	acceptLoneDebs := c.Bool("default-accept-lone-debs")
+	verifyDebs := c.Bool("default-verify-debs")
+	pruneRulesStr := c.String("default-prune")
+	autoTrim := c.Bool("default-auto-trim")
+	trimLen := c.Int("default-auto-trim-length")
 
 	flag.Parse()
 
@@ -527,7 +643,7 @@ func CmdServe(c *cli.Context) {
 	}
 
 	// We make sure the default pool pattern is a valid rege
-	poolRe, err := regexp.CompilePOSIX("^(" + poolPattern + ")")
+	_, err = regexp.CompilePOSIX("^(" + poolPattern + ")")
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -541,7 +657,7 @@ func CmdServe(c *cli.Context) {
 		PruneRules:              pruneRulesStr,
 		AutoTrim:                autoTrim,
 		AutoTrimLength:          trimLen,
-		PoolPattern:             poolRegexp{poolRe},
+		PoolPattern:             poolPattern,
 	}
 
 	archive := NewAptBlobArchive(
