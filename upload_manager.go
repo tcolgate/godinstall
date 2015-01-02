@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"time"
 )
@@ -14,6 +15,30 @@ type UploadSessionManager struct {
 
 	finished chan UpdateRequest
 	sessMap  *SafeMap
+}
+
+// CompletedUpload describes a finished session, the details of the session,
+// and the output of any hooks
+type CompletedUpload struct {
+	*UploadSession
+	PreGenHookOutput  HookOutput
+	PostGenHookOutput HookOutput
+}
+
+// MarshalJSON implements the json.Marshaler interface to allow
+// presentation of a completed session to the user
+func (s CompletedUpload) MarshalJSON() (j []byte, err error) {
+	resp := struct {
+		UploadSession
+		PreGenHookOutput  HookOutput
+		PostGenHookOutput HookOutput
+	}{
+		*s.UploadSession,
+		s.PreGenHookOutput,
+		s.PostGenHookOutput,
+	}
+	j, err = json.Marshal(resp)
+	return
 }
 
 // NewUploadSessionManager creates a session manager which maintains a set of
