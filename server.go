@@ -316,13 +316,7 @@ func distsHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			rel, err := state.Archive.GetDist(name)
-			output, err := json.Marshal(rel)
-			if err != nil {
-				http.Error(w,
-					"failed to retrieve distribution details, "+err.Error(),
-					http.StatusInternalServerError)
-			}
-			w.Write(output)
+			SendOrOKResponse(w, rel, err)
 		}
 	case "PUT":
 		var rel *Release
