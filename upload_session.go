@@ -147,11 +147,11 @@ type closeMsg struct{}
 
 type addItemMsg struct {
 	file *UploadFile
-	resp chan AptServerResponder
+	resp chan *ServerResponse
 }
 
 type getStatusMsg struct {
-	resp chan AptServerResponder
+	resp chan *ServerResponse
 }
 
 // All item additions to this session are
@@ -181,14 +181,14 @@ func (s *UploadSession) handler() {
 			}
 		case msg := <-s.getstatus:
 			{
-				msg.resp <- AptServerMessage(http.StatusOK, s)
+				msg.resp <- ServerMessage(http.StatusOK, s)
 			}
 		case msg := <-s.incoming:
 			{
 				err := s.doAddFile(msg.file)
 
 				if err != nil {
-					msg.resp <- AptServerMessage(http.StatusBadRequest, err.Error())
+					msg.resp <- ServerMessage(http.StatusBadRequest, err.Error())
 					break
 				}
 
@@ -200,7 +200,7 @@ func (s *UploadSession) handler() {
 				}
 
 				if !complete {
-					msg.resp <- AptServerMessage(http.StatusAccepted, s)
+					msg.resp <- ServerMessage(http.StatusAccepted, s)
 					break
 				} else {
 					s.Complete = true
@@ -209,7 +209,7 @@ func (s *UploadSession) handler() {
 				// We're done, lets call out to the server to update
 				// with the contents of this session
 
-				c := make(chan AptServerResponder)
+				c := make(chan *ServerResponse)
 				s.finished <- UpdateRequest{
 					session: s,
 					resp:    c,
@@ -238,8 +238,8 @@ func (s *UploadSession) Done() chan struct{} {
 
 // Status returns a server response indivating the running state
 // of the session
-func (s *UploadSession) Status() AptServerResponder {
-	c := make(chan AptServerResponder)
+func (s *UploadSession) Status() *ServerResponse {
+	c := make(chan *ServerResponse)
 	s.getstatus <- getStatusMsg{
 		resp: c,
 	}
@@ -248,8 +248,8 @@ func (s *UploadSession) Status() AptServerResponder {
 
 // AddFile adds an uploaded file to the given session, taking hashes,
 // and placing it in the archive store.
-func (s *UploadSession) AddFile(upload *UploadFile) AptServerResponder {
-	c := make(chan AptServerResponder)
+func (s *UploadSession) AddFile(upload *UploadFile) *ServerResponse {
+	c := make(chan *ServerResponse)
 	s.incoming <- addItemMsg{
 		file: upload,
 		resp: c,

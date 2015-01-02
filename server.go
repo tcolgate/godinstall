@@ -23,14 +23,11 @@ import (
 
 // aptServerConfig holds some global defaults for the server
 var cfg struct {
-	MaxReqs    int           // The maximum nuber of concurrent requests we'll handle
 	CookieName string        // The session cookie name for uploads
 	TTL        time.Duration // How long to keep session alive
 
 	PreGenHook  HookRunner // A hook to run before we run the genrator
 	PostGenHook HookRunner // A hooke to run after successful regeneration
-
-	DefaultReleaseConfig ReleaseConfig //
 }
 
 var state struct {
@@ -55,47 +52,33 @@ func makeDownloadHandler() http.HandlerFunc {
 	}
 }
 
-// AptServerResponder is a custom error type to
+// ServerResponse is a custom error type to
 // encode the HTTP status and meesage we will
 // send back to a client
-type AptServerResponder interface {
-	GetStatus() int
-	GetMessage() []byte
-	error
+type ServerResponse struct {
+	StatusCode int
+	Message    []byte
 }
 
-type aptServerResponse struct {
-	statusCode int
-	message    []byte
+func (r ServerResponse) Error() string {
+	return "ERROR: " + string(r.Message)
 }
 
-func (r aptServerResponse) GetStatus() int {
-	return r.statusCode
-}
-
-func (r aptServerResponse) GetMessage() []byte {
-	return r.message
-}
-
-func (r aptServerResponse) Error() string {
-	return "ERROR: " + string(r.message)
-}
-
-// AptServerMessage contructs a new repsonse to a client and can take
+// ServerMessage contructs a new repsonse to a client and can take
 // a string of JSON'able object
-func AptServerMessage(status int, msg interface{}) AptServerResponder {
+func ServerMessage(status int, msg interface{}) *ServerResponse {
 	var err error
 	var j []byte
 
-	resp := aptServerResponse{
-		statusCode: status,
+	resp := ServerResponse{
+		StatusCode: status,
 	}
 
 	switch t := msg.(type) {
 	case json.Marshaler:
 		{
 			j, err = json.Marshal(t)
-			resp.message = j
+			resp.Message = j
 		}
 	case string:
 		{
@@ -105,7 +88,7 @@ func AptServerMessage(status int, msg interface{}) AptServerResponder {
 				}{
 					t,
 				})
-			resp.message = j
+			resp.Message = j
 		}
 	default:
 		{
@@ -115,12 +98,12 @@ func AptServerMessage(status int, msg interface{}) AptServerResponder {
 				}{
 					t.(string),
 				})
-			resp.message = j
+			resp.Message = j
 		}
 	}
 
 	if err != nil {
-		resp.message = []byte("Could not marshal response, " + err.Error())
+		resp.Message = []byte("Could not marshal response, " + err.Error())
 	}
 
 	return &resp
@@ -138,7 +121,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	session, found := vars["session"]
 
-	var resp AptServerResponder
+	var resp *ServerResponse
 
 	//Maybe in a cookie?
 	if !found {
@@ -153,9 +136,9 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		{
 			s, ok := state.SessionManager.GetSession(session)
 			if !ok {
-				resp = AptServerMessage(http.StatusNotFound, "File not found")
-				w.WriteHeader(resp.GetStatus())
-				w.Write(resp.GetMessage())
+				resp = ServerMessage(http.StatusNotFound, "File not found")
+				w.WriteHeader(resp.StatusCode)
+				w.Write(resp.Message)
 				return
 			}
 
@@ -165,9 +148,9 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		{
 			changesReader, otherParts, err := ChangesFromHTTPRequest(r)
 			if err != nil {
-				resp = AptServerMessage(http.StatusBadRequest, err.Error())
-				w.WriteHeader(resp.GetStatus())
-				w.Write(resp.GetMessage())
+				resp = ServerMessage(http.StatusBadRequest, err.Error())
+				w.WriteHeader(resp.StatusCode)
+				w.Write(resp.Message)
 				return
 			}
 
@@ -184,25 +167,25 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 				if changesReader == nil {
 					if !rel.Config().AcceptLoneDebs {
 						err = errors.New("No debian changes file in request")
-						resp = AptServerMessage(http.StatusBadRequest, err.Error())
-						w.WriteHeader(resp.GetStatus())
-						w.Write(resp.GetMessage())
+						resp = ServerMessage(http.StatusBadRequest, err.Error())
+						w.WriteHeader(resp.StatusCode)
+						w.Write(resp.Message)
 						return
 					}
 
 					if len(otherParts) != 1 {
 						err = errors.New("Too many files in upload request without changes file present")
-						resp = AptServerMessage(http.StatusBadRequest, err.Error())
-						w.WriteHeader(resp.GetStatus())
-						w.Write(resp.GetMessage())
+						resp = ServerMessage(http.StatusBadRequest, err.Error())
+						w.WriteHeader(resp.StatusCode)
+						w.Write(resp.Message)
 						return
 					}
 
 					if !strings.HasSuffix(otherParts[0].Filename, ".deb") {
 						err = errors.New("Lone files for upload must end in .deb")
-						resp = AptServerMessage(http.StatusBadRequest, err.Error())
-						w.WriteHeader(resp.GetStatus())
-						w.Write(resp.GetMessage())
+						resp = ServerMessage(http.StatusBadRequest, err.Error())
+						w.WriteHeader(resp.StatusCode)
+						w.Write(resp.Message)
 						return
 					}
 
@@ -211,9 +194,9 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 				session, err = state.SessionManager.NewSession(rel, changesReader, loneDeb)
 				if err != nil {
-					resp = AptServerMessage(http.StatusBadRequest, err.Error())
-					w.WriteHeader(resp.GetStatus())
-					w.Write(resp.GetMessage())
+					resp = ServerMessage(http.StatusBadRequest, err.Error())
+					w.WriteHeader(resp.StatusCode)
+					w.Write(resp.Message)
 					return
 				}
 
@@ -227,17 +210,17 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 				http.SetCookie(w, &cookie)
 			}
 			if err != nil {
-				resp = AptServerMessage(http.StatusBadRequest, err.Error())
-				w.WriteHeader(resp.GetStatus())
-				w.Write(resp.GetMessage())
+				resp = ServerMessage(http.StatusBadRequest, err.Error())
+				w.WriteHeader(resp.StatusCode)
+				w.Write(resp.Message)
 				return
 			}
 
 			sess, ok := state.SessionManager.GetSession(session)
 			if !ok {
-				resp = AptServerMessage(http.StatusNotFound, "File Not Found")
-				w.WriteHeader(resp.GetStatus())
-				w.Write(resp.GetMessage())
+				resp = ServerMessage(http.StatusNotFound, "File Not Found")
+				w.WriteHeader(resp.StatusCode)
+				w.Write(resp.Message)
 				return
 			}
 
@@ -246,9 +229,9 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			for _, part := range otherParts {
 				fh, err := part.Open()
 				if err != nil {
-					resp = AptServerMessage(http.StatusBadRequest, fmt.Sprintf("Error opening mime item, %s", err.Error()))
-					w.WriteHeader(resp.GetStatus())
-					w.Write(resp.GetMessage())
+					resp = ServerMessage(http.StatusBadRequest, fmt.Sprintf("Error opening mime item, %s", err.Error()))
+					w.WriteHeader(resp.StatusCode)
+					w.Write(resp.Message)
 					return
 				}
 
@@ -261,11 +244,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if resp.GetStatus() == 0 {
+	if resp.StatusCode == 0 {
 		http.Error(w, "AptServer response statuscode not set", http.StatusInternalServerError)
 	} else {
-		w.WriteHeader(resp.GetStatus())
-		w.Write(resp.GetMessage())
+		w.WriteHeader(resp.StatusCode)
+		w.Write(resp.Message)
 	}
 }
 
@@ -648,7 +631,7 @@ func updater() {
 					respObj = completedsession
 				}
 
-				msg.resp <- AptServerMessage(respStatus, respObj)
+				msg.resp <- ServerMessage(respStatus, respObj)
 			}
 		}
 	}
@@ -658,14 +641,14 @@ func updater() {
 // request an update, only regeneration is supported
 // at present
 type UpdateRequest struct {
-	resp    chan AptServerResponder
+	resp    chan *ServerResponse
 	session *UploadSession
 }
 
 // CmdServe is the implementation of the godinstall "serve" command
 func CmdServe(c *cli.Context) {
-	// Setup CLI flags
 	listenAddress := c.String("listen")
+	//	sslListenAddress := c.String("listen-ssl")
 	ttl := c.String("ttl")
 	maxReqs := c.Int("max-requests")
 	repoBase := c.String("repo-base")
@@ -738,22 +721,20 @@ func CmdServe(c *cli.Context) {
 		return
 	}
 
-	cfg.DefaultReleaseConfig = ReleaseConfig{
-		VerifyChanges:           verifyChanges,
-		VerifyChangesSufficient: verifyChangesSufficient,
-		VerifyDebs:              verifyDebs,
-		AcceptLoneDebs:          acceptLoneDebs,
-		PruneRules:              pruneRulesStr,
-		AutoTrim:                autoTrim,
-		AutoTrimLength:          trimLen,
-		PoolPattern:             poolPattern,
-	}
-
 	state.Archive = NewAptBlobArchive(
 		&storeDir,
 		&tmpDir,
 		&publicDir,
-		cfg.DefaultReleaseConfig,
+		ReleaseConfig{
+			VerifyChanges:           verifyChanges,
+			VerifyChangesSufficient: verifyChangesSufficient,
+			VerifyDebs:              verifyDebs,
+			AcceptLoneDebs:          acceptLoneDebs,
+			PruneRules:              pruneRulesStr,
+			AutoTrim:                autoTrim,
+			AutoTrimLength:          trimLen,
+			PoolPattern:             poolPattern,
+		},
 	)
 
 	state.UpdateChannel = make(chan UpdateRequest)
@@ -765,12 +746,11 @@ func CmdServe(c *cli.Context) {
 		state.UpdateChannel,
 	)
 
-	cfg.MaxReqs = maxReqs
 	cfg.CookieName = cookieName
 	cfg.PreGenHook = NewScriptHook(&preGenHook)
 	cfg.PostGenHook = NewScriptHook(&postGenHook)
 
-	state.aptLocks = NewGovernor(cfg.MaxReqs)
+	state.aptLocks = NewGovernor(maxReqs)
 	state.getCount = expvar.NewInt("GetRequests")
 
 	go updater()
@@ -798,4 +778,5 @@ func CmdServe(c *cli.Context) {
 	r.HandleFunc("/dists/{name}/upload/{session}", uploadHandler)
 
 	http.ListenAndServe(listenAddress, r)
+	//	http.ListenAndServeTLS(sslListenAddress, r)
 }
