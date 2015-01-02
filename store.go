@@ -51,17 +51,18 @@ type StoreWalker func(StoreID) []StoreID
 // can be written to it, and then accesed and referred to based on an
 // ID representing the content of the written item.
 type Storer interface {
-	Store() (StoreWriteCloser, error)     // Write something to the store
-	Open(StoreID) (io.ReadCloser, error)  // Open a file by id
-	Size(StoreID) (int64, error)          // Open a file by id
-	Link(StoreID, ...string) error        // Link a file id to a given location
-	UnLink(StoreID) error                 // UnLink a blob
-	EmptyFileID() StoreID                 // Return the StoreID for an 0 byte object
-	SetRef(name string, id StoreID) error // Set a reference
-	GetRef(name string) (StoreID, error)  // Get a reference
-	DeleteRef(name string) error          // Delete a reference
-	ListRefs() map[string]StoreID         // Get a reference
-	ForEach(f func(StoreID))              // Call function for each ID
+	Store() (StoreWriteCloser, error)           // Write something to the store
+	CopyToStore(io.ReadCloser) (StoreID, error) // Write something to the store
+	Open(StoreID) (io.ReadCloser, error)        // Open a file by id
+	Size(StoreID) (int64, error)                // Open a file by id
+	Link(StoreID, ...string) error              // Link a file id to a given location
+	UnLink(StoreID) error                       // UnLink a blob
+	EmptyFileID() StoreID                       // Return the StoreID for an 0 byte object
+	SetRef(name string, id StoreID) error       // Set a reference
+	GetRef(name string) (StoreID, error)        // Get a reference
+	DeleteRef(name string) error                // Delete a reference
+	ListRefs() map[string]StoreID               // Get a reference
+	ForEach(f func(StoreID))                    // Call function for each ID
 }
 
 type sha1Store struct {
@@ -188,6 +189,27 @@ func (t *sha1Store) Store() (StoreWriteCloser, error) {
 	}()
 
 	return writer, nil
+}
+
+func (t *sha1Store) CopyToStore(r io.ReadCloser) (id StoreID, err error) {
+	w, err := t.Store()
+	if err != nil {
+		return nil, errors.New("during copy to store, " + err.Error())
+	}
+	_, err = io.Copy(w, r)
+	if err != nil {
+		return nil, errors.New("during copy to store, " + err.Error())
+	}
+	err = r.Close()
+	if err != nil {
+		return nil, errors.New("during copy to store, " + err.Error())
+	}
+	err = w.Close()
+	if err != nil {
+		return nil, errors.New("during copy to store, " + err.Error())
+	}
+
+	return w.Identity()
 }
 
 func (t *sha1Store) Open(id StoreID) (reader io.ReadCloser, err error) {

@@ -79,7 +79,7 @@ func (s *UploadSession) MarshalJSON() (j []byte, err error) {
 func NewUploadSession(
 	rel *Release,
 	loneDeb bool,
-	changesReader io.Reader,
+	changesReader io.ReadCloser,
 	tmpDirBase *string,
 	finished chan UpdateRequest,
 	uploadSessionManager *UploadSessionManager,
@@ -103,13 +103,8 @@ func NewUploadSession(
 	s.getstatus = make(chan getStatusMsg)
 
 	if !s.LoneDeb {
-		changesWriter, err := s.usm.Store.Store()
-		if err != nil {
-			return UploadSession{}, err
-		}
-		io.Copy(changesWriter, changesReader)
-		changesWriter.Close()
-		s.changesID, err = changesWriter.Identity()
+		var err error
+		s.changesID, err = s.usm.Store.CopyToStore(changesReader)
 		if err != nil {
 			return UploadSession{}, err
 		}

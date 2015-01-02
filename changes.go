@@ -208,7 +208,7 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p ChangesFile, err 
 // ChangesFromHTTPRequest seperates a changes file from any other files in a
 // http request
 func ChangesFromHTTPRequest(r *http.Request) (
-	changesReader io.Reader,
+	changesReader io.ReadCloser,
 	other []*multipart.FileHeader,
 	err error) {
 

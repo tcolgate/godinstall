@@ -58,7 +58,7 @@ func (usm *UploadSessionManager) GetSession(sid string) (UploadSession, bool) {
 
 // NewSession adds a new upload session based on the details from the passed
 // debian changes file.
-func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.Reader, loneDeb bool) (string, error) {
+func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.ReadCloser, loneDeb bool) (string, error) {
 	var err error
 
 	s, err := NewUploadSession(

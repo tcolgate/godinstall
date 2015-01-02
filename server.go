@@ -12,6 +12,8 @@ import (
 	"os"
 	"regexp"
 
+	"code.google.com/p/go.crypto/openpgp"
+
 	"strings"
 	"time"
 
@@ -40,7 +42,10 @@ type AptServer struct {
 	distsHandler    http.HandlerFunc // HTTP handler for exposing the logs
 	logHandler      http.HandlerFunc // HTTP handler for exposing the logs
 	uploadHandler   http.HandlerFunc // HTTP handler for upload requests
-	configHandler   http.HandlerFunc // HTTP handler for upload requests
+
+	configHandler           http.HandlerFunc // HTTP handler for config requests
+	configSigningKeyHandler http.HandlerFunc // HTTP handler for signing key changes
+	configPublicKeysHandler http.HandlerFunc // HTTP handler for public key changes
 
 	getCount *expvar.Int // Download count
 }
@@ -53,6 +58,8 @@ func (a *AptServer) InitAptServer() {
 	a.uploadHandler = a.makeUploadHandler()
 	a.logHandler = a.makeLogHandler()
 	a.configHandler = a.makeConfigHandler()
+	a.configPublicKeysHandler = a.makeConfigPublicKeysHandler()
+	a.configSigningKeyHandler = a.makeConfigSigningKeyHandler()
 
 	a.getCount = expvar.NewInt("GetRequests")
 
@@ -67,6 +74,9 @@ func (a *AptServer) Register(r *mux.Router) {
 	r.HandleFunc("/dists", a.distsHandler)
 	r.HandleFunc("/dists/{name}", a.distsHandler)
 	r.HandleFunc("/dists/{name}/config", a.configHandler)
+	r.HandleFunc("/dists/{name}/config/signingkey", a.configSigningKeyHandler)
+	r.HandleFunc("/dists/{name}/config/publickeys", a.configPublicKeysHandler)
+	r.HandleFunc("/dists/{name}/config/publickeys/{id}", a.configPublicKeysHandler)
 	r.HandleFunc("/dists/{name}/log", a.logHandler)
 	r.HandleFunc("/dists/{name}/upload", a.uploadHandler)
 	r.HandleFunc("/dists/{name}/upload/{session}", a.uploadHandler)
@@ -501,6 +511,145 @@ func (a *AptServer) makeConfigHandler() http.HandlerFunc {
 			}
 
 			w.Write(output)
+		case "PUT", "POST":
+			http.Error(w,
+				http.StatusText(http.StatusMethodNotAllowed),
+				http.StatusMethodNotAllowed)
+		default:
+			http.Error(w,
+				http.StatusText(http.StatusMethodNotAllowed),
+				http.StatusMethodNotAllowed)
+		}
+		return
+	}
+}
+
+// This build a function to manage the config of a distribution
+func (a *AptServer) makeConfigSigningKeyHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		name := vars["name"]
+
+		rel, err := a.Archive.GetDist(name)
+		if err != nil {
+			http.Error(w,
+				fmt.Sprintf("distribution %v not found, %s", name, err.Error()),
+				http.StatusNotFound)
+			return
+		}
+
+		switch r.Method {
+		case "GET":
+			id, err := rel.SignerKey()
+			if err != nil {
+				http.Error(w,
+					fmt.Sprintf("\"Error retrieving signing key\"", name, err.Error()),
+					http.StatusNotFound)
+				return
+			}
+
+			if id == nil {
+				http.Error(w,
+					fmt.Sprintf("\"No signing key set\""),
+					http.StatusNotFound)
+				return
+			}
+
+			key := id.PrimaryKey
+			if key == nil {
+				http.Error(w,
+					fmt.Sprintf("\"No signing key set\""),
+					http.StatusNotFound)
+				return
+			}
+			w.Write([]byte("\"" + key.KeyIdString() + "\""))
+			return
+
+		case "DELETE":
+			http.Error(w,
+				http.StatusText(http.StatusMethodNotAllowed),
+				http.StatusMethodNotAllowed)
+		case "PUT", "POST":
+			id, err := a.Archive.CopyToStore(r.Body)
+			if err != nil {
+				http.Error(w,
+					"failed to copy key to store, "+err.Error(),
+					http.StatusInternalServerError)
+				return
+			}
+			rdr, err := a.Archive.Open(id)
+			kr, err := openpgp.ReadArmoredKeyRing(rdr)
+			if err != nil {
+				http.Error(w,
+					"failed to parse data as  key, "+err.Error(),
+					http.StatusInternalServerError)
+				return
+			}
+
+			log.Println(kr[0])
+		default:
+			http.Error(w,
+				http.StatusText(http.StatusMethodNotAllowed),
+				http.StatusMethodNotAllowed)
+		}
+		return
+	}
+}
+
+// For managing public keys in a config
+func (a *AptServer) makeConfigPublicKeysHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		name := vars["name"]
+		reqid := vars["id"]
+
+		rel, err := a.Archive.GetDist(name)
+		if err != nil {
+			http.Error(w,
+				fmt.Sprintf("distribution %v not found, %s", name, err.Error()),
+				http.StatusNotFound)
+			return
+		}
+
+		switch r.Method {
+		case "GET":
+			ids, err := rel.PubRing()
+			if err != nil {
+				http.Error(w,
+					fmt.Sprintf("\"Error retrieving signing keys\"", name, err.Error()),
+					http.StatusNotFound)
+				return
+			}
+			if reqid == "" {
+				var keyids []string
+				for _, id := range ids {
+					key := id.PrimaryKey
+					if key != nil {
+						keyids = append(keyids, "\""+key.KeyIdString()+"\"")
+					}
+				}
+				w.Write([]byte("[" + strings.Join(keyids, ",") + "]"))
+			} else {
+				found := false
+				output := ""
+				for _, id := range ids {
+					key := id.PrimaryKey
+					if key.KeyIdString() == reqid {
+						output = reqid
+					}
+				}
+				if found {
+					w.Write([]byte(output))
+				} else {
+					http.NotFound(w, r)
+				}
+			}
+
+			return
+		case "DELETE":
+			http.Error(w,
+				http.StatusText(http.StatusMethodNotAllowed),
+				http.StatusMethodNotAllowed)
 		case "PUT", "POST":
 			http.Error(w,
 				http.StatusText(http.StatusMethodNotAllowed),
