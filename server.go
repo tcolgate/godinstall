@@ -42,14 +42,12 @@ var state struct {
 
 func makeDownloadHandler() http.HandlerFunc {
 	fsHandler := http.StripPrefix("/repo/", http.FileServer(http.Dir(state.Archive.PublicDir())))
-	return func(w http.ResponseWriter, r *http.Request) {
-		state.Lock.ReadLock()
-		defer state.Lock.ReadUnLock()
-
+	downloadHandler := func(w http.ResponseWriter, r *http.Request) {
+		handleWithReadLock(fsHandler.ServeHTTP, w, r)
 		log.Printf("%s %s %s %s", r.Method, r.Proto, r.URL.Path, r.RemoteAddr)
 		state.getCount.Add(1)
-		fsHandler.ServeHTTP(w, r)
 	}
+	return downloadHandler
 }
 
 // ServerResponse is a custom error type to
@@ -74,39 +72,31 @@ func ServerMessage(status int, msg interface{}) *ServerResponse {
 		StatusCode: status,
 	}
 
-	switch t := msg.(type) {
-	case json.Marshaler:
-		{
-			j, err = json.Marshal(t)
-			resp.Message = j
-		}
-	case string:
-		{
-			j, err = json.Marshal(
-				struct {
-					Message string
-				}{
-					t,
-				})
-			resp.Message = j
-		}
-	default:
-		{
-			j, err = json.Marshal(
-				struct {
-					Message string
-				}{
-					t.(string),
-				})
-			resp.Message = j
-		}
-	}
-
+	j, err = json.Marshal(msg)
 	if err != nil {
-		resp.Message = []byte("Could not marshal response, " + err.Error())
+		resp.StatusCode = http.StatusInternalServerError
+		resp.Message = []byte("failed to marshal response, " + err.Error())
+	} else {
+		resp.Message = j
 	}
 
 	return &resp
+}
+
+func SendResponse(w http.ResponseWriter, msg *ServerResponse) {
+	if len(msg.Message) == 0 {
+		msg.Message = []byte(http.StatusText(msg.StatusCode))
+	}
+	if msg.StatusCode >= 400 {
+		log.Println(msg.Error())
+	}
+	w.WriteHeader(msg.StatusCode)
+	w.Write(msg.Message)
+}
+
+func SendOKResponse(w http.ResponseWriter, obj interface{}) {
+	msg := ServerMessage(http.StatusOK, obj)
+	SendResponse(w, msg)
 }
 
 // This build a function to despatch upload requests
@@ -318,13 +308,7 @@ func distsHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		if !nameGiven {
-			output, err := json.Marshal(dists)
-			if err != nil {
-				http.Error(w,
-					"failed to retrieve list of distributions, "+err.Error(),
-					http.StatusInternalServerError)
-			}
-			w.Write(output)
+			SendOKResponse(w, dists)
 		} else {
 			_, ok := dists[name]
 			if !ok {
@@ -592,6 +576,18 @@ func configPublicKeysHandler(w http.ResponseWriter, r *http.Request) {
 			http.StatusMethodNotAllowed)
 	}
 	return
+}
+
+func handleWithReadLock(f http.HandlerFunc, w http.ResponseWriter, r *http.Request) {
+	state.Lock.ReadLock()
+	defer state.Lock.ReadUnLock()
+	f(w, r)
+}
+
+func handleWithWriteLock(f http.HandlerFunc, w http.ResponseWriter, r *http.Request) {
+	state.Lock.WriteLock()
+	defer state.Lock.WriteUnLock()
+	f(w, r)
 }
 
 // Updater ensures that updates to the repository are serialized.
