@@ -34,7 +34,7 @@ var state struct {
 	Archive        Archiver              // The generator for updating the repo
 	SessionManager *UploadSessionManager // The session manager
 	UpdateChannel  chan UpdateRequest    // A channel to recieve update requests
-	aptLocks       *Governor             // Locks to ensure the repo update is atomic
+	Lock           *Governor             // Locks to ensure the repo update is atomic
 	getCount       *expvar.Int           // Download count
 }
 
@@ -43,8 +43,8 @@ var state struct {
 func makeDownloadHandler() http.HandlerFunc {
 	fsHandler := http.StripPrefix("/repo/", http.FileServer(http.Dir(state.Archive.PublicDir())))
 	return func(w http.ResponseWriter, r *http.Request) {
-		state.aptLocks.ReadLock()
-		defer state.aptLocks.ReadUnLock()
+		state.Lock.ReadLock()
+		defer state.Lock.ReadUnLock()
 
 		log.Printf("%s %s %s %s", r.Method, r.Proto, r.URL.Path, r.RemoteAddr)
 		state.getCount.Add(1)
@@ -609,7 +609,7 @@ func updater() {
 				session := msg.session
 				completedsession := CompletedUpload{UploadSession: session}
 
-				state.aptLocks.WriteLock()
+				state.Lock.WriteLock()
 
 				hookResult := cfg.PreGenHook.Run(session.Directory())
 				if hookResult.err != nil {
@@ -625,7 +625,7 @@ func updater() {
 					completedsession.PostGenHookOutput = hookResult
 				}
 
-				state.aptLocks.WriteUnLock()
+				state.Lock.WriteUnLock()
 
 				if respStatus == http.StatusOK {
 					respObj = completedsession
@@ -750,7 +750,7 @@ func CmdServe(c *cli.Context) {
 	cfg.PreGenHook = NewScriptHook(&preGenHook)
 	cfg.PostGenHook = NewScriptHook(&postGenHook)
 
-	state.aptLocks = NewGovernor(maxReqs)
+	state.Lock = NewGovernor(maxReqs)
 	state.getCount = expvar.NewInt("GetRequests")
 
 	go updater()
