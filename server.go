@@ -40,7 +40,7 @@ var state struct {
 
 // Construct the download handler for normal client downloads
 
-func makeDownloadHandler() http.HandlerFunc {
+func makeHTTPDownloadHandler() http.HandlerFunc {
 	fsHandler := http.StripPrefix("/repo/", http.FileServer(http.Dir(state.Archive.PublicDir())))
 	downloadHandler := func(w http.ResponseWriter, r *http.Request) {
 		handleWithReadLock(fsHandler.ServeHTTP, w, r)
@@ -110,7 +110,7 @@ func SendOKOrErrorResponse(w http.ResponseWriter, obj interface{}, err error, er
 }
 
 // This build a function to despatch upload requests
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
+func httpUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
@@ -252,7 +252,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func logHandler(w http.ResponseWriter, r *http.Request) {
+func httpLogHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
@@ -310,7 +310,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // This build a function to enumerate the distributions
-func distsHandler(w http.ResponseWriter, r *http.Request) {
+func httpDistsHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
@@ -419,7 +419,7 @@ func distsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // This build a function to manage the config of a distribution
-func configHandler(w http.ResponseWriter, r *http.Request) {
+func httpConfigHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
@@ -454,7 +454,7 @@ func configHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // This build a function to manage the config of a distribution
-func configSigningKeyHandler(w http.ResponseWriter, r *http.Request) {
+func httpConfigSigningKeyHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
@@ -524,7 +524,7 @@ func configSigningKeyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // For managing public keys in a config
-func configPublicKeysHandler(w http.ResponseWriter, r *http.Request) {
+func httpConfigPublicKeysHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	reqid := vars["id"]
@@ -770,18 +770,18 @@ func CmdServe(c *cli.Context) {
 	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	r.Handle("/debug/vars", http.DefaultServeMux)
 
-	r.PathPrefix("/repo/").HandlerFunc(makeDownloadHandler())
-	r.PathPrefix("/upload").HandlerFunc(uploadHandler)
+	r.PathPrefix("/repo/").HandlerFunc(makeHTTPDownloadHandler())
+	r.PathPrefix("/upload").HandlerFunc(httpUploadHandler)
 
-	r.HandleFunc("/dists", distsHandler)
-	r.HandleFunc("/dists/{name}", distsHandler)
-	r.HandleFunc("/dists/{name}/config", configHandler)
-	r.HandleFunc("/dists/{name}/config/signingkey", configSigningKeyHandler)
-	r.HandleFunc("/dists/{name}/config/publickeys", configPublicKeysHandler)
-	r.HandleFunc("/dists/{name}/config/publickeys/{id}", configPublicKeysHandler)
-	r.HandleFunc("/dists/{name}/log", logHandler)
-	r.HandleFunc("/dists/{name}/upload", uploadHandler)
-	r.HandleFunc("/dists/{name}/upload/{session}", uploadHandler)
+	r.HandleFunc("/dists", httpDistsHandler)
+	r.HandleFunc("/dists/{name}", httpDistsHandler)
+	r.HandleFunc("/dists/{name}/config", httpConfigHandler)
+	r.HandleFunc("/dists/{name}/config/signingkey", httpConfigSigningKeyHandler)
+	r.HandleFunc("/dists/{name}/config/publickeys", httpConfigPublicKeysHandler)
+	r.HandleFunc("/dists/{name}/config/publickeys/{id}", httpConfigPublicKeysHandler)
+	r.HandleFunc("/dists/{name}/log", httpLogHandler)
+	r.HandleFunc("/dists/{name}/upload", httpUploadHandler)
+	r.HandleFunc("/dists/{name}/upload/{session}", httpUploadHandler)
 
 	http.ListenAndServe(listenAddress, r)
 	//	http.ListenAndServeTLS(sslListenAddress, r)
