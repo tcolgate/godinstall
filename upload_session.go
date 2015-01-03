@@ -181,14 +181,14 @@ func (s *UploadSession) handler() {
 			}
 		case msg := <-s.getstatus:
 			{
-				msg.resp <- ServerMessage(http.StatusOK, s)
+				msg.resp <- NewServerResponse(http.StatusOK, s)
 			}
 		case msg := <-s.incoming:
 			{
 				err := s.doAddFile(msg.file)
 
 				if err != nil {
-					msg.resp <- ServerMessage(http.StatusBadRequest, err.Error())
+					msg.resp <- NewServerResponse(http.StatusBadRequest, err.Error())
 					break
 				}
 
@@ -200,7 +200,7 @@ func (s *UploadSession) handler() {
 				}
 
 				if !complete {
-					msg.resp <- ServerMessage(http.StatusAccepted, s)
+					msg.resp <- NewServerResponse(http.StatusAccepted, s)
 					break
 				} else {
 					s.Complete = true

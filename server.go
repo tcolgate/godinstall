@@ -62,9 +62,9 @@ func (r ServerResponse) Error() string {
 	return "ERROR: " + string(r.Message)
 }
 
-// ServerMessage contructs a new repsonse to a client and can take
+// NewServerResponse contructs a new repsonse to a client and can take
 // a string of JSON'able object
-func ServerMessage(status int, msg interface{}) *ServerResponse {
+func NewServerResponse(status int, msg interface{}) *ServerResponse {
 	var err error
 	var j []byte
 
@@ -95,7 +95,17 @@ func SendResponse(w http.ResponseWriter, msg *ServerResponse) {
 }
 
 func SendOKResponse(w http.ResponseWriter, obj interface{}) {
-	msg := ServerMessage(http.StatusOK, obj)
+	msg := NewServerResponse(http.StatusOK, obj)
+	SendResponse(w, msg)
+}
+
+func SendOKOrErrorResponse(w http.ResponseWriter, obj interface{}, err error, errStatus int) {
+	var msg *ServerResponse
+	if err != nil {
+		msg = NewServerResponse(errStatus, err.Error())
+	} else {
+		msg = NewServerResponse(http.StatusOK, obj)
+	}
 	SendResponse(w, msg)
 }
 
@@ -126,7 +136,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		{
 			s, ok := state.SessionManager.GetSession(session)
 			if !ok {
-				resp = ServerMessage(http.StatusNotFound, "File not found")
+				resp = NewServerResponse(http.StatusNotFound, "File not found")
 				w.WriteHeader(resp.StatusCode)
 				w.Write(resp.Message)
 				return
@@ -138,7 +148,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		{
 			changesReader, otherParts, err := ChangesFromHTTPRequest(r)
 			if err != nil {
-				resp = ServerMessage(http.StatusBadRequest, err.Error())
+				resp = NewServerResponse(http.StatusBadRequest, err.Error())
 				w.WriteHeader(resp.StatusCode)
 				w.Write(resp.Message)
 				return
@@ -157,7 +167,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 				if changesReader == nil {
 					if !rel.Config().AcceptLoneDebs {
 						err = errors.New("No debian changes file in request")
-						resp = ServerMessage(http.StatusBadRequest, err.Error())
+						resp = NewServerResponse(http.StatusBadRequest, err.Error())
 						w.WriteHeader(resp.StatusCode)
 						w.Write(resp.Message)
 						return
@@ -165,7 +175,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 					if len(otherParts) != 1 {
 						err = errors.New("Too many files in upload request without changes file present")
-						resp = ServerMessage(http.StatusBadRequest, err.Error())
+						resp = NewServerResponse(http.StatusBadRequest, err.Error())
 						w.WriteHeader(resp.StatusCode)
 						w.Write(resp.Message)
 						return
@@ -173,7 +183,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 					if !strings.HasSuffix(otherParts[0].Filename, ".deb") {
 						err = errors.New("Lone files for upload must end in .deb")
-						resp = ServerMessage(http.StatusBadRequest, err.Error())
+						resp = NewServerResponse(http.StatusBadRequest, err.Error())
 						w.WriteHeader(resp.StatusCode)
 						w.Write(resp.Message)
 						return
@@ -184,7 +194,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 				session, err = state.SessionManager.NewSession(rel, changesReader, loneDeb)
 				if err != nil {
-					resp = ServerMessage(http.StatusBadRequest, err.Error())
+					resp = NewServerResponse(http.StatusBadRequest, err.Error())
 					w.WriteHeader(resp.StatusCode)
 					w.Write(resp.Message)
 					return
@@ -200,7 +210,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 				http.SetCookie(w, &cookie)
 			}
 			if err != nil {
-				resp = ServerMessage(http.StatusBadRequest, err.Error())
+				resp = NewServerResponse(http.StatusBadRequest, err.Error())
 				w.WriteHeader(resp.StatusCode)
 				w.Write(resp.Message)
 				return
@@ -208,7 +218,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 			sess, ok := state.SessionManager.GetSession(session)
 			if !ok {
-				resp = ServerMessage(http.StatusNotFound, "File Not Found")
+				resp = NewServerResponse(http.StatusNotFound, "File Not Found")
 				w.WriteHeader(resp.StatusCode)
 				w.Write(resp.Message)
 				return
@@ -219,7 +229,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			for _, part := range otherParts {
 				fh, err := part.Open()
 				if err != nil {
-					resp = ServerMessage(http.StatusBadRequest, fmt.Sprintf("Error opening mime item, %s", err.Error()))
+					resp = NewServerResponse(http.StatusBadRequest, fmt.Sprintf("Error opening mime item, %s", err.Error()))
 					w.WriteHeader(resp.StatusCode)
 					w.Write(resp.Message)
 					return
@@ -301,12 +311,12 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 
 // This build a function to enumerate the distributions
 func distsHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name, nameGiven := vars["name"]
-	dists := state.Archive.Dists()
 
 	switch r.Method {
 	case "GET":
+		vars := mux.Vars(r)
+		name, nameGiven := vars["name"]
+		dists := state.Archive.Dists()
 		if !nameGiven {
 			SendOKResponse(w, dists)
 		} else {
@@ -316,9 +326,12 @@ func distsHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			rel, err := state.Archive.GetDist(name)
-			SendOrOKResponse(w, rel, err)
+			SendOKOrErrorResponse(w, rel, err, http.StatusInternalServerError)
 		}
 	case "PUT":
+		vars := mux.Vars(r)
+		name, _ := vars["name"]
+		dists := state.Archive.Dists()
 		var rel *Release
 		var err error
 
@@ -377,6 +390,9 @@ func distsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write(output)
 	case "DELETE":
+		vars := mux.Vars(r)
+		name, nameGiven := vars["name"]
+		dists := state.Archive.Dists()
 		if !nameGiven {
 			http.Error(w,
 				http.StatusText(http.StatusMethodNotAllowed),
@@ -621,7 +637,7 @@ func updater() {
 					respObj = completedsession
 				}
 
-				msg.resp <- ServerMessage(respStatus, respObj)
+				msg.resp <- NewServerResponse(respStatus, respObj)
 			}
 		}
 	}
