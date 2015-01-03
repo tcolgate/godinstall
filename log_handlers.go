@@ -9,6 +9,18 @@ import (
 )
 
 func httpLogHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		handleWithReadLock(doHttpLogGetHandler, w, r)
+	default:
+		http.Error(w,
+			http.StatusText(http.StatusMethodNotAllowed),
+			http.StatusMethodNotAllowed)
+	}
+	return
+}
+
+func doHttpLogGetHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
