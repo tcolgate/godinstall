@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"io"
+	"net/http"
 	"time"
 )
 
@@ -39,6 +40,57 @@ func (s CompletedUpload) MarshalJSON() (j []byte, err error) {
 	}
 	j, err = json.Marshal(resp)
 	return
+}
+
+// Updater ensures that updates to the repository are serialized.
+// it reads from a channel of messages, responds to clients, and
+// instigates the actual regernation of the repository
+func updater() {
+	for {
+		select {
+		case msg := <-state.UpdateChannel:
+			{
+				var err error
+				respStatus := http.StatusOK
+				var respObj interface{}
+
+				session := msg.session
+				completedsession := CompletedUpload{UploadSession: session}
+
+				state.Lock.WriteLock()
+
+				hookResult := cfg.PreGenHook.Run(session.Directory())
+				if hookResult.err != nil {
+					respStatus = http.StatusBadRequest
+					respObj = "Pre gen hook failed " + hookResult.Error()
+				} else {
+					completedsession.PreGenHookOutput = hookResult
+				}
+
+				respStatus, respObj, err = state.Archive.AddUpload(session)
+				if err == nil {
+					hookResult := cfg.PostGenHook.Run(session.ID())
+					completedsession.PostGenHookOutput = hookResult
+				}
+
+				state.Lock.WriteUnLock()
+
+				if respStatus == http.StatusOK {
+					respObj = completedsession
+				}
+
+				msg.resp <- NewServerResponse(respStatus, respObj)
+			}
+		}
+	}
+}
+
+// UpdateRequest contains the information needed to
+// request an update, only regeneration is supported
+// at present
+type UpdateRequest struct {
+	resp    chan *ServerResponse
+	session *UploadSession
 }
 
 // NewUploadSessionManager creates a session manager which maintains a set of
