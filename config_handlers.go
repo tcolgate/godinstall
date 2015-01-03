@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,33 +10,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// This build a function to manage the config of a distribution
+// This build a function to enumerate the distributions
 func httpConfigHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["name"]
-
-	rel, err := state.Archive.GetDist(name)
-	if err != nil {
-		http.Error(w,
-			fmt.Sprintf("distribution %v not found, %s", name, err.Error()),
-			http.StatusNotFound)
-		return
-	}
-
 	switch r.Method {
 	case "GET":
-		output, err := json.Marshal(rel.Config())
-		if err != nil {
-			http.Error(w,
-				"failed to marshal release config, "+err.Error(),
-				http.StatusInternalServerError)
-		}
-
-		w.Write(output)
-	case "PUT", "POST":
-		http.Error(w,
-			http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
+		handleWithReadLock(doHttpConfigGetHandler, w, r)
 	default:
 		http.Error(w,
 			http.StatusText(http.StatusMethodNotAllowed),
@@ -47,7 +24,7 @@ func httpConfigHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // This build a function to manage the config of a distribution
-func httpConfigSigningKeyHandler(w http.ResponseWriter, r *http.Request) {
+func doHttpConfigGetHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
@@ -59,55 +36,101 @@ func httpConfigSigningKeyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	SendOKResponse(w, rel.Config())
+}
+
+// This build a function to enumerate the distributions
+func httpConfigSigningKeyHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		id, err := rel.SignerKey()
-		if err != nil {
-			http.Error(w,
-				fmt.Sprintf("\"Error retrieving signing key\"", name, err.Error()),
-				http.StatusNotFound)
-			return
-		}
-
-		if id == nil {
-			http.Error(w,
-				fmt.Sprintf("\"No signing key set\""),
-				http.StatusNotFound)
-			return
-		}
-
-		key := id.PrimaryKey
-		if key == nil {
-			http.Error(w,
-				fmt.Sprintf("\"No signing key set\""),
-				http.StatusNotFound)
-			return
-		}
-		w.Write([]byte("\"" + key.KeyIdString() + "\""))
-		return
-
-	case "DELETE":
+		handleWithReadLock(doHttpConfigSigningKeyGetHandler, w, r)
+	case "PUT", "POST":
+		handleWithWriteLock(doHttpConfigSigningKeyPutHandler, w, r)
+	default:
 		http.Error(w,
 			http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
-	case "PUT", "POST":
-		id, err := state.Archive.CopyToStore(r.Body)
-		if err != nil {
-			http.Error(w,
-				"failed to copy key to store, "+err.Error(),
-				http.StatusInternalServerError)
-			return
-		}
-		rdr, err := state.Archive.Open(id)
-		kr, err := openpgp.ReadArmoredKeyRing(rdr)
-		if err != nil {
-			http.Error(w,
-				"failed to parse data as  key, "+err.Error(),
-				http.StatusInternalServerError)
-			return
-		}
+	}
+	return
+}
 
-		log.Println(kr[0])
+func doHttpConfigSigningKeyGetHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	rel, err := state.Archive.GetDist(name)
+	if err != nil {
+		http.Error(w,
+			fmt.Sprintf("distribution %v not found, %s", name, err.Error()),
+			http.StatusNotFound)
+		return
+	}
+
+	id, err := rel.SignerKey()
+	if err != nil {
+		http.Error(w,
+			fmt.Sprintf("\"Error retrieving signing key\"", name, err.Error()),
+			http.StatusNotFound)
+		return
+	}
+
+	if id == nil {
+		http.Error(w,
+			fmt.Sprintf("\"No signing key set\""),
+			http.StatusNotFound)
+		return
+	}
+
+	key := id.PrimaryKey
+	if key == nil {
+		http.Error(w,
+			fmt.Sprintf("\"No signing key set\""),
+			http.StatusNotFound)
+		return
+	}
+	w.Write([]byte("\"" + key.KeyIdString() + "\""))
+	return
+
+}
+
+func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	_, err := state.Archive.GetDist(name)
+	if err != nil {
+		http.Error(w,
+			fmt.Sprintf("distribution %v not found, %s", name, err.Error()),
+			http.StatusNotFound)
+		return
+	}
+
+	id, err := state.Archive.CopyToStore(r.Body)
+	if err != nil {
+		http.Error(w,
+			"failed to copy key to store, "+err.Error(),
+			http.StatusInternalServerError)
+		return
+	}
+	rdr, err := state.Archive.Open(id)
+	kr, err := openpgp.ReadArmoredKeyRing(rdr)
+	if err != nil {
+		http.Error(w,
+			"failed to parse data as  key, "+err.Error(),
+			http.StatusInternalServerError)
+		return
+	}
+
+	log.Println(kr[0])
+}
+
+// This build a function to enumerate the distributions
+func httpConfigPublicKeysHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		handleWithReadLock(doHttpConfigPublicKeysGetHandler, w, r)
+		//	case "PUT", "POST":
+		//		handleWithWriteLock(doHttpConfigSigningKeyPutHandler, w, r)
 	default:
 		http.Error(w,
 			http.StatusText(http.StatusMethodNotAllowed),
@@ -117,7 +140,7 @@ func httpConfigSigningKeyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // For managing public keys in a config
-func httpConfigPublicKeysHandler(w http.ResponseWriter, r *http.Request) {
+func doHttpConfigPublicKeysGetHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	reqid := vars["id"]
@@ -130,53 +153,37 @@ func httpConfigPublicKeysHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch r.Method {
-	case "GET":
-		ids, err := rel.PubRing()
-		if err != nil {
-			http.Error(w,
-				fmt.Sprintf("\"Error retrieving signing keys\"", name, err.Error()),
-				http.StatusNotFound)
-			return
-		}
-		if reqid == "" {
-			var keyids []string
-			for _, id := range ids {
-				key := id.PrimaryKey
-				if key != nil {
-					keyids = append(keyids, "\""+key.KeyIdString()+"\"")
-				}
-			}
-			w.Write([]byte("[" + strings.Join(keyids, ",") + "]"))
-		} else {
-			found := false
-			output := ""
-			for _, id := range ids {
-				key := id.PrimaryKey
-				if key.KeyIdString() == reqid {
-					output = reqid
-				}
-			}
-			if found {
-				w.Write([]byte(output))
-			} else {
-				http.NotFound(w, r)
-			}
-		}
-
+	ids, err := rel.PubRing()
+	if err != nil {
+		http.Error(w,
+			fmt.Sprintf("\"Error retrieving signing keys\"", name, err.Error()),
+			http.StatusNotFound)
 		return
-	case "DELETE":
-		http.Error(w,
-			http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
-	case "PUT", "POST":
-		http.Error(w,
-			http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
-	default:
-		http.Error(w,
-			http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
 	}
+	if reqid == "" {
+		var keyids []string
+		for _, id := range ids {
+			key := id.PrimaryKey
+			if key != nil {
+				keyids = append(keyids, "\""+key.KeyIdString()+"\"")
+			}
+		}
+		w.Write([]byte("[" + strings.Join(keyids, ",") + "]"))
+	} else {
+		found := false
+		output := ""
+		for _, id := range ids {
+			key := id.PrimaryKey
+			if key.KeyIdString() == reqid {
+				output = reqid
+			}
+		}
+		if found {
+			w.Write([]byte(output))
+		} else {
+			http.NotFound(w, r)
+		}
+	}
+
 	return
 }
