@@ -199,6 +199,15 @@ func (a *archiveStoreArchive) ReifyRelease(id StoreID) (err error) {
 		if err != nil {
 			return err
 		}
+
+		key, _ := release.SignerKey()
+		if key != nil {
+			keyfile, err := os.Create(distBase + "/pubkey.gpg")
+			defer keyfile.Close()
+			if err == nil {
+				key.Serialize(keyfile)
+			}
+		}
 	}
 
 	err = a.updatePool(release)
