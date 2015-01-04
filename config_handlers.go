@@ -90,6 +90,10 @@ func doHttpConfigSigningKeyGetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) {
+	if !AuthorisedAdmin(w, r) {
+		return
+	}
+
 	vars := mux.Vars(r)
 	name := vars["name"]
 
@@ -167,6 +171,9 @@ func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func doHttpConfigSigningKeyDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	if !AuthorisedAdmin(w, r) {
+		return
+	}
 	vars := mux.Vars(r)
 	name := vars["name"]
 
@@ -285,6 +292,9 @@ func doHttpConfigPublicKeysGetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func doHttpConfigPublicKeysPostHandler(w http.ResponseWriter, r *http.Request) {
+	if !AuthorisedAdmin(w, r) {
+		return
+	}
 	vars := mux.Vars(r)
 	name := vars["name"]
 
@@ -377,6 +387,9 @@ func doHttpConfigPublicKeysPostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func doHttpConfigPublicKeysDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	if !AuthorisedAdmin(w, r) {
+		return
+	}
 	vars := mux.Vars(r)
 	name := vars["name"]
 	id := vars["id"]

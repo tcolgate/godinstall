@@ -5,6 +5,7 @@ import (
 	"expvar"
 	"log"
 	"net/http"
+	"strings"
 
 	"time"
 )
@@ -99,4 +100,14 @@ func handleWithWriteLock(f http.HandlerFunc, w http.ResponseWriter, r *http.Requ
 	state.Lock.WriteLock()
 	defer state.Lock.WriteUnLock()
 	f(w, r)
+}
+
+func AuthorisedAdmin(w http.ResponseWriter, r *http.Request) bool {
+	h := r.RemoteAddr[:strings.LastIndex(r.RemoteAddr, ":")]
+	if !(h == "127.0.0.1" || h == "::1") {
+		log.Printf("UNAUTHORIZED: %v %v", r.RemoteAddr, r.RequestURI)
+		SendDefaultResponse(w, http.StatusUnauthorized)
+		return false
+	}
+	return true
 }

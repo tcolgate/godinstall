@@ -42,6 +42,9 @@ func doHttpDistsGetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func doHttpDistsPutHandler(w http.ResponseWriter, r *http.Request) {
+	if !AuthorisedAdmin(w, r) {
+		return
+	}
 	vars := mux.Vars(r)
 	name, _ := vars["name"]
 	dists := state.Archive.Dists()
@@ -107,6 +110,9 @@ func doHttpDistsPutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func doHttpDistsDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	if !AuthorisedAdmin(w, r) {
+		return
+	}
 	vars := mux.Vars(r)
 	name, nameGiven := vars["name"]
 	dists := state.Archive.Dists()
