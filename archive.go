@@ -189,11 +189,7 @@ func (a *archiveStoreArchive) ReifyRelease(id StoreID) (err error) {
 		return err
 	}
 
-	key, err := release.SignerKey()
-	if err != nil {
-		return err
-	}
-	if key != nil {
+	if len(release.InRelease) != 0 {
 		err = a.Link(release.InRelease, distBase+"/InRelease")
 		if err != nil {
 			return err
