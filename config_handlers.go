@@ -121,22 +121,31 @@ func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := rel.Config()
+	if cfg.SigningKeyID.String() == id.String() {
+		doHttpConfigSigningKeyGetHandler(w, r)
+		return
+	}
 
 	cfg.SigningKeyID = id
 
 	newcfgid, err := state.Archive.AddReleaseConfig(*cfg)
 	if err != nil {
 		http.Error(w,
-			"failed to parse add new release config, "+err.Error(),
+			"failed to add new release config, "+err.Error(),
 			http.StatusInternalServerError)
 		return
 	}
 
 	rel.ConfigID = newcfgid
+	if !rel.updateReleaseSigFiles() {
+		doHttpConfigSigningKeyGetHandler(w, r)
+		return
+	}
+
 	newrelid, err := state.Archive.AddRelease(rel)
 	if err != nil {
 		http.Error(w,
-			"failed to parse add new release, "+err.Error(),
+			"failed to update key, "+err.Error(),
 			http.StatusInternalServerError)
 		return
 	}
@@ -144,7 +153,15 @@ func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) {
 	err = state.Archive.SetDist(name, newrelid)
 	if err != nil {
 		http.Error(w,
-			"failed to parse add update release rag, "+err.Error(),
+			"failed to update key, "+err.Error(),
+			http.StatusInternalServerError)
+		return
+	}
+
+	err = state.Archive.ReifyRelease(newrelid)
+	if err != nil {
+		http.Error(w,
+			"failed to update key, "+err.Error(),
 			http.StatusInternalServerError)
 		return
 	}
@@ -166,6 +183,11 @@ func doHttpConfigSigningKeyDeleteHandler(w http.ResponseWriter, r *http.Request)
 
 	rel := p.NewChildRelease()
 	cfg := rel.Config()
+	if cfg.SigningKeyID == nil {
+		doHttpConfigSigningKeyGetHandler(w, r)
+		return
+	}
+
 	cfg.SigningKeyID = nil
 
 	newcfgid, err := state.Archive.AddReleaseConfig(*cfg)
@@ -177,6 +199,11 @@ func doHttpConfigSigningKeyDeleteHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	rel.ConfigID = newcfgid
+	if !rel.updateReleaseSigFiles() {
+		doHttpConfigSigningKeyGetHandler(w, r)
+		return
+	}
+
 	newrelid, err := state.Archive.AddRelease(rel)
 	if err != nil {
 		http.Error(w,
@@ -189,6 +216,14 @@ func doHttpConfigSigningKeyDeleteHandler(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		http.Error(w,
 			"failed to parse add update release rag, "+err.Error(),
+			http.StatusInternalServerError)
+		return
+	}
+
+	err = state.Archive.ReifyRelease(newrelid)
+	if err != nil {
+		http.Error(w,
+			"failed to update key, "+err.Error(),
 			http.StatusInternalServerError)
 		return
 	}

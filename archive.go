@@ -20,6 +20,7 @@ type Archiver interface {
 	Dists() map[string]StoreID
 	GetDist(name string) (*Release, error)
 	SetDist(name string, newrel StoreID) error
+	ReifyRelease(id StoreID) (err error)
 	DeleteDist(name string) error
 	AddUpload(session *UploadSession) (respStatus int, respObj string, err error)
 	ArchiveStorer
