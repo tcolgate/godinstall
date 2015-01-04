@@ -92,7 +92,13 @@ func (a *archiveStoreArchive) DeleteDist(name string) error {
 	if strings.Index(name, "/") != -1 {
 		return errors.New("Distribution name cannot include /")
 	}
-	return a.DeleteReleaseTag("heads/" + name)
+
+	err := a.DeleteReleaseTag("heads/" + name)
+	if err != nil {
+		return fmt.Errorf("Distribution note deleted, %v", err.Error())
+	}
+
+	return os.RemoveAll(*a.base + "/dists/" + name)
 }
 
 func (a *archiveStoreArchive) ReifyRelease(id StoreID) (err error) {
