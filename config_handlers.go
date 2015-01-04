@@ -60,7 +60,7 @@ func doHttpConfigSigningKeyGetHandler(w http.ResponseWriter, r *http.Request) {
 	rel, err := state.Archive.GetDist(name)
 	if err != nil {
 		http.Error(w,
-			fmt.Sprintf("distribution %v not found, %s", name, err.Error()),
+			fmt.Sprint("distribution %v not found,", name),
 			http.StatusNotFound)
 		return
 	}
@@ -94,13 +94,15 @@ func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	rel, err := state.Archive.GetDist(name)
+	p, err := state.Archive.GetDist(name)
 	if err != nil {
 		http.Error(w,
 			fmt.Sprintf("distribution %v not found, %s", name, err.Error()),
 			http.StatusNotFound)
 		return
 	}
+
+	rel := p.NewChildRelease()
 
 	id, err := state.Archive.CopyToStore(r.Body)
 	if err != nil {
@@ -154,7 +156,7 @@ func doHttpConfigSigningKeyDeleteHandler(w http.ResponseWriter, r *http.Request)
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	rel, err := state.Archive.GetDist(name)
+	p, err := state.Archive.GetDist(name)
 	if err != nil {
 		http.Error(w,
 			fmt.Sprintf("distribution %v not found, %s", name, err.Error()),
@@ -162,6 +164,7 @@ func doHttpConfigSigningKeyDeleteHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	rel := p.NewChildRelease()
 	cfg := rel.Config()
 	cfg.SigningKeyID = nil
 

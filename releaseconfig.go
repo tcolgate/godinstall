@@ -21,8 +21,8 @@ type ReleaseConfig struct {
 
 	PruneRules string
 
-	PublicKeyIDs []StoreID
-	SigningKeyID StoreID
+	PublicKeyIDs []StoreID `json:",omitempty"`
+	SigningKeyID StoreID   `json:",omitempty"`
 
 	pruneRules *PruneRuleSet
 	poolRegex  *regexp.Regexp

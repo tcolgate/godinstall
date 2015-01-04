@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"sort"
@@ -479,9 +480,13 @@ func (r archiveBlobStore) GetRelease(id StoreID) (*Release, error) {
 	defer reader.Close()
 
 	dec := gob.NewDecoder(reader)
-	dec.Decode(&rel)
+	err = dec.Decode(&rel)
+	if err != nil {
+		return nil, fmt.Errorf("reading release object failed, %v", err)
+	}
 
 	rel.store = r
+	rel.id = id
 
 	return &rel, nil
 }

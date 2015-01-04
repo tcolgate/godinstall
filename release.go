@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -50,6 +51,7 @@ type Release struct {
 	ConfigID    StoreID
 
 	store  ArchiveStorer
+	id     StoreID
 	config *ReleaseConfig
 }
 
@@ -116,27 +118,105 @@ type compTempData struct {
 
 type relTempData map[string]*compTempData
 
+func (r *Release) Parent() (*Release, error) {
+	return r.store.GetRelease(r.id)
+}
+
+func (p *Release) NewChildRelease() *Release {
+	r := *p
+
+	r.ParentID = p.id
+	r.Date = time.Now()
+
+	ver, err := strconv.ParseUint(r.Version, 10, 64)
+	if err == nil {
+		ver++
+		r.Version = strconv.FormatUint(ver, 10)
+	}
+
+	return &r
+}
+
+func (r *Release) updateReleaseSigFiles() bool {
+	p, err := r.Parent()
+	if err != nil {
+		log.Printf("signature files update failed, %v", err)
+	}
+
+	prelid := p.Release
+	relid := r.Release
+
+	pkey, err := p.SignerKey()
+	if err != nil {
+		log.Printf("signature files update failed, %v", err)
+	}
+	key, err := r.SignerKey()
+	if err != nil {
+		log.Printf("signature files update failed, %v", err)
+	}
+
+	if key != pkey || relid.String() != prelid.String() {
+		if key == nil {
+			r.ReleaseGPG = StoreID("")
+			r.InRelease = StoreID("")
+			return true
+		}
+
+		rd, err := r.store.Open(r.Release)
+		if err != nil {
+			log.Printf("InRelease clear-signer, %v", err)
+			return false
+		}
+		defer rd.Close()
+		win, err := r.store.Store()
+		if err != nil {
+			log.Printf("InRelease clear-signer, %v", err)
+			return false
+		}
+		wplain, err := clearsign.Encode(win, key.PrivateKey, nil)
+		if err != nil {
+			log.Printf("InRelease clear-signer, ", err)
+			return false
+
+		}
+		_, err = io.Copy(wplain, rd)
+		if err != nil {
+			log.Printf("InRelease clear-signer, %v", err)
+			return false
+		}
+		wplain.Close()
+		win.Close()
+
+		rd, _ = r.store.Open(r.Release)
+		defer rd.Close()
+
+		wgpg, _ := r.store.Store()
+		if err != nil {
+			log.Printf("Release.gpg detacked signer, %v", err)
+			return false
+		}
+		err = openpgp.ArmoredDetachSign(wgpg, key, rd, nil)
+		wgpg.Close()
+
+		r.InRelease, _ = win.Identity()
+		r.ReleaseGPG, _ = wgpg.Identity()
+		return true
+	}
+
+	return false
+}
+
 // NewRelease creates a new release object in the specified store, based on the
 // parent and built using the passed in index, and associated set of
 // actions
 func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []ReleaseLogAction) (id StoreID, err error) {
-	release := Release{}
-	release.ParentID = parentid
-	release.IndexID = indexid
-	release.Actions = actions
-	release.Date = time.Now()
-	release.store = store
-
 	parent, err := store.GetRelease(parentid)
 	if err != nil {
 		return nil, err
 	}
-
-	release.CodeName = parent.CodeName
-	release.Suite = parent.Suite
-	release.Description = parent.Description
-	release.Version = parent.Version
-	release.ConfigID = parent.ConfigID
+	release := parent.NewChildRelease()
+	release.IndexID = indexid
+	release.Actions = actions
 
 	// We want to merge all packages of arch all into each binary-$arch
 	// so we walk the package index in a first pass to find all the archs
@@ -400,48 +480,12 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 
 	releaseControl.Data = append(releaseControl.Data, &para)
 
-	// This is a little convoluted. We'll ultimately write to this, but it may be
-	// writing to unsigned and signed releases, or just the unsigned, depending
-	// on user options
-	var releaseWriter io.Writer
-	unsignedReleaseFile, _ := store.Store()
-
-	var signedReleaseFile StoreWriteCloser
-	var signedReleaseWriter io.WriteCloser
-	signerKey, err := release.SignerKey()
-	if err != nil {
-		return nil, err
-	}
-
-	if signerKey != nil {
-		signedReleaseFile, err = store.Store()
-		signedReleaseWriter, err = clearsign.Encode(signedReleaseFile, signerKey.PrivateKey, nil)
-		if err != nil {
-			return nil, errors.New("Error InRelease clear-signer, " + err.Error())
-		}
-		releaseWriter = io.MultiWriter(unsignedReleaseFile, signedReleaseWriter)
-	} else {
-		releaseWriter = unsignedReleaseFile
-	}
-
+	releaseWriter, _ := store.Store()
 	WriteDebianControl(releaseWriter, releaseControl, releaseStartFields, releaseEndFields)
+	releaseWriter.Close()
+	release.Release, _ = releaseWriter.Identity()
 
-	unsignedReleaseFile.Close()
-	release.Release, _ = unsignedReleaseFile.Identity()
-
-	if signerKey != nil {
-		signedReleaseWriter.Close()
-		signedReleaseFile.Close()
-		release.InRelease, _ = signedReleaseFile.Identity()
-
-		// Generate detached GPG signature
-		releaseReader, _ := store.Open(release.Release)
-		defer releaseReader.Close()
-		releaseGpgFile, _ := store.Store()
-		err = openpgp.ArmoredDetachSign(releaseGpgFile, signerKey, releaseReader, nil)
-		releaseGpgFile.Close()
-		release.ReleaseGPG, _ = releaseGpgFile.Identity()
-	}
+	release.updateReleaseSigFiles()
 
 	// Trim the release history if requested
 	if release.Config().AutoTrim {
@@ -452,9 +496,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 		}
 	}
 
-	release.Date = time.Now()
-
-	releaseid, err := store.AddRelease(&release)
+	releaseid, err := store.AddRelease(release)
 
 	return releaseid, nil
 }

@@ -55,7 +55,9 @@ func doHttpDistsPutHandler(w http.ResponseWriter, r *http.Request) {
 			http.StatusConflict)
 	} else {
 		seedrel := Release{
-			Suite: name,
+			Suite:    name,
+			CodeName: name,
+			Version:  "0",
 		}
 		rootid, err := state.Archive.GetReleaseRoot(seedrel)
 		if err != nil {
