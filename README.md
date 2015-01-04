@@ -17,6 +17,7 @@ availability), along with optional validation of signed changes and debs.
 - Optionally only verify debsigs signatures on lone uploads
 - Control the number of version and revisions retained (see Pruning)
 - Run scripts on package upload, and pre/post repository regeneration
+- Signing and verification keys can be updated via the API
 - pool layout is used, with configurable groupings
 - A git-inspired sha1 object store is used on the backend, with
   hard links to keep disk usage down
@@ -25,12 +26,19 @@ availability), along with optional validation of signed changes and debs.
 
 ## Mis(sing)-Features
 
+- The signing key for the repository is stored in plain text in the blob store.
+  It is not retrievable using the service, but could be found on disk. This will
+  bre remedied soon. (fix should be in the next release)
+- Config editing is currently not supported, set the defaults at start-up
+  and createa a ewn repository, this will be changed soon (fix should be in the next release)
+- The objects in the blob store should be fairly stable now, some changes may
+  still be needed (I may swap them over to protobufs for future proofing, they are gob right now)
+- Not all the api calls have cli tools at present (fix should be in the next release)
+- No API docuementation at this time,
 - Content-?, Trnslations not  currently handled
 - Only a single component(main) is populated at present
 - Package name + version + arch must be unique accross all componenets in a
   repository (not merely main + other)
-- The objects in the blob store should be fairly stable now, some changes may
-  still be needed
 - Changes files are the basic unit of version control. All architectures for a
   package must be included in one changes file at present. Repeated upgrades
   of changes files for the same package name and version will be ignored
@@ -49,11 +57,7 @@ deb http://localhost:3000/repo mydist main
 To start godinstall:
 
 ```
-$ godinstall serve -repo-base ./testrepo \
-           -gpg-privring ~/.gnupg/secring.gpg \
-           -gpg-pubring ~/.gnupg/pubring.gpg \
-           -signer-email tcolgate@gmail.com \
-           -accept-lone-debs
+$ godinstall serve -repo-base ./testrepo
 ```
 
 If you do not want package validation, or repository signing, you can
@@ -61,9 +65,46 @@ ignore the gpg settings
 
 ```
 $ godinstall serve -repo-base ./testrepo \
-             -verify-changes=false \
-             -verify-debs=false
+             -default-verify-changes=false \
+             -default-verify-debs=false \
+             -accept-lone-debs
 ```
+
+Creating and managing distribution can be done via the api. To create a new distribution called "stable". The admin functions listed below (with the obvious exeption of package upload), can only be performend from a localhost network connection, stronger auth and ssl will be provided in future.
+
+```
+$ curl -XPUT http://localhost:3000/dists/stable
+```
+
+You can view some metadata, and manage the repository using the API too.
+```
+$ curl  http://localhost:3000/dists
+$ curl  http://localhost:3000/dists/stable
+$ # curl -XDELETE http://localhost:3000/dists/stable
+```
+
+The Releases file for a repository will not be signed until a signing key is given. To activate
+signing you need to set the signing key (it cannot have a passphrase on it at this time):
+
+```
+$  gpg --armor --export-secret-key | curl -XPUT --data-binary @- http://192.168.0.7:3000/dists/master/config/signingkey
+```
+
+By default, changes fiels to be uploaded much be signed, to add keys to verify changes files against:
+```
+$  gpg --armor --export--key | curl -XPOST --data-binary @- http://192.168.0.7:3000/dists/master/config/publickeys
+```
+
+Public Keys are managed via the API
+```
+$ curl  http://localhost:3000/dists/stable/config/publickeys
+$ curl -XDELETE http://localhost:3000/dists/stable/config/publickeys/abcdef
+```
+
+Note that when deleting the sining key, or the public keys, they will no be
+removed from the blob store until they are removed by garbage collection. History
+trimming must be enabled for this to happen (otherwise keys are retained to permit
+use of dists history)
 
 The binary includes an upload client
 ```
