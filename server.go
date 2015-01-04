@@ -75,6 +75,10 @@ func SendOKResponse(w http.ResponseWriter, obj interface{}) {
 	SendResponse(w, msg)
 }
 
+func SendDefaultResponse(w http.ResponseWriter, status int) {
+	SendResponse(w, NewServerResponse(status, http.StatusText(status)))
+}
+
 func SendOKOrErrorResponse(w http.ResponseWriter, obj interface{}, err error, errStatus int) {
 	var msg *ServerResponse
 	if err != nil {

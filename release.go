@@ -520,9 +520,7 @@ func (r *Release) PoolFilePath(filename string) (poolpath string) {
 // Config returns the ReleaseConfig  for the release
 func (r *Release) Config() *ReleaseConfig {
 	if r.config == nil {
-		var err error
-		cfg, err := r.store.GetReleaseConfig(r.ConfigID)
-		log.Println(err)
+		cfg, _ := r.store.GetReleaseConfig(r.ConfigID)
 		r.config = &cfg
 	}
 
@@ -539,6 +537,7 @@ func (r *Release) SignerKey() (*openpgp.Entity, error) {
 	if err != nil {
 		return nil, errors.New("failed to retrieve signing key, " + err.Error())
 	}
+	defer rdr.Close()
 
 	kr, err := openpgp.ReadArmoredKeyRing(rdr)
 	if err != nil {
@@ -552,5 +551,29 @@ func (r *Release) SignerKey() (*openpgp.Entity, error) {
 }
 
 func (r *Release) PubRing() (openpgp.EntityList, error) {
-	return nil, nil
+	var kr openpgp.EntityList
+	ids := r.Config().PublicKeyIDs
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	for _, id := range ids {
+		rdr, err := r.store.Open(id)
+		if err != nil {
+			return nil, errors.New("failed to retrieve signing key, " + err.Error())
+		}
+		defer rdr.Close()
+
+		subkr, err := openpgp.ReadArmoredKeyRing(rdr)
+		if err != nil {
+			return nil, errors.New("failed to retrieve signing key, " + err.Error())
+		}
+		if len(subkr) != 1 {
+			return nil, fmt.Errorf("failed to retrieve signing key, wrong number of items in keyring, %v", len(kr))
+		}
+
+		kr = append(kr, subkr[0])
+	}
+
+	return kr, nil
 }

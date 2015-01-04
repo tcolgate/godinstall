@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
@@ -33,6 +34,16 @@ func (s *StoreID) UnMarshalJSON(j []byte) error {
 	sid := StoreID(b)
 	s = &sid
 	return err
+}
+
+// Implement sorting for arrays of StoreID
+type ByID []StoreID
+
+func (a ByID) Len() int      { return len(a) }
+func (a ByID) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByID) Less(i, j int) bool {
+	c := bytes.Compare(a[i], a[j])
+	return c < 0
 }
 
 // StoreIDFromString parses a string and returns the StoreID

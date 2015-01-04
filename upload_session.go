@@ -367,7 +367,8 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 			}
 
 			// We should verify the signature
-			if s.release.Config().VerifyDebs {
+			if s.release.Config().VerifyDebs &&
+				(!s.release.Config().VerifyChangesSufficient || s.LoneDeb) {
 				signed, _ := uf.pkg.IsSigned()
 				verified, _ := uf.pkg.IsVerified()
 
