@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -20,7 +19,6 @@ func httpConfigHandler(w http.ResponseWriter, r *http.Request) {
 			http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
 	}
-	return
 }
 
 // This build a function to manage the config of a distribution
@@ -46,12 +44,13 @@ func httpConfigSigningKeyHandler(w http.ResponseWriter, r *http.Request) {
 		handleWithReadLock(doHttpConfigSigningKeyGetHandler, w, r)
 	case "PUT", "POST":
 		handleWithWriteLock(doHttpConfigSigningKeyPutHandler, w, r)
+	case "DELETE":
+		handleWithWriteLock(doHttpConfigSigningKeyDeleteHandler, w, r)
 	default:
 		http.Error(w,
 			http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
 	}
-	return
 }
 
 func doHttpConfigSigningKeyGetHandler(w http.ResponseWriter, r *http.Request) {
@@ -69,8 +68,8 @@ func doHttpConfigSigningKeyGetHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := rel.SignerKey()
 	if err != nil {
 		http.Error(w,
-			fmt.Sprintf("\"Error retrieving signing key\"", name, err.Error()),
-			http.StatusNotFound)
+			fmt.Sprintf("\"Error retrieving signing key, %s\"", err.Error()),
+			http.StatusInternalServerError)
 		return
 	}
 
@@ -88,16 +87,14 @@ func doHttpConfigSigningKeyGetHandler(w http.ResponseWriter, r *http.Request) {
 			http.StatusNotFound)
 		return
 	}
-	w.Write([]byte("\"" + key.KeyIdString() + "\""))
-	return
-
+	SendOKResponse(w, key.KeyIdShortString())
 }
 
 func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	_, err := state.Archive.GetDist(name)
+	rel, err := state.Archive.GetDist(name)
 	if err != nil {
 		http.Error(w,
 			fmt.Sprintf("distribution %v not found, %s", name, err.Error()),
@@ -113,7 +110,7 @@ func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rdr, err := state.Archive.Open(id)
-	kr, err := openpgp.ReadArmoredKeyRing(rdr)
+	_, err = openpgp.ReadArmoredKeyRing(rdr)
 	if err != nil {
 		http.Error(w,
 			"failed to parse data as  key, "+err.Error(),
@@ -121,7 +118,79 @@ func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println(kr[0])
+	cfg := rel.Config()
+
+	cfg.SigningKeyID = id
+
+	newcfgid, err := state.Archive.AddReleaseConfig(*cfg)
+	if err != nil {
+		http.Error(w,
+			"failed to parse add new release config, "+err.Error(),
+			http.StatusInternalServerError)
+		return
+	}
+
+	rel.ConfigID = newcfgid
+	newrelid, err := state.Archive.AddRelease(rel)
+	if err != nil {
+		http.Error(w,
+			"failed to parse add new release, "+err.Error(),
+			http.StatusInternalServerError)
+		return
+	}
+
+	err = state.Archive.SetDist(name, newrelid)
+	if err != nil {
+		http.Error(w,
+			"failed to parse add update release rag, "+err.Error(),
+			http.StatusInternalServerError)
+		return
+	}
+
+	doHttpConfigSigningKeyGetHandler(w, r)
+}
+
+func doHttpConfigSigningKeyDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	rel, err := state.Archive.GetDist(name)
+	if err != nil {
+		http.Error(w,
+			fmt.Sprintf("distribution %v not found, %s", name, err.Error()),
+			http.StatusNotFound)
+		return
+	}
+
+	cfg := rel.Config()
+	cfg.SigningKeyID = nil
+
+	newcfgid, err := state.Archive.AddReleaseConfig(*cfg)
+	if err != nil {
+		http.Error(w,
+			"failed to parse add new release config, "+err.Error(),
+			http.StatusInternalServerError)
+		return
+	}
+
+	rel.ConfigID = newcfgid
+	newrelid, err := state.Archive.AddRelease(rel)
+	if err != nil {
+		http.Error(w,
+			"failed to parse add new release, "+err.Error(),
+			http.StatusInternalServerError)
+		return
+	}
+
+	err = state.Archive.SetDist(name, newrelid)
+	if err != nil {
+		http.Error(w,
+			"failed to parse add update release rag, "+err.Error(),
+			http.StatusInternalServerError)
+		return
+	}
+
+	doHttpConfigSigningKeyGetHandler(w, r)
 }
 
 // This build a function to enumerate the distributions
@@ -136,7 +205,6 @@ func httpConfigPublicKeysHandler(w http.ResponseWriter, r *http.Request) {
 			http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
 	}
-	return
 }
 
 // For managing public keys in a config
@@ -184,6 +252,4 @@ func doHttpConfigPublicKeysGetHandler(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 		}
 	}
-
-	return
 }

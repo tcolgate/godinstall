@@ -502,7 +502,7 @@ func (r *Release) SignerKey() (*openpgp.Entity, error) {
 	if err != nil {
 		return nil, errors.New("failed to retrieve signing key, " + err.Error())
 	}
-	if len(kr) != 0 {
+	if len(kr) != 1 {
 		return nil, fmt.Errorf("failed to retrieve signing key, wrong number of items in keyring, %v", len(kr))
 	}
 
