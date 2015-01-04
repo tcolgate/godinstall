@@ -206,26 +206,18 @@ func (r *Release) updateReleaseSigFiles() bool {
 	return false
 }
 
-// NewRelease creates a new release object in the specified store, based on the
-// parent and built using the passed in index, and associated set of
-// actions
-func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []ReleaseLogAction) (id StoreID, err error) {
-	parent, err := store.GetRelease(parentid)
-	if err != nil {
-		return nil, err
-	}
-	release := parent.NewChildRelease()
-	release.IndexID = indexid
-	release.Actions = actions
-
+// updateReleaseSigFiles regenerates the Release, Packages and Sources files.
+// this needs breaking up a bit
+func (r *Release) updateReleasefiles() {
 	// We want to merge all packages of arch all into each binary-$arch
 	// so we walk the package index in a first pass to find all the archs
 	// we are dealing with, we'll setup the temporary data to track the
 	// packages files while we are at it.
 	relMap := make(relTempData, 0)
 	archMap := make(map[string]bool, 0)
-	preIndex, err := store.OpenReleaseIndex(release.IndexID)
+	preIndex, err := r.store.OpenReleaseIndex(r.IndexID)
 	if err != nil {
+		log.Printf("failed to update releases, %v", err)
 		return
 	}
 
@@ -245,9 +237,10 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 				relMap[compName] = &compTempData{}
 				comp = relMap[compName]
 				comp.sourcesFileWriter = MakeWriteHasher(ioutil.Discard)
-				comp.sourcesGzStore, err = store.Store()
+				comp.sourcesGzStore, err = r.store.Store()
 				if err != nil {
-					return nil, err
+					log.Printf("failed to update releases, %v", err)
+					return
 				}
 				comp.sourcesGzFile = MakeWriteHasher(comp.sourcesGzStore)
 				comp.sourcesGzFileWriter = gzip.NewWriter(comp.sourcesGzFile)
@@ -261,9 +254,9 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 				arch = new(archTempData)
 
 				arch.packagesFileWriter = MakeWriteHasher(ioutil.Discard)
-				arch.packagesGzStore, err = store.Store()
+				arch.packagesGzStore, err = r.store.Store()
 				if err != nil {
-					return nil, err
+					log.Printf("failed to update releases, %v", err)
 				}
 				arch.packagesGzFile = MakeWriteHasher(arch.packagesGzStore)
 				arch.packagesGzFileWriter = gzip.NewWriter(arch.packagesGzFile)
@@ -284,7 +277,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 	archNames.Sort()
 
 	//Now we'll walk the index again to collate the package lists
-	index, err := store.OpenReleaseIndex(release.IndexID)
+	index, err := r.store.OpenReleaseIndex(r.IndexID)
 	if err != nil {
 		return
 	}
@@ -301,13 +294,13 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 		srcName := s.Name
 		srcVersion := s.Version.String()
 		poolpath := fmt.Sprintf("%s%s/%s/",
-			release.PoolFilePath(srcName),
+			r.PoolFilePath(srcName),
 			srcName,
 			srcVersion,
 		)
 
 		if len(s.ControlID) != 0 {
-			srcCtrl, err := store.GetControlFile(s.ControlID)
+			srcCtrl, err := r.store.GetControlFile(s.ControlID)
 			if err != nil {
 				log.Println("Could not retrieve control data, " + err.Error())
 				continue
@@ -343,7 +336,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 
 			filename := b.Files[0].Name
 			path := poolpath + filename
-			control, err := store.GetControlFile(b.ControlID)
+			control, err := r.store.GetControlFile(b.ControlID)
 			if err != nil {
 				log.Println("Could not retrieve control data, " + err.Error())
 				continue
@@ -363,7 +356,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 		}
 	}
 
-	release.Components = make([]Component, 0)
+	r.Components = make([]Component, 0)
 
 	compNames := make(sort.StringSlice, 0)
 	for compName := range relMap {
@@ -385,7 +378,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 		c.sourcesGzSHA1 = hex.EncodeToString(c.sourcesGzFile.SHA1Sum())
 		c.sourcesGzSHA256 = hex.EncodeToString(c.sourcesGzFile.SHA256Sum())
 		c.SourcesGzID, _ = c.sourcesGzStore.Identity()
-		c.sourcesGzSize, _ = store.Size(c.SourcesGzID)
+		c.sourcesGzSize, _ = r.store.Size(c.SourcesGzID)
 
 		archsMap := c.archs
 
@@ -409,7 +402,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 			archFiles.packagesGzSHA1 = hex.EncodeToString(archFiles.packagesGzFile.SHA1Sum())
 			archFiles.packagesGzSHA256 = hex.EncodeToString(archFiles.packagesGzFile.SHA256Sum())
 			archFiles.PackagesGzID, _ = archFiles.packagesGzStore.Identity()
-			archFiles.packagesGzSize, _ = store.Size(archFiles.PackagesGzID)
+			archFiles.packagesGzSize, _ = r.store.Size(archFiles.PackagesGzID)
 
 			arch := Architecture{
 				Name:       archName,
@@ -423,7 +416,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 			Architectures: archs,
 			SourcesGz:     c.SourcesGzID,
 		}
-		release.Components = append(release.Components, comp)
+		r.Components = append(r.Components, comp)
 	}
 
 	releaseControl := ControlFile{}
@@ -432,8 +425,8 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 	releaseStartFields := []string{"Origin", "Suite", "Codename"}
 	releaseEndFields := []string{"SHA256"}
 	para.SetValue("Origin", "GoDInstall")
-	para.SetValue("Suite", release.Suite)
-	para.SetValue("Codename", release.CodeName)
+	para.SetValue("Suite", r.Suite)
+	para.SetValue("Codename", r.CodeName)
 
 	archNames = append(archNames, "all")
 	archNames.Sort()
@@ -441,8 +434,8 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 	para.SetValue("Components", strings.Join(compNames, " "))
 	para.AddValue("MD5Sum", "")
 
-	for i := range release.Components {
-		comp := release.Components[i]
+	for i := range r.Components {
+		comp := r.Components[i]
 		c := relMap[comp.Name]
 		srcsLine := fmt.Sprintf("%v %d %v/source/Sources",
 			c.sourcesMD5,
@@ -457,7 +450,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 		)
 		para.AddValue("MD5Sum", srcsGzLine)
 
-		for j := range release.Components[i].Architectures {
+		for j := range r.Components[i].Architectures {
 			arch := comp.Architectures[j]
 			archFiles := relMap[comp.Name].archs[arch.Name]
 
@@ -480,12 +473,27 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 
 	releaseControl.Data = append(releaseControl.Data, &para)
 
-	releaseWriter, _ := store.Store()
+	releaseWriter, _ := r.store.Store()
 	WriteDebianControl(releaseWriter, releaseControl, releaseStartFields, releaseEndFields)
 	releaseWriter.Close()
-	release.Release, _ = releaseWriter.Identity()
+	r.Release, _ = releaseWriter.Identity()
 
-	release.updateReleaseSigFiles()
+	r.updateReleaseSigFiles()
+}
+
+// NewRelease creates a new release object in the specified store, based on the
+// parent and built using the passed in index, and associated set of
+// actions
+func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []ReleaseLogAction) (id StoreID, err error) {
+	parent, err := store.GetRelease(parentid)
+	if err != nil {
+		return nil, err
+	}
+	release := parent.NewChildRelease()
+	release.IndexID = indexid
+	release.Actions = actions
+
+	release.updateReleasefiles()
 
 	// Trim the release history if requested
 	if release.Config().AutoTrim {
