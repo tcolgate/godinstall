@@ -83,6 +83,7 @@ func newfileUploadRequest(uri string, paramName, path string) (*http.Request, er
 }
 
 func cliUploadFile(c *http.Client, uri, firstfn string) error {
+	dir := filepath.Dir(firstfn)
 	switch {
 	case strings.HasSuffix(firstfn, ".deb"), strings.HasSuffix(firstfn, ".changes"):
 		fns := []string{firstfn}
@@ -93,12 +94,12 @@ func cliUploadFile(c *http.Client, uri, firstfn string) error {
 				return nil
 			}
 
-			fn := fns[0]
+			fn := filepath.Base(fns[0])
 			fns = fns[1:]
 
 			log.Printf("Uploading %s\n", fn)
 
-			req, err := newfileUploadRequest(uri, "debfiles", fn)
+			req, err := newfileUploadRequest(uri, "debfiles", dir+"/"+fn)
 			if err != nil {
 				return err
 			}
