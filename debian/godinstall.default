@@ -1,0 +1,9 @@
+# /etc/default/nss
+
+#comment out this line to enable
+DISABLED=1
+
+DAEMON_ARGS="\
+ -listen :3000\
+ -repo-base=/var/lib/godinstall\
+ "

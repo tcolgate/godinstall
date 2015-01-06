@@ -1,0 +1,141 @@
+#!/bin/sh
+#
+# godinstall   Monitor apt repository for uploads
+#
+#
+# description:  godinstall monitors and manages the incoming directory of a godinstall repo
+#
+#
+### BEGIN INIT INFO
+# Provides:          godinstall
+# Required-Start:    $remote_fs
+# Required-Stop:     $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start DAEMON at boot time
+# Description:       Enable service provided by godinstall.
+### END INIT INFO
+
+
+# check permissions
+uid=`id -u`
+[ $uid -gt 0 ] && { echo "You need to be root to run file" ; exit 4 ; }
+
+# Source function library.
+. /lib/lsb/init-functions
+
+NAME="godinstall"
+
+DAEMON=/usr/bin/godinstall
+REPO=/var/lib/godinstall/repository
+DAEMON_ARGS="\
+ -listen :3000\
+ -repo-base=/var/lib/godinstall\
+"
+PIDFILE="/var/lib/godinstall/godinstall.pid"
+LOGFILE="/var/log/godinstall/godinstall.log"
+
+# Read configuration variable file if it is present
+[ -r /etc/default/$NAME ] && . /etc/default/$NAME
+
+if [ $DISABLED ]; then
+  echo "godinstall is disabled,  edit /etc/default/godinstall to enable"
+  exit 0
+fi
+
+# Check that binary exists
+if ! [ -f $DAEMON ]
+then
+    echo "godinstall binary not found"
+    exit 5
+fi
+
+
+do_start()
+{
+        # Return
+        #   0 if daemon has been started
+        #   1 if daemon was already running
+        #   2 if daemon could not be started
+        start-stop-daemon --start --quiet --pidfile $PIDFILE --startas $DAEMON --test > /dev/null \
+                || return 1
+        start-stop-daemon --start --quiet --pidfile $PIDFILE --make-pidfile --background --no-close --startas $DAEMON --chuid $USER   \
+        -- $DAEMON_ARGS >> $LOGFILE 2>&1  \
+                || return 2
+}
+
+#
+# Function that stops the daemon/service
+#
+do_stop()
+{
+        # Return
+        #   0 if daemon has been stopped
+        #   1 if daemon was already stopped
+        #   2 if daemon could not be stopped
+        #   other if a failure occurred
+        start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE --startas $DAEMON
+        RETVAL="$?"
+        [ "$RETVAL" = 2 ] && return 2
+        # Wait for children to finish too if this is a daemon that forks
+        # and if the daemon is only ever run from this initscript.
+        # If the above conditions are not satisfied then add some other code
+        # that waits for the process to drop all resources that could be
+        # needed by services started subsequently.  A last resort is to
+        # sleep for some time.
+        start-stop-daemon --stop --quiet --oknodo --retry=0/30/KILL/5 --pidfile $PIDFILE --startas $DAEMON
+        [ "$?" = 2 ] && return 2
+        # Many daemons don't delete their pidfiles when they exit.
+        rm -f $PIDFILE
+        return "$RETVAL"
+}
+
+
+# See how we were called.
+case "$1" in
+  start)
+        [ "$VERBOSE" != no ] && log_daemon_msg "Starting $NAME" "$NAME"
+        do_start
+        case "$?" in
+                0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+                2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+        esac
+        ;;
+  stop)
+        [ "$VERBOSE" != no ] && log_daemon_msg "Stopping $NAME" "$NAME"
+        do_stop
+        case "$?" in
+                0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+                2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+        esac
+        ;;
+  status)
+        status_of_proc -p "$PIDFILE" "$DAEMON" "$NAME" && exit 0 || exit $?
+        ;;
+  restart|force-reload)
+        #
+        # If the "reload" option is implemented then remove the
+        # 'force-reload' alias
+        #
+        log_daemon_msg "Restarting $NAME" "$NAME"
+        do_stop
+        case "$?" in
+          0|1)
+                do_start
+                case "$?" in
+                        0) log_end_msg 0 ;;
+                        1) log_end_msg 1 ;; # Old process is still running
+                        *) log_end_msg 1 ;; # Failed to start
+                esac
+                ;;
+          *)
+                # Failed to stop
+                log_end_msg 1
+                ;;
+        esac
+        ;;
+    *)
+        echo "Usage: $NAME {start|stop|restart|condrestart|status}"
+        exit 1
+        ;;
+esac
