@@ -60,7 +60,7 @@ do_start()
         start-stop-daemon --start --quiet --pidfile $PIDFILE --startas $DAEMON --test > /dev/null \
                 || return 1
         start-stop-daemon --start --quiet --pidfile $PIDFILE --make-pidfile --background --no-close --startas $DAEMON --chuid $USER   \
-        -- $DAEMON_ARGS >> $LOGFILE 2>&1  \
+        -- serve $DAEMON_ARGS >> $LOGFILE 2>&1  \
                 || return 2
 }
 

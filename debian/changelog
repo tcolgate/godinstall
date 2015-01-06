@@ -1,3 +1,9 @@
+godinstall (0.6.1) precise; urgency=low
+
+  * Minor fix for init script
+
+ -- tristan <tristan@clonebase.we7.local>  Tue, 06 Jan 2015 09:20:06 +0000
+
 godinstall (0.6.0) precise; urgency=medium
 
   * Non-maintainer upload.
