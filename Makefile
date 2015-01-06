@@ -26,7 +26,6 @@ $(NAME): $(BINDIR)/godep version.go
 
 install: $(NAME)
 	install -D $(NAME) $(DESTDIR)/$(PREFIX)/$(NAME)
-	install -D godinstall-upload.py $(DESTDIR)/$(PREFIX)/godinstall-upload.py
 
 check:
 	$(GOPATH)/bin/godep go test -v
