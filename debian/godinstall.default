@@ -5,6 +5,5 @@ DISABLED=1
 
 DAEMON_ARGS="\
  --listen :3000\
- --log-file /var/log/godinstall/godinstall.log\
  --repo-base=/var/lib/godinstall\
  "
