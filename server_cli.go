@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
+	"os/signal"
 	"regexp"
+	"syscall"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -17,6 +19,7 @@ import (
 func CmdServe(c *cli.Context) {
 	listenAddress := c.String("listen")
 
+	logFile := c.String("log-file")
 	ttl := c.String("ttl")
 	maxReqs := c.Int("max-requests")
 	repoBase := c.String("repo-base")
@@ -32,6 +35,37 @@ func CmdServe(c *cli.Context) {
 	pruneRulesStr := c.String("default-prune")
 	autoTrim := c.Bool("default-auto-trim")
 	trimLen := c.Int("default-auto-trim-length")
+
+	logready := make(chan struct{})
+	sighup := make(chan os.Signal, 1)
+
+	go func() {
+		initial := true
+		logWriter := os.Stderr
+		for {
+			if logFile != "-" {
+				newLog, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0660)
+				if err != nil {
+					log.SetOutput(os.Stderr)
+					logFile = "-"
+					log.Printf("Error opening logfile, %v", err)
+				} else {
+					log.SetOutput(newLog)
+					if logWriter != os.Stderr {
+						logWriter.Close()
+					}
+				}
+			}
+			if initial {
+				initial = false
+				logready <- struct{}{}
+			}
+			<-sighup
+		}
+	}()
+	signal.Notify(sighup, syscall.SIGHUP)
+
+	<-logready
 
 	if repoBase == "" {
 		log.Println("You must pass --repo-base")

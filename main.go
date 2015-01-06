@@ -35,6 +35,11 @@ func main() {
 				//					Usage: "The ssl listen address",
 				//				},
 				cli.StringFlag{
+					Name:  "L, log-file",
+					Value: "-",
+					Usage: "A file to log to, defaults to stdout",
+				},
+				cli.StringFlag{
 					Name:  "t, ttl",
 					Value: "60s",
 					Usage: "Upload session will be terminated after the TTL",

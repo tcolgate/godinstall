@@ -1,0 +1,11 @@
+/var/log/godinstall/*.log
+{
+        weekly
+        missingok
+        rotate 7
+        compress
+        notifempty
+        postrotate
+            /usr/bin/killall -u godinstall -HUP godinstall 2>/dev/null || true
+        endscript
+}
