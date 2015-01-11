@@ -79,7 +79,7 @@ func updater() {
 					respObj = completedsession
 				}
 
-				msg.resp <- NewServerResponse(respStatus, respObj)
+				msg.resp <- newAppResponse(respStatus, respObj)
 			}
 		}
 	}
@@ -89,7 +89,7 @@ func updater() {
 // request an update, only regeneration is supported
 // at present
 type UpdateRequest struct {
-	resp    chan *ServerResponse
+	resp    chan *appError
 	session *UploadSession
 }
 

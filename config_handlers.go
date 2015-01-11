@@ -1,9 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 
 	"code.google.com/p/go.crypto/openpgp"
@@ -14,84 +16,76 @@ import (
 // that result in a repo update
 
 // This build a function to enumerate the distributions
-func httpConfigHandler(w http.ResponseWriter, r *http.Request) {
+func httpConfigHandler(w http.ResponseWriter, r *http.Request) *appError {
 	switch r.Method {
 	case "GET":
-		handleWithReadLock(doHttpConfigGetHandler, w, r)
+		return handleWithReadLock(doHttpConfigGetHandler, w, r)
 	default:
-		http.Error(w,
-			http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
+		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
 }
 
 // This build a function to manage the config of a distribution
-func doHttpConfigGetHandler(w http.ResponseWriter, r *http.Request) {
+func doHttpConfigGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
 	rel, err := state.Archive.GetDist(name)
-	if err != nil {
-		SendDefaultResponse(w, http.StatusNotFound)
-		return
+	switch {
+	case err == nil:
+		return sendOKResponse(w, rel.Config())
+	case os.IsNotExist(err):
+		return sendResponse(w, http.StatusNotFound, nil)
+	default:
+		return &appError{Error: err}
 	}
-
-	SendOKResponse(w, rel.Config())
 }
 
 // This build a function to enumerate the distributions
-func httpConfigSigningKeyHandler(w http.ResponseWriter, r *http.Request) {
+func httpConfigSigningKeyHandler(w http.ResponseWriter, r *http.Request) *appError {
 	switch r.Method {
 	case "GET":
-		handleWithReadLock(doHttpConfigSigningKeyGetHandler, w, r)
+		return handleWithReadLock(doHttpConfigSigningKeyGetHandler, w, r)
 	case "PUT", "POST":
-		handleWithWriteLock(doHttpConfigSigningKeyPutHandler, w, r)
+		return handleWithWriteLock(doHttpConfigSigningKeyPutHandler, w, r)
 	case "DELETE":
-		handleWithWriteLock(doHttpConfigSigningKeyDeleteHandler, w, r)
+		return handleWithWriteLock(doHttpConfigSigningKeyDeleteHandler, w, r)
 	default:
-		http.Error(w,
-			http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
+		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
 }
 
-func doHttpConfigSigningKeyGetHandler(w http.ResponseWriter, r *http.Request) {
+func doHttpConfigSigningKeyGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
 	rel, err := state.Archive.GetDist(name)
 	if err != nil {
-		SendDefaultResponse(w, http.StatusNotFound)
+		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
 	id, err := rel.SignerKey()
 	if err != nil {
-		http.Error(w,
-			fmt.Sprintf("\"Error retrieving signing key, %s\"", err.Error()),
-			http.StatusInternalServerError)
-		return
+		return &appError{
+			Error: err,
+		}
 	}
 
 	if id == nil {
-		http.Error(w,
-			fmt.Sprintf("\"No signing key set\""),
-			http.StatusNotFound)
-		return
+		return sendResponse(w, http.StatusBadRequest, "No signing key set")
 	}
 
 	key := id.PrimaryKey
 	if key == nil {
-		http.Error(w,
-			fmt.Sprintf("\"No signing key set\""),
-			http.StatusNotFound)
-		return
+		return sendResponse(w, http.StatusBadRequest, "No signing key set")
 	}
-	SendOKResponse(w, key.KeyIdShortString())
+
+	return sendOKResponse(w, key.KeyIdShortString())
 }
 
-func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) {
+func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if !AuthorisedAdmin(w, r) {
-		return
+		return sendResponse(w, http.StatusUnauthorized, nil)
 	}
 
 	vars := mux.Vars(r)
@@ -99,174 +93,142 @@ func doHttpConfigSigningKeyPutHandler(w http.ResponseWriter, r *http.Request) {
 
 	p, err := state.Archive.GetDist(name)
 	if err != nil {
-		SendDefaultResponse(w, http.StatusNotFound)
-		return
+		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
 	rel := p.NewChildRelease()
 
 	id, err := state.Archive.CopyToStore(r.Body)
 	if err != nil {
-		http.Error(w,
-			"failed to copy key to store, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{
+			Error: errors.New("Failed to copy key to store, " + err.Error()),
+		}
 	}
 	rdr, err := state.Archive.Open(id)
 	_, err = openpgp.ReadArmoredKeyRing(rdr)
 	if err != nil {
-		http.Error(w,
-			"failed to parse data as  key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return sendResponse(w, http.StatusBadRequest, "failed to parse data as  key, "+err.Error())
 	}
 
 	cfg := rel.Config()
 	if cfg.SigningKeyID.String() == id.String() {
-		doHttpConfigSigningKeyGetHandler(w, r)
-		return
+		return doHttpConfigSigningKeyGetHandler(w, r)
 	}
 
 	cfg.SigningKeyID = id
 
 	newcfgid, err := state.Archive.AddReleaseConfig(*cfg)
 	if err != nil {
-		http.Error(w,
-			"failed to add new release config, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{
+			Error: errors.New("failed to add new release config, " + err.Error()),
+		}
 	}
 
 	rel.ConfigID = newcfgid
 	if !rel.updateReleaseSigFiles() {
-		doHttpConfigSigningKeyGetHandler(w, r)
-		return
+		return doHttpConfigSigningKeyGetHandler(w, r)
 	}
 
 	newrelid, err := state.Archive.AddRelease(rel)
 	if err != nil {
-		http.Error(w,
-			"failed to update key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{
+			Error: errors.New("failed to update key, " + err.Error()),
+		}
 	}
 
 	err = state.Archive.SetDist(name, newrelid)
 	if err != nil {
-		http.Error(w,
-			"failed to update key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{
+			Error: errors.New("failed to update key, " + err.Error()),
+		}
 	}
 
 	err = state.Archive.ReifyRelease(newrelid)
 	if err != nil {
-		http.Error(w,
-			"failed to update key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{
+			Error: errors.New("failed to update key, " + err.Error()),
+		}
 	}
 
-	doHttpConfigSigningKeyGetHandler(w, r)
+	return doHttpConfigSigningKeyGetHandler(w, r)
 }
 
-func doHttpConfigSigningKeyDeleteHandler(w http.ResponseWriter, r *http.Request) {
+func doHttpConfigSigningKeyDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if !AuthorisedAdmin(w, r) {
-		return
+		return sendResponse(w, http.StatusUnauthorized, nil)
 	}
 	vars := mux.Vars(r)
 	name := vars["name"]
 
 	p, err := state.Archive.GetDist(name)
 	if err != nil {
-		SendDefaultResponse(w, http.StatusNotFound)
-		return
+		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
 	rel := p.NewChildRelease()
 	cfg := rel.Config()
 	if cfg.SigningKeyID == nil {
-		doHttpConfigSigningKeyGetHandler(w, r)
-		return
+		return doHttpConfigSigningKeyGetHandler(w, r)
 	}
 
 	cfg.SigningKeyID = nil
 
 	newcfgid, err := state.Archive.AddReleaseConfig(*cfg)
 	if err != nil {
-		http.Error(w,
-			"failed to parse add new release config, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to parse add new release config, %v", err)}
 	}
 
 	rel.ConfigID = newcfgid
 	if !rel.updateReleaseSigFiles() {
-		doHttpConfigSigningKeyGetHandler(w, r)
-		return
+		return doHttpConfigSigningKeyGetHandler(w, r)
 	}
 
 	newrelid, err := state.Archive.AddRelease(rel)
 	if err != nil {
-		http.Error(w,
-			"failed to parse add new release, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to parse add new release, %v", err)}
 	}
 
 	err = state.Archive.SetDist(name, newrelid)
 	if err != nil {
-		http.Error(w,
-			"failed to parse add update release rag, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to parse add update release tag, %v", err)}
 	}
 
 	err = state.Archive.ReifyRelease(newrelid)
 	if err != nil {
-		http.Error(w,
-			"failed to update key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to update key, %v", err)}
 	}
 
-	SendOKResponse(w, "DELETED")
+	return sendOKResponse(w, "DELETED")
 }
 
 // This build a function to enumerate the distributions
-func httpConfigPublicKeysHandler(w http.ResponseWriter, r *http.Request) {
+func httpConfigPublicKeysHandler(w http.ResponseWriter, r *http.Request) *appError {
 	switch r.Method {
 	case "GET":
-		handleWithReadLock(doHttpConfigPublicKeysGetHandler, w, r)
+		return handleWithReadLock(doHttpConfigPublicKeysGetHandler, w, r)
 	case "POST":
-		handleWithWriteLock(doHttpConfigPublicKeysPostHandler, w, r)
+		return handleWithWriteLock(doHttpConfigPublicKeysPostHandler, w, r)
 	case "DELETE":
-		handleWithWriteLock(doHttpConfigPublicKeysDeleteHandler, w, r)
+		return handleWithWriteLock(doHttpConfigPublicKeysDeleteHandler, w, r)
 	default:
-		http.Error(w,
-			http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
+		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
 }
 
 // For managing public keys in a config
-func doHttpConfigPublicKeysGetHandler(w http.ResponseWriter, r *http.Request) {
+func doHttpConfigPublicKeysGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	reqid := vars["id"]
 
 	rel, err := state.Archive.GetDist(name)
 	if err != nil {
-		SendDefaultResponse(w, http.StatusNotFound)
-		return
+		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
 	ids, err := rel.PubRing()
 	if err != nil {
-		http.Error(w,
-			fmt.Sprintf("\"Error retrieving signing keys\"", name, err.Error()),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("Error retrieving signing keys, %v", err)}
 	}
 
 	if reqid == "" {
@@ -277,72 +239,57 @@ func doHttpConfigPublicKeysGetHandler(w http.ResponseWriter, r *http.Request) {
 				keyids = append(keyids, key.KeyIdString())
 			}
 		}
-		SendOKResponse(w, keyids)
+		return sendOKResponse(w, keyids)
 	} else {
 		for _, id := range ids {
 			key := id.PrimaryKey
 			if key.KeyIdString() == reqid {
 				// This is a bit boring, should output more
-				SendOKResponse(w, key.KeyIdShortString())
-				return
+				return sendOKResponse(w, key.KeyIdShortString())
 			}
 		}
-		http.NotFound(w, r)
+		return sendResponse(w, http.StatusNotFound, nil)
 	}
 }
 
-func doHttpConfigPublicKeysPostHandler(w http.ResponseWriter, r *http.Request) {
+func doHttpConfigPublicKeysPostHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if !AuthorisedAdmin(w, r) {
-		return
+		return sendResponse(w, http.StatusUnauthorized, nil)
 	}
 	vars := mux.Vars(r)
 	name := vars["name"]
 
 	p, err := state.Archive.GetDist(name)
 	if err != nil {
-		SendDefaultResponse(w, http.StatusNotFound)
-		return
+		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
 	rel := p.NewChildRelease()
 
 	id, err := state.Archive.CopyToStore(r.Body)
 	if err != nil {
-		http.Error(w,
-			"failed to copy key to store, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to copy key to store, %v", err)}
 	}
 	rdr, err := state.Archive.Open(id)
 	defer rdr.Close()
 	kr, err := openpgp.ReadArmoredKeyRing(rdr)
 	if err != nil {
-		http.Error(w,
-			"failed to parse data as  key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return sendResponse(w, http.StatusBadRequest, "failed to parse data as  key, "+err.Error())
 	}
 
 	if len(kr) != 1 {
-		http.Error(w,
-			"upload 1 key at a time",
-			http.StatusInternalServerError)
-		return
+		return sendResponse(w, http.StatusBadRequest, "upload 1 key at a time")
 	}
 
 	key := kr[0]
 	known, err := rel.PubRing()
 	if err != nil {
-		http.Error(w,
-			"while reading keyring, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("while reading keyring, %v", err)}
 	}
 
 	for _, k := range known {
 		if key.PrimaryKey.KeyIdString() == k.PrimaryKey.KeyIdString() {
-			doHttpConfigPublicKeysGetHandler(w, r)
-			return
+			return doHttpConfigPublicKeysGetHandler(w, r)
 		}
 	}
 
@@ -352,43 +299,31 @@ func doHttpConfigPublicKeysPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	newcfgid, err := state.Archive.AddReleaseConfig(*c)
 	if err != nil {
-		http.Error(w,
-			"failed to add new release config, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to add new release config , %v", err)}
 	}
 
 	rel.ConfigID = newcfgid
 	newrelid, err := state.Archive.AddRelease(rel)
 	if err != nil {
-		http.Error(w,
-			"failed to update key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to update key, %v", err)}
 	}
 
 	err = state.Archive.SetDist(name, newrelid)
 	if err != nil {
-		http.Error(w,
-			"failed to update key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to update key, %v", err)}
 	}
 
 	err = state.Archive.ReifyRelease(newrelid)
 	if err != nil {
-		http.Error(w,
-			"failed to update key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to update key, %v", err)}
 	}
 
-	doHttpConfigPublicKeysGetHandler(w, r)
+	return doHttpConfigPublicKeysGetHandler(w, r)
 }
 
-func doHttpConfigPublicKeysDeleteHandler(w http.ResponseWriter, r *http.Request) {
+func doHttpConfigPublicKeysDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if !AuthorisedAdmin(w, r) {
-		return
+		return sendResponse(w, http.StatusUnauthorized, nil)
 	}
 	vars := mux.Vars(r)
 	name := vars["name"]
@@ -396,8 +331,7 @@ func doHttpConfigPublicKeysDeleteHandler(w http.ResponseWriter, r *http.Request)
 
 	p, err := state.Archive.GetDist(name)
 	if err != nil {
-		SendDefaultResponse(w, http.StatusNotFound)
-		return
+		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
 	rel := p.NewChildRelease()
@@ -431,43 +365,30 @@ func doHttpConfigPublicKeysDeleteHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	if !found {
-		SendDefaultResponse(w, http.StatusNotFound)
-		return
+		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
 	c.PublicKeyIDs = finalKeys
 	newcfgid, err := state.Archive.AddReleaseConfig(*c)
 	if err != nil {
-		http.Error(w,
-			"failed to add new release config, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to add new release config, %v", err)}
 	}
 
 	rel.ConfigID = newcfgid
 	newrelid, err := state.Archive.AddRelease(rel)
 	if err != nil {
-		http.Error(w,
-			"failed to update key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to update key, %v", err)}
 	}
 
 	err = state.Archive.SetDist(name, newrelid)
 	if err != nil {
-		http.Error(w,
-			"failed to update key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to update key, %v", err)}
 	}
 
 	err = state.Archive.ReifyRelease(newrelid)
 	if err != nil {
-		http.Error(w,
-			"failed to update key, "+err.Error(),
-			http.StatusInternalServerError)
-		return
+		return &appError{Error: fmt.Errorf("failed to update key, %v", err)}
 	}
 
-	SendOKResponse(w, "DELETED")
+	return sendOKResponse(w, "DELETED")
 }

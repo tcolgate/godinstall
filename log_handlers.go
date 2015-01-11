@@ -2,33 +2,33 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 )
 
-func httpLogHandler(w http.ResponseWriter, r *http.Request) {
+func httpLogHandler(w http.ResponseWriter, r *http.Request) *appError {
 	switch r.Method {
 	case "GET":
-		handleWithReadLock(doHttpLogGetHandler, w, r)
+		return handleWithReadLock(doHttpLogGetHandler, w, r)
 	default:
-		http.Error(w,
-			http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
+		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
-	return
 }
 
-func doHttpLogGetHandler(w http.ResponseWriter, r *http.Request) {
+func doHttpLogGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
 	curr, err := state.Archive.GetDist(name)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("failed to retrieve store reference for distribution " + name + ", " + err.Error()))
-		return
+	switch {
+	case os.IsNotExist(err):
+		return sendResponse(w, http.StatusNotFound, nil)
+	default:
+		return &appError{Error: fmt.Errorf("failed to retrieve store reference, %v", err)}
 	}
 
 	w.Write([]byte("["))
@@ -42,7 +42,7 @@ func doHttpLogGetHandler(w http.ResponseWriter, r *http.Request) {
 		output, err := json.Marshal(curr)
 		if err != nil {
 			log.Println("Could not marshal json object, " + err.Error())
-			return
+			continue
 		}
 		w.Write(output)
 
@@ -56,7 +56,7 @@ func doHttpLogGetHandler(w http.ResponseWriter, r *http.Request) {
 		curr, err = state.Archive.GetRelease(curr.ParentID)
 		if err != nil {
 			log.Println("Could not get parent, " + err.Error())
-			return
+			continue
 		}
 
 		if curr.ParentID != nil {
@@ -65,14 +65,14 @@ func doHttpLogGetHandler(w http.ResponseWriter, r *http.Request) {
 					if trimAfter > 0 {
 						trimAfter--
 					} else {
-
-						return
+						return nil
 					}
 				}
 			}
 			w.Write([]byte(","))
 		} else {
-			return
+			return nil
 		}
 	}
+	return nil
 }
