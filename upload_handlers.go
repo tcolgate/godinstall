@@ -22,8 +22,6 @@ func httpUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 
 	session, found := vars["session"]
 
-	var resp *appError
-
 	//Maybe in a cookie?
 	if !found {
 		cookie, err := r.Cookie(cfg.CookieName)
@@ -40,7 +38,7 @@ func httpUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 				return sendResponse(w, http.StatusNotFound, nil)
 			}
 
-			resp = s.Status()
+			return sendOKResponse(w, s.Status())
 		}
 	case "PUT", "POST":
 		{
@@ -97,7 +95,7 @@ func httpUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 				return sendResponse(w, http.StatusNotFound, nil)
 			}
 
-			resp = sess.Status()
+			resp := sess.Status()
 
 			for _, part := range otherParts {
 				fh, err := part.Open()
@@ -111,12 +109,9 @@ func httpUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 				}
 				resp = sess.AddFile(&uf)
 			}
+			return sendResponse(w, resp.Code, resp.Message)
 		}
+	default:
+		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
-
-	if resp.Code == 0 {
-		return &appError{Error: fmt.Errorf("AptServer response statuscode not set")}
-	}
-
-	return sendResponse(w, resp.Code, resp.Message)
 }
