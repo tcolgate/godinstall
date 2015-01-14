@@ -103,7 +103,8 @@ func NewUploadSessionManager(
 	uploadHook HookRunner,
 	finished chan UpdateRequest,
 ) *UploadSessionManager {
-	return &UploadSessionManager{
+
+	res := &UploadSessionManager{
 		TTL:        TTL,
 		TmpDir:     tmpDir,
 		Store:      store,
@@ -112,6 +113,10 @@ func NewUploadSessionManager(
 		finished: finished,
 		sessMap:  NewSafeMap(),
 	}
+
+	go updater()
+
+	return res
 }
 
 // GetSession retrieves a given upload session by the session's id
