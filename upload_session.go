@@ -46,11 +46,13 @@ type UploadSession struct {
 	dir       string       // Temporary directory for storage
 	changes   *ChangesFile // The changes file for this session
 	changesID StoreID      // The raw changes file as uploaded
+	err       *appError
 
 	// Channels for requests
 	// TODO revisit this
 	incoming  chan addItemMsg   // New item upload requests
 	getstatus chan getStatusMsg // A channel for responding to status requests
+	geterr    chan getStatusMsg // A channel for responding to status requests
 }
 
 // ID returns the ID of this session
@@ -164,6 +166,10 @@ func (s *UploadSession) handler(ctx context.Context, cancel context.CancelFunc) 
 			{
 				msg.resp <- newAppResponse(http.StatusOK, s)
 			}
+		case msg := <-s.geterr:
+			{
+				msg.resp <- s.err
+			}
 		case msg := <-s.incoming:
 			{
 				if err := s.doAddFile(msg.file); err != nil {
@@ -249,10 +255,10 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 
 	storeFilename := s.dir + "/" + upload.Name
 	blob, err := s.usm.Store.Store()
-	hasher := MakeWriteHasher(blob)
 	if err != nil {
 		return errors.New("Upload to store failed: " + err.Error())
 	}
+	hasher := MakeWriteHasher(blob)
 
 	_, err = io.Copy(hasher, upload.reader)
 	if err != nil {
@@ -388,4 +394,14 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 	uf.Received = true
 
 	return
+}
+
+// AddFile adds an uploaded file to the given session, taking hashes,
+// and placing it in the archive store.
+func (s *UploadSession) Err() *appError {
+	c := make(chan *appError)
+	s.geterr <- getStatusMsg{
+		resp: c,
+	}
+	return <-c
 }

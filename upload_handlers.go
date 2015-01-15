@@ -109,6 +109,13 @@ func httpUploadHandler(ctx context.Context, w http.ResponseWriter, r *http.Reque
 				sess.AddFile(&uf)
 			}
 
+			if err := sess.Err(); err != nil {
+				switch err {
+				default:
+					return err
+				}
+			}
+
 			resp := sess.Status()
 			return sendOKResponse(w, resp)
 		}
