@@ -122,7 +122,7 @@ func NewUploadSessionManager(
 }
 
 // GetSession retrieves a given upload session by the session's id
-func (usm *UploadSessionManager) GetSession(sid string) (UploadSession, bool) {
+func (usm *UploadSessionManager) GetSession(sid string) (s UploadSession, ok bool) {
 	val := usm.sessMap.Get(sid)
 	if val == nil {
 		return UploadSession{}, false
@@ -164,20 +164,10 @@ func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.ReadC
 	id := s.ID()
 	usm.sessMap.Set(id, s)
 
-	go usm.cleanup(ctx, id)
+	go func() {
+		<-ctx.Done()
+		usm.sessMap.Set(id, nil)
+	}()
 
 	return id, nil
-}
-
-// This is used as a go routine manages the upload session and is used
-// to serialize all actions on the given session.
-// TODO need to revisit this
-func (usm *UploadSessionManager) cleanup(ctx context.Context, id string) {
-	select {
-	case <-ctx.Done():
-		{
-			// The sesession has completed
-			usm.sessMap.Set(id, nil)
-		}
-	}
 }
