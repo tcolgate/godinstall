@@ -6,23 +6,24 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
+	"golang.org/x/net/context"
 )
 
 // This build a function to enumerate the distributions
-func httpDistsHandler(w http.ResponseWriter, r *http.Request) *appError {
+func httpDistsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	switch r.Method {
 	case "GET":
-		return handleWithReadLock(doHttpDistsGetHandler, w, r)
+		return handleWithReadLock(doHttpDistsGetHandler, ctx, w, r)
 	case "PUT":
-		return handleWithWriteLock(doHttpDistsPutHandler, w, r)
+		return handleWithWriteLock(doHttpDistsPutHandler, ctx, w, r)
 	case "DELETE":
-		return handleWithWriteLock(doHttpDistsDeleteHandler, w, r)
+		return handleWithWriteLock(doHttpDistsDeleteHandler, ctx, w, r)
 	default:
 		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
 }
 
-func doHttpDistsGetHandler(w http.ResponseWriter, r *http.Request) *appError {
+func doHttpDistsGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name, nameGiven := vars["name"]
 	dists := state.Archive.Dists()
@@ -41,8 +42,8 @@ func doHttpDistsGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 	}
 }
 
-func doHttpDistsPutHandler(w http.ResponseWriter, r *http.Request) *appError {
-	if !AuthorisedAdmin(w, r) {
+func doHttpDistsPutHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+	if !AuthorisedAdmin(ctx, w, r) {
 		return sendResponse(w, http.StatusUnauthorized, nil)
 	}
 	vars := mux.Vars(r)
@@ -86,8 +87,8 @@ func doHttpDistsPutHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return sendOKResponse(w, rel)
 }
 
-func doHttpDistsDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
-	if !AuthorisedAdmin(w, r) {
+func doHttpDistsDeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+	if !AuthorisedAdmin(ctx, w, r) {
 		return sendResponse(w, http.StatusUnauthorized, nil)
 	}
 	vars := mux.Vars(r)

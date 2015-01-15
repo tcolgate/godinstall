@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"time"
 )
 
@@ -36,10 +38,13 @@ type appError struct {
 	Error   error
 }
 
-type appHandler func(http.ResponseWriter, *http.Request) *appError
+type appHandler func(context.Context, http.ResponseWriter, *http.Request) *appError
 
 func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if e := fn(w, r); e != nil { // e is *appError, not os.Error.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if e := fn(ctx, w, r); e != nil { // e is *appError, not os.Error.
 		if e.Code == 0 {
 			e.Code = http.StatusInternalServerError
 		}
@@ -79,19 +84,19 @@ func sendOKResponse(w http.ResponseWriter, obj interface{}) *appError {
 	return sendResponse(w, http.StatusOK, obj)
 }
 
-func handleWithReadLock(f appHandler, w http.ResponseWriter, r *http.Request) *appError {
+func handleWithReadLock(f appHandler, ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	state.Lock.ReadLock()
 	defer state.Lock.ReadUnLock()
-	return f(w, r)
+	return f(ctx, w, r)
 }
 
-func handleWithWriteLock(f appHandler, w http.ResponseWriter, r *http.Request) *appError {
+func handleWithWriteLock(f appHandler, ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	state.Lock.WriteLock()
 	defer state.Lock.WriteUnLock()
-	return f(w, r)
+	return f(ctx, w, r)
 }
 
-func AuthorisedAdmin(w http.ResponseWriter, r *http.Request) bool {
+func AuthorisedAdmin(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
 	h := r.RemoteAddr[:strings.LastIndex(r.RemoteAddr, ":")]
 	if !(h == "127.0.0.1" || h == "[::1]") {
 		log.Printf("UNAUTHORIZED: %v %v", r.RemoteAddr, r.RequestURI)

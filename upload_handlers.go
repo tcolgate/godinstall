@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"golang.org/x/net/context"
 )
 
 // This build a function to despatch upload requests
-func httpUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
+func httpUploadHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 
 	vars := mux.Vars(r)
 
@@ -95,8 +96,6 @@ func httpUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 				return sendResponse(w, http.StatusNotFound, nil)
 			}
 
-			resp := sess.Status()
-
 			for _, part := range otherParts {
 				fh, err := part.Open()
 				if err != nil {
@@ -107,9 +106,11 @@ func httpUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 					Name:   part.Filename,
 					reader: fh,
 				}
-				resp = sess.AddFile(&uf)
+				sess.AddFile(&uf)
 			}
-			return sendResponse(w, resp.Code, resp.Message)
+
+			resp := sess.Status()
+			return sendOKResponse(w, resp)
 		}
 	default:
 		return sendResponse(w, http.StatusMethodNotAllowed, nil)

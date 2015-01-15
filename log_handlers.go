@@ -8,18 +8,19 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
+	"golang.org/x/net/context"
 )
 
-func httpLogHandler(w http.ResponseWriter, r *http.Request) *appError {
+func httpLogHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	switch r.Method {
 	case "GET":
-		return handleWithReadLock(doHttpLogGetHandler, w, r)
+		return handleWithReadLock(doHttpLogGetHandler, ctx, w, r)
 	default:
 		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
 }
 
-func doHttpLogGetHandler(w http.ResponseWriter, r *http.Request) *appError {
+func doHttpLogGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
