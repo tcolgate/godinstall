@@ -24,7 +24,6 @@ var cfg struct {
 var state struct {
 	Archive        Archiver              // The generator for updating the repo
 	SessionManager *UploadSessionManager // The session manager
-	UpdateChannel  chan UpdateRequest    // A channel to recieve update requests
 	Lock           *Governor             // Locks to ensure the repo update is atomic
 	getCount       *expvar.Int           // Download count
 }

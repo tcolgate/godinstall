@@ -49,9 +49,8 @@ type UploadSession struct {
 
 	// Channels for requests
 	// TODO revisit this
-	finished  chan UpdateRequest // A channel to anounce completion and trigger a repo update
-	incoming  chan addItemMsg    // New item upload requests
-	getstatus chan getStatusMsg  // A channel for responding to status requests
+	incoming  chan addItemMsg   // New item upload requests
+	getstatus chan getStatusMsg // A channel for responding to status requests
 }
 
 // ID returns the ID of this session
@@ -78,7 +77,6 @@ func NewUploadSession(
 	loneDeb bool,
 	changesReader io.ReadCloser,
 	tmpDirBase *string,
-	finished chan UpdateRequest,
 	uploadSessionManager *UploadSessionManager,
 ) (UploadSession, error) {
 	var s UploadSession
@@ -92,7 +90,6 @@ func NewUploadSession(
 
 	os.Mkdir(s.dir, os.FileMode(0755))
 
-	s.finished = finished
 	s.incoming = make(chan addItemMsg)
 	s.getstatus = make(chan getStatusMsg)
 
@@ -137,8 +134,6 @@ func NewUploadSession(
 	return s, nil
 }
 
-type closeMsg struct{}
-
 type addItemMsg struct {
 	file *UploadFile
 	resp chan *appError
@@ -171,9 +166,7 @@ func (s *UploadSession) handler(ctx context.Context, cancel context.CancelFunc) 
 			}
 		case msg := <-s.incoming:
 			{
-				err := s.doAddFile(msg.file)
-
-				if err != nil {
+				if err := s.doAddFile(msg.file); err != nil {
 					msg.resp <- newAppResponse(http.StatusBadRequest, err.Error())
 					break
 				}
@@ -192,17 +185,9 @@ func (s *UploadSession) handler(ctx context.Context, cancel context.CancelFunc) 
 					s.Complete = true
 				}
 
-				// We're done, lets call out to the server to update
-				// with the contents of this session
-
-				c := make(chan *appError)
-				s.finished <- UpdateRequest{
-					session: s,
-					resp:    c,
+				if err := s.usm.MergeSession(s); err != nil {
+					log.Println(err)
 				}
-
-				updateresp := <-c
-				msg.resp <- updateresp
 
 				// cancel the context
 				cancel()

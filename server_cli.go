@@ -80,13 +80,11 @@ func CmdServe(c *cli.Context) {
 	state.Lock = NewGovernor(maxReqs)
 	state.getCount = expvar.NewInt("GetRequests")
 
-	state.UpdateChannel = make(chan UpdateRequest)
 	state.SessionManager = NewUploadSessionManager(
 		ttl,
 		&tmpDir,
 		state.Archive,
 		NewScriptHook(&uploadHook),
-		state.UpdateChannel,
 	)
 
 	r := mux.NewRouter()

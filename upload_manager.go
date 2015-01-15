@@ -47,10 +47,10 @@ func (s CompletedUpload) MarshalJSON() (j []byte, err error) {
 // Updater ensures that updates to the repository are serialized.
 // it reads from a channel of messages, responds to clients, and
 // instigates the actual regernation of the repository
-func updater() {
+func (usm *UploadSessionManager) updater() {
 	for {
 		select {
-		case msg := <-state.UpdateChannel:
+		case msg := <-usm.finished:
 			{
 				var err error
 				respStatus := http.StatusOK
@@ -103,8 +103,9 @@ func NewUploadSessionManager(
 	tmpDir *string,
 	store ArchiveStorer,
 	uploadHook HookRunner,
-	finished chan UpdateRequest,
 ) *UploadSessionManager {
+
+	finished := make(chan UpdateRequest)
 
 	res := &UploadSessionManager{
 		TTL:        TTL,
@@ -116,7 +117,7 @@ func NewUploadSessionManager(
 		sessMap:  NewSafeMap(),
 	}
 
-	go updater()
+	go res.updater()
 
 	return res
 }
@@ -153,7 +154,6 @@ func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.ReadC
 		loneDeb,
 		changesReader,
 		usm.TmpDir,
-		usm.finished,
 		usm,
 	)
 
@@ -170,4 +170,14 @@ func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.ReadC
 	}()
 
 	return id, nil
+}
+
+func (usm *UploadSessionManager) MergeSession(s *UploadSession) *appError {
+	c := make(chan *appError)
+	usm.finished <- UpdateRequest{
+		session: s,
+		resp:    c,
+	}
+
+	return <-c
 }
