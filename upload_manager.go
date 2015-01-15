@@ -44,49 +44,6 @@ func (s CompletedUpload) MarshalJSON() (j []byte, err error) {
 	return
 }
 
-// Updater ensures that updates to the repository are serialized.
-// it reads from a channel of messages, responds to clients, and
-// instigates the actual regernation of the repository
-func (usm *UploadSessionManager) updater() {
-	for {
-		select {
-		case msg := <-usm.finished:
-			{
-				var err error
-				respStatus := http.StatusOK
-				var respObj interface{}
-
-				session := msg.session
-				completedsession := CompletedUpload{UploadSession: session}
-
-				state.Lock.WriteLock()
-
-				hookResult := cfg.PreGenHook.Run(session.Directory())
-				if hookResult.err != nil {
-					respStatus = http.StatusBadRequest
-					respObj = "Pre gen hook failed " + hookResult.Error()
-				} else {
-					completedsession.PreGenHookOutput = hookResult
-				}
-
-				respStatus, respObj, err = state.Archive.AddUpload(session)
-				if err == nil {
-					hookResult := cfg.PostGenHook.Run(session.ID())
-					completedsession.PostGenHookOutput = hookResult
-				}
-
-				state.Lock.WriteUnLock()
-
-				if respStatus == http.StatusOK {
-					respObj = completedsession
-				}
-
-				msg.resp <- newAppResponse(respStatus, respObj)
-			}
-		}
-	}
-}
-
 // UpdateRequest contains the information needed to
 // request an update, only regeneration is supported
 // at present
@@ -180,4 +137,47 @@ func (usm *UploadSessionManager) MergeSession(s *UploadSession) *appError {
 	}
 
 	return <-c
+}
+
+// Updater ensures that updates to the repository are serialized.
+// it reads from a channel of messages, responds to clients, and
+// instigates the actual regernation of the repository
+func (usm *UploadSessionManager) updater() {
+	for {
+		select {
+		case msg := <-usm.finished:
+			{
+				var err error
+				respStatus := http.StatusOK
+				var respObj interface{}
+
+				session := msg.session
+				completedsession := CompletedUpload{UploadSession: session}
+
+				state.Lock.WriteLock()
+
+				hookResult := cfg.PreGenHook.Run(session.Directory())
+				if hookResult.err != nil {
+					respStatus = http.StatusBadRequest
+					respObj = "Pre gen hook failed " + hookResult.Error()
+				} else {
+					completedsession.PreGenHookOutput = hookResult
+				}
+
+				respStatus, respObj, err = state.Archive.AddUpload(session)
+				if err == nil {
+					hookResult := cfg.PostGenHook.Run(session.ID())
+					completedsession.PostGenHookOutput = hookResult
+				}
+
+				state.Lock.WriteUnLock()
+
+				if respStatus == http.StatusOK {
+					respObj = completedsession
+				}
+
+				msg.resp <- newAppResponse(respStatus, respObj)
+			}
+		}
+	}
 }
