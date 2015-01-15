@@ -11,7 +11,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
+
+	"golang.org/x/net/context"
 
 	"code.google.com/p/go-uuid/uuid"
 )
@@ -39,7 +40,6 @@ type UploadSession struct {
 	Expecting   map[string]*UploadFile // The files we are expecting in this upload
 	LoneDeb     bool                   // Is user attempting to upload a lone deb
 	Complete    bool                   // The files we are expecting in this upload
-	TTL         time.Duration          // How long should this session stick around for
 
 	usm       *UploadSessionManager
 	release   *Release
@@ -51,12 +51,7 @@ type UploadSession struct {
 	// TODO revisit this
 	finished  chan UpdateRequest // A channel to anounce completion and trigger a repo update
 	incoming  chan addItemMsg    // New item upload requests
-	close     chan closeMsg      // A channel for close messages
 	getstatus chan getStatusMsg  // A channel for responding to status requests
-
-	// output session
-	// TODO revisit this
-	done chan struct{} // A channel to be informed of closure on
 }
 
 // ID returns the ID of this session
@@ -77,6 +72,8 @@ func (s *UploadSession) MarshalJSON() (j []byte, err error) {
 // NewUploadSession creates a session for uploading using a changes
 // file to describe the set of files to be uploaded
 func NewUploadSession(
+	ctx context.Context,
+	cancel context.CancelFunc,
 	rel *Release,
 	loneDeb bool,
 	changesReader io.ReadCloser,
@@ -89,17 +86,14 @@ func NewUploadSession(
 	s.ReleaseName = rel.Suite
 	s.release = rel
 	s.usm = uploadSessionManager
-	s.TTL = s.usm.TTL
-	s.done = make(chan struct{})
-	s.finished = finished
 	s.dir = *tmpDirBase + "/" + s.SessionID
 	s.Expecting = make(map[string]*UploadFile, 0)
 	s.LoneDeb = loneDeb
 
 	os.Mkdir(s.dir, os.FileMode(0755))
 
+	s.finished = finished
 	s.incoming = make(chan addItemMsg)
-	s.close = make(chan closeMsg)
 	s.getstatus = make(chan getStatusMsg)
 
 	if !s.LoneDeb {
@@ -138,7 +132,7 @@ func NewUploadSession(
 		}
 	}
 
-	go s.handler()
+	go s.handler(ctx, cancel)
 
 	return s, nil
 }
@@ -156,7 +150,7 @@ type getStatusMsg struct {
 
 // All item additions to this session are
 // serialized through this routine
-func (s *UploadSession) handler() {
+func (s *UploadSession) handler(ctx context.Context, cancel context.CancelFunc) {
 	s.usm.Store.DisableGarbageCollector()
 
 	defer func() {
@@ -165,20 +159,12 @@ func (s *UploadSession) handler() {
 			log.Println(err)
 		}
 		s.usm.Store.EnableGarbageCollector()
-		close(s.done)
 	}()
 
-	timeout := time.After(s.TTL)
 	for {
 		select {
-		case <-timeout:
-			{
-				return
-			}
-		case <-s.close:
-			{
-				return
-			}
+		case <-ctx.Done():
+			return
 		case msg := <-s.getstatus:
 			{
 				msg.resp <- newAppResponse(http.StatusOK, s)
@@ -218,22 +204,14 @@ func (s *UploadSession) handler() {
 				updateresp := <-c
 				msg.resp <- updateresp
 
+				// cancel the context
+				cancel()
+
 				// Need to do the update and return the response
 				return
 			}
 		}
 	}
-}
-
-// Close is used to indicate that a session is finished
-func (s *UploadSession) Close() {
-	s.close <- closeMsg{}
-}
-
-// Done returns a channels that can be used to be informed of
-// the completiong of a session
-func (s *UploadSession) Done() chan struct{} {
-	return s.done
 }
 
 // Status returns a server response indivating the running state

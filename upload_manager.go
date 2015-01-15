@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 // UploadSessionManager is a concreate implmentation of the UploadSessionManager
@@ -143,7 +145,10 @@ func (usm *UploadSessionManager) GetSession(sid string) (UploadSession, bool) {
 func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.ReadCloser, loneDeb bool) (string, error) {
 	var err error
 
+	ctx, cancel := context.WithTimeout(context.Background(), usm.TTL)
 	s, err := NewUploadSession(
+		ctx,
+		cancel,
 		rel,
 		loneDeb,
 		changesReader,
@@ -156,21 +161,23 @@ func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.ReadC
 		return "", err
 	}
 
-	usm.sessMap.Set(s.ID(), s)
-	go usm.cleanup(s)
+	id := s.ID()
+	usm.sessMap.Set(id, s)
 
-	return s.ID(), nil
+	go usm.cleanup(ctx, id)
+
+	return id, nil
 }
 
 // This is used as a go routine manages the upload session and is used
 // to serialize all actions on the given session.
 // TODO need to revisit this
-func (usm *UploadSessionManager) cleanup(s UploadSession) {
+func (usm *UploadSessionManager) cleanup(ctx context.Context, id string) {
 	select {
-	case <-s.Done():
+	case <-ctx.Done():
 		{
 			// The sesession has completed
-			usm.sessMap.Set(s.ID(), nil)
+			usm.sessMap.Set(id, nil)
 		}
 	}
 }
