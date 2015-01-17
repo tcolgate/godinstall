@@ -53,7 +53,6 @@ type UploadSession struct {
 	// TODO revisit this
 	incoming  chan addItemMsg   // New item upload requests
 	getstatus chan getStatusMsg // A channel for responding to status requests
-	geterr    chan getStatusMsg // A channel for responding to status requests
 }
 
 // ID returns the ID of this session
@@ -169,8 +168,7 @@ func (s *UploadSession) handler(ctx context.Context, cancel context.CancelFunc) 
 			}
 		case msg := <-s.incoming:
 			{
-				if err := s.doAddFile(msg.file); err != nil {
-					s.err = err
+				if s.err = s.doAddFile(msg.file); s.err != nil {
 					msg.resp <- *s
 					break
 				}
@@ -189,15 +187,8 @@ func (s *UploadSession) handler(ctx context.Context, cancel context.CancelFunc) 
 					s.Complete = true
 				}
 
-				if err := s.usm.MergeSession(s); err != nil {
-					log.Println(err)
-				}
-
-				// cancel the context
-				cancel()
-
-				// Need to do the update and return the response
-				return
+				s.usm.MergeSession(s)
+				msg.resp <- *s
 			}
 		}
 	}
@@ -402,7 +393,7 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 // and placing it in the archive store.
 func (s *UploadSession) Err() error {
 	c := make(chan UploadSession)
-	s.geterr <- getStatusMsg{
+	s.getstatus <- getStatusMsg{
 		resp: c,
 	}
 	status := <-c

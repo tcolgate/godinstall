@@ -96,7 +96,6 @@ func CmdServe(c *cli.Context) {
 	r.Handle("/debug/vars", http.DefaultServeMux)
 
 	r.PathPrefix("/repo/").Handler(appHandler(makeHTTPDownloadHandler()))
-	r.PathPrefix("/upload").Handler(appHandler(httpUploadHandler))
 
 	r.Handle("/dists", appHandler(httpDistsHandler))
 	r.Handle("/dists/{name}", appHandler(httpDistsHandler))
