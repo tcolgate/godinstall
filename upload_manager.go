@@ -77,10 +77,9 @@ func (usm *UploadSessionManager) GetSession(sid string) (s UploadSession, ok boo
 func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.ReadCloser, loneDeb bool) (string, error) {
 	var err error
 
-	ctx, cancel := context.WithTimeout(context.Background(), usm.TTL)
+	ctx, _ := context.WithTimeout(context.Background(), usm.TTL)
 	s, err := NewUploadSession(
 		ctx,
-		cancel,
 		rel,
 		loneDeb,
 		changesReader,

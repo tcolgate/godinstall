@@ -74,7 +74,6 @@ func (s *UploadSession) MarshalJSON() (j []byte, err error) {
 // file to describe the set of files to be uploaded
 func NewUploadSession(
 	ctx context.Context,
-	cancel context.CancelFunc,
 	rel *Release,
 	loneDeb bool,
 	changesReader io.ReadCloser,
@@ -131,7 +130,7 @@ func NewUploadSession(
 		}
 	}
 
-	go s.handler(ctx, cancel)
+	go s.handler(ctx)
 
 	return s, nil
 }
@@ -147,7 +146,7 @@ type getStatusMsg struct {
 
 // All item additions to this session are
 // serialized through this routine
-func (s *UploadSession) handler(ctx context.Context, cancel context.CancelFunc) {
+func (s *UploadSession) handler(ctx context.Context) {
 	s.usm.Store.DisableGarbageCollector()
 
 	defer func() {
