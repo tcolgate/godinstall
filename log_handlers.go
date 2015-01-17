@@ -26,6 +26,7 @@ func doHttpLogGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 
 	curr, err := state.Archive.GetDist(name)
 	switch {
+	case err == nil:
 	case os.IsNotExist(err):
 		return sendResponse(w, http.StatusNotFound, nil)
 	default:
@@ -47,11 +48,9 @@ func doHttpLogGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		}
 		w.Write(output)
 
-		if !displayTrimmed {
-			if !trimmerActive && curr.TrimAfter != 0 {
-				trimmerActive = true
-				trimAfter = curr.TrimAfter
-			}
+		if !displayTrimmed && !trimmerActive && curr.TrimAfter != 0 {
+			trimmerActive = true
+			trimAfter = curr.TrimAfter
 		}
 
 		curr, err = state.Archive.GetRelease(curr.ParentID)
@@ -60,20 +59,17 @@ func doHttpLogGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 			continue
 		}
 
-		if curr.ParentID != nil {
-			if !displayTrimmed {
-				if trimmerActive {
-					if trimAfter > 0 {
-						trimAfter--
-					} else {
-						return nil
-					}
-				}
-			}
-			w.Write([]byte(","))
-		} else {
+		if curr.ParentID == nil {
 			return nil
 		}
+
+		if !displayTrimmed && trimmerActive {
+			if trimAfter == 0 {
+				return nil
+			}
+			trimAfter--
+		}
+
+		w.Write([]byte(","))
 	}
-	return nil
 }

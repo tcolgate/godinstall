@@ -170,6 +170,4 @@ func cliUploadFile(c *http.Client, uri, firstfn string) error {
 	default:
 		return errors.New("Do not know how to upload ")
 	}
-
-	return nil
 }

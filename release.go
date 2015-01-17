@@ -175,9 +175,8 @@ func (r *Release) updateReleaseSigFiles() bool {
 		}
 		wplain, err := clearsign.Encode(win, key.PrivateKey, nil)
 		if err != nil {
-			log.Printf("InRelease clear-signer, ", err)
+			log.Printf("InRelease clear-signer, %v", err)
 			return false
-
 		}
 		_, err = io.Copy(wplain, rd)
 		if err != nil {
