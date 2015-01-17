@@ -28,7 +28,7 @@ func doHttpDistsGetHandler(ctx context.Context, w http.ResponseWriter, r *http.R
 	name, nameGiven := vars["name"]
 	dists := state.Archive.Dists()
 	if !nameGiven {
-		return sendResponse(w, http.StatusBadRequest, nil)
+		return sendResponse(w, http.StatusOK, dists)
 	}
 
 	rel, err := state.Archive.GetDist(name)

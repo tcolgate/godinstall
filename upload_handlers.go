@@ -102,17 +102,16 @@ func httpUploadHandler(ctx context.Context, w http.ResponseWriter, r *http.Reque
 					return sendResponse(w, http.StatusBadRequest, "Error opening mime item, "+err.Error())
 				}
 
-				uf := UploadFile{
-					Name:   part.Filename,
-					reader: fh,
-				}
-				sess.AddFile(&uf)
+				sess.AddFile(part.Filename, fh)
 			}
 
 			if err := sess.Err(); err != nil {
 				switch err {
 				default:
-					return err
+					return &appError{
+						Code:  http.StatusInternalServerError,
+						Error: err,
+					}
 				}
 			}
 

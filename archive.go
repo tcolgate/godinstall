@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -22,7 +21,7 @@ type Archiver interface {
 	SetDist(name string, newrel StoreID) error
 	ReifyRelease(id StoreID) (err error)
 	DeleteDist(name string) error
-	AddUpload(session *UploadSession) (respStatus int, respObj string, err error)
+	AddUpload(session *UploadSession) error
 	ArchiveStorer
 }
 
@@ -289,15 +288,11 @@ func (a *archiveStoreArchive) PublicDir() string {
 	return *a.base
 }
 
-func (a *archiveStoreArchive) AddUpload(session *UploadSession) (respStatus int, respObj string, err error) {
-	respStatus = http.StatusOK
-	respObj = "Index committed"
+func (a *archiveStoreArchive) AddUpload(session *UploadSession) error {
 
 	entry, err := NewReleaseIndexEntry(session)
 	if err != nil {
-		respStatus = http.StatusInternalServerError
-		respObj = "Collating repository items failed, " + err.Error()
-		return respStatus, respObj, err
+		return fmt.Errorf("Collating repository items failed, %v", err)
 	}
 
 	branchName := session.ReleaseName
@@ -306,9 +301,7 @@ func (a *archiveStoreArchive) AddUpload(session *UploadSession) (respStatus int,
 	if !ok {
 		defCfgID, err := a.GetDefaultReleaseConfigID()
 		if err != nil {
-			respStatus = http.StatusInternalServerError
-			respObj = "Creating distro root failed getting default config ID for release, " + err.Error()
-			return respStatus, respObj, err
+			return fmt.Errorf("Creating distro root failed getting default config ID for release, %v", err)
 		}
 		head, err = a.GetReleaseRoot(Release{
 			CodeName: branchName,
@@ -316,16 +309,13 @@ func (a *archiveStoreArchive) AddUpload(session *UploadSession) (respStatus int,
 			ConfigID: defCfgID,
 		})
 		if err != nil {
-			respStatus = http.StatusInternalServerError
-			respObj = "Creating distro root failed, " + err.Error()
-			return respStatus, respObj, err
+			return fmt.Errorf("Creating distro root failed, %v", err)
 		}
 	}
 
 	newidx, actions, err := a.mergeEntryIntoRelease(head, entry)
 	if err != nil {
-		respStatus = http.StatusInternalServerError
-		respObj = "Creating new index failed, " + err.Error()
+		return fmt.Errorf("Creating new index failed, %v", err)
 	}
 
 	realchange := false
@@ -366,33 +356,24 @@ func (a *archiveStoreArchive) AddUpload(session *UploadSession) (respStatus int,
 	}
 
 	if !realchange {
-		respStatus = http.StatusOK
-		respObj = "No changes to index to cmmit"
-		return respStatus, respObj, err
+		log.Println("No changes to index to cmmit")
+		return nil
 	}
 
 	newhead, err := NewRelease(a, head, newidx, actions)
 	if err != nil {
-		respStatus = http.StatusInternalServerError
-		respObj = "Creating updated commit failed, " + err.Error()
-		return respStatus, respObj, err
+		return fmt.Errorf("Creating updated commit failed, %v", err)
 	}
 
-	err = a.SetDist(branchName, newhead)
-	if err != nil {
-		respStatus = http.StatusInternalServerError
-		respObj = "Setting dist ref failed," + err.Error()
-		return respStatus, respObj, err
+	if err = a.SetDist(branchName, newhead); err != nil {
+		return fmt.Errorf("Setting dist ref failed, %v", err)
 	}
 	log.Printf("Branch %v set to %v", branchName, StoreID(newhead).String())
 
-	err = a.ReifyRelease(newhead)
-	if err != nil {
-		respStatus = http.StatusInternalServerError
-		respObj = "Repopulating the archive directory failed," + err.Error()
-		return respStatus, respObj, err
+	if err = a.ReifyRelease(newhead); err != nil {
+		return fmt.Errorf("Repopulating the archive directory failed,, %v", err)
 	}
 
 	a.GarbageCollect()
-	return
+	return nil
 }

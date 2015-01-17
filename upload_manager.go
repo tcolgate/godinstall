@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/json"
 	"io"
-	"net/http"
 	"time"
 
 	"golang.org/x/net/context"
@@ -18,30 +16,6 @@ type UploadSessionManager struct {
 
 	finished chan UpdateRequest
 	sessMap  *SafeMap
-}
-
-// CompletedUpload describes a finished session, the details of the session,
-// and the output of any hooks
-type CompletedUpload struct {
-	*UploadSession
-	PreGenHookOutput  HookOutput
-	PostGenHookOutput HookOutput
-}
-
-// MarshalJSON implements the json.Marshaler interface to allow
-// presentation of a completed session to the user
-func (s CompletedUpload) MarshalJSON() (j []byte, err error) {
-	resp := struct {
-		UploadSession
-		PreGenHookOutput  HookOutput
-		PostGenHookOutput HookOutput
-	}{
-		*s.UploadSession,
-		s.PreGenHookOutput,
-		s.PostGenHookOutput,
-	}
-	j, err = json.Marshal(resp)
-	return
 }
 
 // UpdateRequest contains the information needed to
@@ -147,36 +121,24 @@ func (usm *UploadSessionManager) updater() {
 		select {
 		case msg := <-usm.finished:
 			{
-				var err error
-				respStatus := http.StatusOK
-				var respObj interface{}
+				var apperr *appError
 
-				session := msg.session
-				completedsession := CompletedUpload{UploadSession: session}
+				s := msg.session
 
 				state.Lock.WriteLock()
 
-				hookResult := cfg.PreGenHook.Run(session.Directory())
-				if hookResult.err != nil {
-					respStatus = http.StatusBadRequest
-					respObj = "Pre gen hook failed " + hookResult.Error()
+				hookResult := cfg.PreGenHook.Run(s.Directory())
+				s.PreGenHookOutput = &hookResult
+
+				if err := state.Archive.AddUpload(s); err == nil {
+					hookResult := cfg.PostGenHook.Run(s.ID())
+					s.PostGenHookOutput = &hookResult
 				} else {
-					completedsession.PreGenHookOutput = hookResult
+					apperr = &appError{Error: err}
 				}
-
-				respStatus, respObj, err = state.Archive.AddUpload(session)
-				if err == nil {
-					hookResult := cfg.PostGenHook.Run(session.ID())
-					completedsession.PostGenHookOutput = hookResult
-				}
-
 				state.Lock.WriteUnLock()
 
-				if respStatus == http.StatusOK {
-					respObj = completedsession
-				}
-
-				msg.resp <- newAppResponse(respStatus, respObj)
+				msg.resp <- apperr
 			}
 		}
 	}

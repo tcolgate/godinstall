@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -35,18 +34,20 @@ type UploadFile struct {
 
 // UploadSession holds the information relating to an active upload session
 type UploadSession struct {
-	SessionID   string                 // Name of the session
-	ReleaseName string                 // The release this is meant for
-	Expecting   map[string]*UploadFile // The files we are expecting in this upload
-	LoneDeb     bool                   // Is user attempting to upload a lone deb
-	Complete    bool                   // The files we are expecting in this upload
+	SessionID         string                 // Name of the session
+	ReleaseName       string                 // The release this is meant for
+	Expecting         map[string]*UploadFile // The files we are expecting in this upload
+	LoneDeb           bool                   // Is user attempting to upload a lone deb
+	Complete          bool                   // The files we are expecting in this upload
+	PreGenHookOutput  *HookOutput            `json:",omitempty"`
+	PostGenHookOutput *HookOutput            `json:",omitempty"`
 
 	usm       *UploadSessionManager
 	release   *Release
 	dir       string       // Temporary directory for storage
 	changes   *ChangesFile // The changes file for this session
 	changesID StoreID      // The raw changes file as uploaded
-	err       *appError
+	err       error
 
 	// Channels for requests
 	// TODO revisit this
@@ -138,11 +139,11 @@ func NewUploadSession(
 
 type addItemMsg struct {
 	file *UploadFile
-	resp chan *appError
+	resp chan UploadSession
 }
 
 type getStatusMsg struct {
-	resp chan *appError
+	resp chan UploadSession
 }
 
 // All item additions to this session are
@@ -164,16 +165,13 @@ func (s *UploadSession) handler(ctx context.Context, cancel context.CancelFunc) 
 			return
 		case msg := <-s.getstatus:
 			{
-				msg.resp <- newAppResponse(http.StatusOK, s)
-			}
-		case msg := <-s.geterr:
-			{
-				msg.resp <- s.err
+				msg.resp <- *s
 			}
 		case msg := <-s.incoming:
 			{
 				if err := s.doAddFile(msg.file); err != nil {
-					msg.resp <- newAppResponse(http.StatusBadRequest, err.Error())
+					s.err = err
+					msg.resp <- *s
 					break
 				}
 
@@ -185,7 +183,7 @@ func (s *UploadSession) handler(ctx context.Context, cancel context.CancelFunc) 
 				}
 
 				if !complete {
-					msg.resp <- newAppResponse(http.StatusAccepted, s)
+					msg.resp <- *s
 					break
 				} else {
 					s.Complete = true
@@ -207,8 +205,8 @@ func (s *UploadSession) handler(ctx context.Context, cancel context.CancelFunc) 
 
 // Status returns a server response indivating the running state
 // of the session
-func (s *UploadSession) Status() *appError {
-	c := make(chan *appError)
+func (s *UploadSession) Status() UploadSession {
+	c := make(chan UploadSession)
 	s.getstatus <- getStatusMsg{
 		resp: c,
 	}
@@ -217,10 +215,14 @@ func (s *UploadSession) Status() *appError {
 
 // AddFile adds an uploaded file to the given session, taking hashes,
 // and placing it in the archive store.
-func (s *UploadSession) AddFile(upload *UploadFile) *appError {
-	c := make(chan *appError)
+func (s *UploadSession) AddFile(name string, r io.Reader) UploadSession {
+	u := &UploadFile{
+		Name:   name,
+		reader: r,
+	}
+	c := make(chan UploadSession)
 	s.incoming <- addItemMsg{
-		file: upload,
+		file: u,
 		resp: c,
 	}
 	return <-c
@@ -393,15 +395,16 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 
 	uf.Received = true
 
-	return
+	return nil
 }
 
 // AddFile adds an uploaded file to the given session, taking hashes,
 // and placing it in the archive store.
-func (s *UploadSession) Err() *appError {
-	c := make(chan *appError)
+func (s *UploadSession) Err() error {
+	c := make(chan UploadSession)
 	s.geterr <- getStatusMsg{
 		resp: c,
 	}
-	return <-c
+	status := <-c
+	return status.err
 }
