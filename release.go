@@ -118,23 +118,24 @@ type compTempData struct {
 
 type relTempData map[string]*compTempData
 
+// Parent returns the Release this Reelase was built from
 func (r *Release) Parent() (*Release, error) {
 	return r.store.GetRelease(r.id)
 }
 
-func (p *Release) NewChildRelease() *Release {
-	r := *p
-
-	r.ParentID = p.id
-	r.Date = time.Now()
+// NewChild return a new Release
+func (r *Release) NewChild() *Release {
+	c := *r
+	c.ParentID = r.id
+	c.Date = time.Now()
 
 	ver, err := strconv.ParseUint(r.Version, 10, 64)
 	if err == nil {
 		ver++
-		r.Version = strconv.FormatUint(ver, 10)
+		c.Version = strconv.FormatUint(ver, 10)
 	}
 
-	return &r
+	return &c
 }
 
 func (r *Release) updateReleaseSigFiles() bool {
@@ -488,7 +489,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 	if err != nil {
 		return nil, err
 	}
-	release := parent.NewChildRelease()
+	release := parent.NewChild()
 	release.IndexID = indexid
 	release.Actions = actions
 
@@ -534,6 +535,8 @@ func (r *Release) Config() *ReleaseConfig {
 	return r.config
 }
 
+// SignerKey returns the key that will be used to sign
+// this release
 func (r *Release) SignerKey() (*openpgp.Entity, error) {
 	id := r.Config().SigningKeyID
 	if len(id) == 0 {
@@ -557,6 +560,8 @@ func (r *Release) SignerKey() (*openpgp.Entity, error) {
 	return kr[0], nil
 }
 
+// PubRing returns the set of public keys of the people
+// permitted to upload packages
 func (r *Release) PubRing() (openpgp.EntityList, error) {
 	var kr openpgp.EntityList
 	ids := r.Config().PublicKeyIDs

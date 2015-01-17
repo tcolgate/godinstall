@@ -20,14 +20,14 @@ import (
 func httpConfigHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	switch r.Method {
 	case "GET":
-		return handleWithReadLock(doHttpConfigGetHandler, ctx, w, r)
+		return handleWithReadLock(doHTTPConfigGetHandler, ctx, w, r)
 	default:
 		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
 }
 
 // This build a function to manage the config of a distribution
-func doHttpConfigGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+func doHTTPConfigGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
@@ -46,17 +46,17 @@ func doHttpConfigGetHandler(ctx context.Context, w http.ResponseWriter, r *http.
 func httpConfigSigningKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	switch r.Method {
 	case "GET":
-		return handleWithReadLock(doHttpConfigSigningKeyGetHandler, ctx, w, r)
+		return handleWithReadLock(doHTTPConfigSigningKeyGetHandler, ctx, w, r)
 	case "PUT", "POST":
-		return handleWithWriteLock(doHttpConfigSigningKeyPutHandler, ctx, w, r)
+		return handleWithWriteLock(doHTTPConfigSigningKeyPutHandler, ctx, w, r)
 	case "DELETE":
-		return handleWithWriteLock(doHttpConfigSigningKeyDeleteHandler, ctx, w, r)
+		return handleWithWriteLock(doHTTPConfigSigningKeyDeleteHandler, ctx, w, r)
 	default:
 		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
 }
 
-func doHttpConfigSigningKeyGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+func doHTTPConfigSigningKeyGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
@@ -84,7 +84,7 @@ func doHttpConfigSigningKeyGetHandler(ctx context.Context, w http.ResponseWriter
 	return sendOKResponse(w, key.KeyIdShortString())
 }
 
-func doHttpConfigSigningKeyPutHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+func doHTTPConfigSigningKeyPutHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	if !AuthorisedAdmin(ctx, w, r) {
 		return sendResponse(w, http.StatusUnauthorized, nil)
 	}
@@ -97,7 +97,7 @@ func doHttpConfigSigningKeyPutHandler(ctx context.Context, w http.ResponseWriter
 		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
-	rel := p.NewChildRelease()
+	rel := p.NewChild()
 
 	id, err := state.Archive.CopyToStore(r.Body)
 	if err != nil {
@@ -113,7 +113,7 @@ func doHttpConfigSigningKeyPutHandler(ctx context.Context, w http.ResponseWriter
 
 	cfg := rel.Config()
 	if cfg.SigningKeyID.String() == id.String() {
-		return doHttpConfigSigningKeyGetHandler(ctx, w, r)
+		return doHTTPConfigSigningKeyGetHandler(ctx, w, r)
 	}
 
 	cfg.SigningKeyID = id
@@ -127,7 +127,7 @@ func doHttpConfigSigningKeyPutHandler(ctx context.Context, w http.ResponseWriter
 
 	rel.ConfigID = newcfgid
 	if !rel.updateReleaseSigFiles() {
-		return doHttpConfigSigningKeyGetHandler(ctx, w, r)
+		return doHTTPConfigSigningKeyGetHandler(ctx, w, r)
 	}
 
 	newrelid, err := state.Archive.AddRelease(rel)
@@ -151,10 +151,10 @@ func doHttpConfigSigningKeyPutHandler(ctx context.Context, w http.ResponseWriter
 		}
 	}
 
-	return doHttpConfigSigningKeyGetHandler(ctx, w, r)
+	return doHTTPConfigSigningKeyGetHandler(ctx, w, r)
 }
 
-func doHttpConfigSigningKeyDeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+func doHTTPConfigSigningKeyDeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	if !AuthorisedAdmin(ctx, w, r) {
 		return sendResponse(w, http.StatusUnauthorized, nil)
 	}
@@ -166,10 +166,10 @@ func doHttpConfigSigningKeyDeleteHandler(ctx context.Context, w http.ResponseWri
 		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
-	rel := p.NewChildRelease()
+	rel := p.NewChild()
 	cfg := rel.Config()
 	if cfg.SigningKeyID == nil {
-		return doHttpConfigSigningKeyGetHandler(ctx, w, r)
+		return doHTTPConfigSigningKeyGetHandler(ctx, w, r)
 	}
 
 	cfg.SigningKeyID = nil
@@ -181,7 +181,7 @@ func doHttpConfigSigningKeyDeleteHandler(ctx context.Context, w http.ResponseWri
 
 	rel.ConfigID = newcfgid
 	if !rel.updateReleaseSigFiles() {
-		return doHttpConfigSigningKeyGetHandler(ctx, w, r)
+		return doHTTPConfigSigningKeyGetHandler(ctx, w, r)
 	}
 
 	newrelid, err := state.Archive.AddRelease(rel)
@@ -206,18 +206,18 @@ func doHttpConfigSigningKeyDeleteHandler(ctx context.Context, w http.ResponseWri
 func httpConfigPublicKeysHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	switch r.Method {
 	case "GET":
-		return handleWithReadLock(doHttpConfigPublicKeysGetHandler, ctx, w, r)
+		return handleWithReadLock(doHTTPConfigPublicKeysGetHandler, ctx, w, r)
 	case "POST":
-		return handleWithWriteLock(doHttpConfigPublicKeysPostHandler, ctx, w, r)
+		return handleWithWriteLock(doHTTPConfigPublicKeysPostHandler, ctx, w, r)
 	case "DELETE":
-		return handleWithWriteLock(doHttpConfigPublicKeysDeleteHandler, ctx, w, r)
+		return handleWithWriteLock(doHTTPConfigPublicKeysDeleteHandler, ctx, w, r)
 	default:
 		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
 }
 
 // For managing public keys in a config
-func doHttpConfigPublicKeysGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+func doHTTPConfigPublicKeysGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	reqid := vars["id"]
@@ -241,19 +241,18 @@ func doHttpConfigPublicKeysGetHandler(ctx context.Context, w http.ResponseWriter
 			}
 		}
 		return sendOKResponse(w, keyids)
-	} else {
-		for _, id := range ids {
-			key := id.PrimaryKey
-			if key.KeyIdString() == reqid {
-				// This is a bit boring, should output more
-				return sendOKResponse(w, key.KeyIdShortString())
-			}
-		}
-		return sendResponse(w, http.StatusNotFound, nil)
 	}
+	for _, id := range ids {
+		key := id.PrimaryKey
+		if key.KeyIdString() == reqid {
+			// This is a bit boring, should output more
+			return sendOKResponse(w, key.KeyIdShortString())
+		}
+	}
+	return sendResponse(w, http.StatusNotFound, nil)
 }
 
-func doHttpConfigPublicKeysPostHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+func doHTTPConfigPublicKeysPostHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	if !AuthorisedAdmin(ctx, w, r) {
 		return sendResponse(w, http.StatusUnauthorized, nil)
 	}
@@ -265,7 +264,7 @@ func doHttpConfigPublicKeysPostHandler(ctx context.Context, w http.ResponseWrite
 		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
-	rel := p.NewChildRelease()
+	rel := p.NewChild()
 
 	id, err := state.Archive.CopyToStore(r.Body)
 	if err != nil {
@@ -290,7 +289,7 @@ func doHttpConfigPublicKeysPostHandler(ctx context.Context, w http.ResponseWrite
 
 	for _, k := range known {
 		if key.PrimaryKey.KeyIdString() == k.PrimaryKey.KeyIdString() {
-			return doHttpConfigPublicKeysGetHandler(ctx, w, r)
+			return doHTTPConfigPublicKeysGetHandler(ctx, w, r)
 		}
 	}
 
@@ -319,10 +318,10 @@ func doHttpConfigPublicKeysPostHandler(ctx context.Context, w http.ResponseWrite
 		return &appError{Error: fmt.Errorf("failed to update key, %v", err)}
 	}
 
-	return doHttpConfigPublicKeysGetHandler(ctx, w, r)
+	return doHTTPConfigPublicKeysGetHandler(ctx, w, r)
 }
 
-func doHttpConfigPublicKeysDeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+func doHTTPConfigPublicKeysDeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	if !AuthorisedAdmin(ctx, w, r) {
 		return sendResponse(w, http.StatusUnauthorized, nil)
 	}
@@ -335,7 +334,7 @@ func doHttpConfigPublicKeysDeleteHandler(ctx context.Context, w http.ResponseWri
 		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
-	rel := p.NewChildRelease()
+	rel := p.NewChild()
 
 	c := rel.Config()
 

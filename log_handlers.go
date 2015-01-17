@@ -14,13 +14,13 @@ import (
 func httpLogHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	switch r.Method {
 	case "GET":
-		return handleWithReadLock(doHttpLogGetHandler, ctx, w, r)
+		return handleWithReadLock(doHTTPLogGetHandler, ctx, w, r)
 	default:
 		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
 }
 
-func doHttpLogGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+func doHTTPLogGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name := vars["name"]
 

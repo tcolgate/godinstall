@@ -95,6 +95,8 @@ func handleWithWriteLock(f appHandler, ctx context.Context, w http.ResponseWrite
 	return f(ctx, w, r)
 }
 
+// AuthorisedAdmin returns true if the web request is sufficient
+// for performing administration functions
 func AuthorisedAdmin(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
 	h := r.RemoteAddr[:strings.LastIndex(r.RemoteAddr, ":")]
 	if !(h == "127.0.0.1" || h == "[::1]") {

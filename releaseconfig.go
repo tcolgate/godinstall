@@ -28,10 +28,14 @@ type ReleaseConfig struct {
 	poolRegex  *regexp.Regexp
 }
 
+// MakeTrimmer returns a trimmer that will implement the
+// trimming configuration
 func (r *ReleaseConfig) MakeTrimmer() Trimmer {
 	return MakeLengthTrimmer(r.AutoTrimLength)
 }
 
+// MakePruner returns a pruner that will implement
+// the pruning configuration
 func (r *ReleaseConfig) MakePruner() Pruner {
 	if r.pruneRules == nil {
 		rules, err := ParsePruneRules(r.PruneRules)
@@ -43,6 +47,8 @@ func (r *ReleaseConfig) MakePruner() Pruner {
 	return r.pruneRules.MakePruner()
 }
 
+// PoolRegexp returns a regexp of the configured
+// pool regex
 func (r *ReleaseConfig) PoolRegexp() *regexp.Regexp {
 	if r.poolRegex == nil {
 		var err error

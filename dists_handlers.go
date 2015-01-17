@@ -13,17 +13,17 @@ import (
 func httpDistsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	switch r.Method {
 	case "GET":
-		return handleWithReadLock(doHttpDistsGetHandler, ctx, w, r)
+		return handleWithReadLock(doHTTPDistsGetHandler, ctx, w, r)
 	case "PUT":
-		return handleWithWriteLock(doHttpDistsPutHandler, ctx, w, r)
+		return handleWithWriteLock(doHTTPDistsPutHandler, ctx, w, r)
 	case "DELETE":
-		return handleWithWriteLock(doHttpDistsDeleteHandler, ctx, w, r)
+		return handleWithWriteLock(doHTTPDistsDeleteHandler, ctx, w, r)
 	default:
 		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
 }
 
-func doHttpDistsGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+func doHTTPDistsGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name, nameGiven := vars["name"]
 	dists := state.Archive.Dists()
@@ -42,7 +42,7 @@ func doHttpDistsGetHandler(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 }
 
-func doHttpDistsPutHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+func doHTTPDistsPutHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	if !AuthorisedAdmin(ctx, w, r) {
 		return sendResponse(w, http.StatusUnauthorized, nil)
 	}
@@ -87,7 +87,7 @@ func doHttpDistsPutHandler(ctx context.Context, w http.ResponseWriter, r *http.R
 	return sendOKResponse(w, rel)
 }
 
-func doHttpDistsDeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+func doHTTPDistsDeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	if !AuthorisedAdmin(ctx, w, r) {
 		return sendResponse(w, http.StatusUnauthorized, nil)
 	}

@@ -102,7 +102,9 @@ func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.ReadC
 	return id, nil
 }
 
-func (usm *UploadSessionManager) MergeSession(s *UploadSession) *appError {
+// mergeSession Merges the provided upload session into the
+// release it was uploaded to.
+func (usm *UploadSessionManager) mergeSession(s *UploadSession) *appError {
 	c := make(chan *appError)
 	usm.finished <- UpdateRequest{
 		session: s,

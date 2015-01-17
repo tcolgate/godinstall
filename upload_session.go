@@ -186,7 +186,7 @@ func (s *UploadSession) handler(ctx context.Context) {
 					s.Complete = true
 				}
 
-				s.usm.MergeSession(s)
+				s.usm.mergeSession(s)
 				msg.resp <- *s
 			}
 		}
@@ -388,8 +388,8 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 	return nil
 }
 
-// AddFile adds an uploaded file to the given session, taking hashes,
-// and placing it in the archive store.
+// Err returns the error value that has been set on the
+// given session
 func (s *UploadSession) Err() error {
 	c := make(chan UploadSession)
 	s.getstatus <- getStatusMsg{

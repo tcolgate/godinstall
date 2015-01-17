@@ -21,14 +21,16 @@ import (
 // StoreID is a handle for an object within the store
 type StoreID []byte
 
-func (i StoreID) String() string {
-	return hex.EncodeToString(i)
+func (s StoreID) String() string {
+	return hex.EncodeToString(s)
 }
 
+// MarshalJSON marshals a StoreID to a json string
 func (s StoreID) MarshalJSON() ([]byte, error) {
 	return []byte("\"" + s.String() + "\""), nil
 }
 
+// UnMarshalJSON attempts to unmarshal a json string as a storeid
 func (s *StoreID) UnMarshalJSON(j []byte) error {
 	b, err := hex.DecodeString(string(j))
 	sid := StoreID(b)
@@ -36,7 +38,7 @@ func (s *StoreID) UnMarshalJSON(j []byte) error {
 	return err
 }
 
-// Implement sorting for arrays of StoreID
+// ByID implements sorting for arrays of StoreID
 type ByID []StoreID
 
 func (a ByID) Len() int      { return len(a) }
