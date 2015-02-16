@@ -56,7 +56,13 @@ func doHTTPLogGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		curr, err = state.Archive.GetRelease(curr.ParentID)
 		if err != nil {
 			log.Println("Could not get parent, " + err.Error())
-			continue
+			return nil
+		}
+
+		// Reached end of history
+		if state.Archive.EmptyFileID().String() == curr.ParentID.String() ||
+			curr.Release.String() == "" {
+			return nil
 		}
 
 		if curr.ParentID == nil {

@@ -21,12 +21,14 @@ func httpConfigHandler(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	switch r.Method {
 	case "GET":
 		return handleWithReadLock(doHTTPConfigGetHandler, ctx, w, r)
+	case "PUT":
+		return handleWithWriteLock(doHTTPConfigPutHandler, ctx, w, r)
 	default:
 		return sendResponse(w, http.StatusMethodNotAllowed, nil)
 	}
 }
 
-// This build a function to manage the config of a distribution
+// This build a function to view the config of a distribution
 func doHTTPConfigGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	name := vars["name"]
@@ -40,6 +42,37 @@ func doHTTPConfigGetHandler(ctx context.Context, w http.ResponseWriter, r *http.
 	default:
 		return &appError{Error: err}
 	}
+}
+
+// This build a function to update the config of a distribution
+func doHTTPConfigPutHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+
+	// We use this to determine if the fields in the
+	// update were included or left out
+	type configUpdate struct {
+		PruneRules              *string
+		VerifyChange            *bool
+		AcceptLoneDebs          *bool
+		PoolPattern             *string
+		VerifyDebs              *bool
+		AutoTrimLength          *int
+		AutoTrim                *bool
+		VerifyChangesSufficient *bool
+	}
+
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	rel, err := state.Archive.GetDist(name)
+	switch {
+	case err == nil:
+	case os.IsNotExist(err):
+		return sendResponse(w, http.StatusNotFound, nil)
+	default:
+		return &appError{Error: err}
+	}
+
+	return sendOKResponse(w, rel.Config())
 }
 
 // This build a function to enumerate the distributions
