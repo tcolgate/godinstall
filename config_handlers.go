@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -51,7 +52,7 @@ func doHTTPConfigPutHandler(ctx context.Context, w http.ResponseWriter, r *http.
 	// update were included or left out
 	type configUpdate struct {
 		PruneRules              *string
-		VerifyChange            *bool
+		VerifyChanges           *bool
 		AcceptLoneDebs          *bool
 		PoolPattern             *string
 		VerifyDebs              *bool
@@ -72,7 +73,83 @@ func doHTTPConfigPutHandler(ctx context.Context, w http.ResponseWriter, r *http.
 		return &appError{Error: err}
 	}
 
-	return sendOKResponse(w, rel.Config())
+	cfg := rel.Config()
+
+	decoder := json.NewDecoder(r.Body)
+	var d configUpdate
+	err = decoder.Decode(&d)
+	if err != nil {
+		return sendResponse(w, http.StatusBadRequest, nil)
+	}
+
+	if d.PruneRules != nil {
+		cfg.PruneRules = *d.PruneRules
+	}
+
+	if d.VerifyChanges != nil {
+		cfg.VerifyChanges = *d.VerifyChanges
+	}
+
+	if d.AcceptLoneDebs != nil {
+		cfg.AcceptLoneDebs = *d.AcceptLoneDebs
+	}
+
+	if d.PoolPattern != nil {
+		cfg.PoolPattern = *d.PoolPattern
+	}
+
+	if d.VerifyDebs != nil {
+		cfg.VerifyDebs = *d.VerifyDebs
+	}
+
+	if d.AutoTrimLength != nil {
+		cfg.AutoTrimLength = *d.AutoTrimLength
+	}
+
+	if d.AutoTrim != nil {
+		cfg.AutoTrim = *d.AutoTrim
+	}
+
+	if d.VerifyChangesSufficient != nil {
+		cfg.VerifyChangesSufficient = *d.VerifyChangesSufficient
+	}
+
+	n := rel.NewChild()
+
+	newcfgid, err := state.Archive.AddReleaseConfig(*cfg)
+	if err != nil {
+		return &appError{
+			Error: errors.New("failed to add new release config, " + err.Error()),
+		}
+	}
+
+	n.ConfigID = newcfgid
+	if !n.updateReleaseSigFiles() {
+		return doHTTPConfigGetHandler(ctx, w, r)
+	}
+
+	newrelid, err := state.Archive.AddRelease(n)
+	if err != nil {
+		return &appError{
+			Error: errors.New("failed to update key, " + err.Error()),
+		}
+	}
+
+	err = state.Archive.SetDist(name, newrelid)
+	if err != nil {
+		return &appError{
+			Error: errors.New("failed to update key, " + err.Error()),
+		}
+	}
+
+	err = state.Archive.ReifyRelease(newrelid)
+	if err != nil {
+		return &appError{
+			Error: errors.New("failed to update key, " + err.Error()),
+		}
+	}
+
+	return doHTTPConfigGetHandler(ctx, w, r)
 }
 
 // This build a function to enumerate the distributions
