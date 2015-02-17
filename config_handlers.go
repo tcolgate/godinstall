@@ -82,39 +82,79 @@ func doHTTPConfigPutHandler(ctx context.Context, w http.ResponseWriter, r *http.
 		return sendResponse(w, http.StatusBadRequest, nil)
 	}
 
-	if d.PruneRules != nil {
+	var acts []ReleaseLogAction
+
+	if d.PruneRules != nil && *d.PruneRules != cfg.PruneRules {
+		acts = append(acts, ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("%s changed from %v to %v", cfg.PruneRules, *d.PruneRules),
+		})
 		cfg.PruneRules = *d.PruneRules
 	}
 
-	if d.VerifyChanges != nil {
+	if d.VerifyChanges != nil && *d.VerifyChanges != cfg.VerifyChanges {
+		acts = append(acts, ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("VerifyChanges changed from %v to %v", cfg.VerifyChanges, *d.VerifyChanges),
+		})
 		cfg.VerifyChanges = *d.VerifyChanges
 	}
 
-	if d.AcceptLoneDebs != nil {
+	if d.AcceptLoneDebs != nil && *d.AcceptLoneDebs != cfg.AcceptLoneDebs {
+		acts = append(acts, ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("AcceptLoneDebs changed from %v to %v", cfg.AcceptLoneDebs, *d.AcceptLoneDebs),
+		})
 		cfg.AcceptLoneDebs = *d.AcceptLoneDebs
 	}
 
-	if d.PoolPattern != nil {
+	if d.PoolPattern != nil && *d.PoolPattern != cfg.PoolPattern {
+		acts = append(acts, ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("PoolPattern changed from %v to %v", cfg.PoolPattern, *d.PoolPattern),
+		})
 		cfg.PoolPattern = *d.PoolPattern
 	}
 
-	if d.VerifyDebs != nil {
+	if d.VerifyDebs != nil && *d.VerifyDebs != cfg.VerifyDebs {
+		acts = append(acts, ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("VerifyDebs changed from %v to %v", cfg.VerifyDebs, *d.VerifyDebs),
+		})
 		cfg.VerifyDebs = *d.VerifyDebs
 	}
 
-	if d.AutoTrimLength != nil {
+	if d.AutoTrimLength != nil && *d.AutoTrimLength != cfg.AutoTrimLength {
+		acts = append(acts, ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("AutoTrimLength changed from %v to %v", cfg.AutoTrimLength, *d.AutoTrimLength),
+		})
 		cfg.AutoTrimLength = *d.AutoTrimLength
 	}
 
-	if d.AutoTrim != nil {
+	if d.AutoTrim != nil && *d.AutoTrim != cfg.AutoTrim {
+		acts = append(acts, ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("AutoTrim changed from %v to %v", cfg.AutoTrim, *d.AutoTrim),
+		})
 		cfg.AutoTrim = *d.AutoTrim
 	}
 
-	if d.VerifyChangesSufficient != nil {
+	if d.VerifyChangesSufficient != nil && *d.VerifyChangesSufficient != cfg.VerifyChangesSufficient {
+		acts = append(acts, ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("VerifyChangesSufficient changed from %v to %v", cfg.VerifyChangesSufficient, *d.VerifyChangesSufficient),
+		})
 		cfg.VerifyChangesSufficient = *d.VerifyChangesSufficient
 	}
 
+	if len(acts) == 0 {
+		// No actions, do nothing
+		return doHTTPConfigGetHandler(ctx, w, r)
+	}
+
 	n := rel.NewChild()
+	n.Actions = acts
 
 	newcfgid, err := state.Archive.AddReleaseConfig(*cfg)
 	if err != nil {
@@ -124,9 +164,9 @@ func doHTTPConfigPutHandler(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 
 	n.ConfigID = newcfgid
-	if !n.updateReleaseSigFiles() {
-		return doHTTPConfigGetHandler(ctx, w, r)
-	}
+
+	// Since the pool pattern may have changed, we need to update the release
+	n.updateReleasefiles()
 
 	newrelid, err := state.Archive.AddRelease(n)
 	if err != nil {

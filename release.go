@@ -66,13 +66,14 @@ type ReleaseLogActionType int
 //	ActionSKIPPRESENT - An item was skipped, as it alerady existed
 //	ActionSKIPPRUNE   - An item was was skipped, dur to purge rules
 const (
-	ActionUNKNOWN     ReleaseLogActionType = 1 << iota
-	ActionADD         ReleaseLogActionType = 2
-	ActionDELETE      ReleaseLogActionType = 3
-	ActionPRUNE       ReleaseLogActionType = 4
-	ActionSKIPPRESENT ReleaseLogActionType = 5
-	ActionSKIPPRUNE   ReleaseLogActionType = 6
-	ActionTRIM        ReleaseLogActionType = 7
+	ActionUNKNOWN      ReleaseLogActionType = 1 << iota
+	ActionADD          ReleaseLogActionType = 2
+	ActionDELETE       ReleaseLogActionType = 3
+	ActionPRUNE        ReleaseLogActionType = 4
+	ActionSKIPPRESENT  ReleaseLogActionType = 5
+	ActionSKIPPRUNE    ReleaseLogActionType = 6
+	ActionTRIM         ReleaseLogActionType = 7
+	ActionCONFIGCHANGE ReleaseLogActionType = 8
 )
 
 // ReleaseLogAction desribes an action taken during a merge or update
@@ -142,6 +143,7 @@ func (r *Release) updateReleaseSigFiles() bool {
 	p, err := r.Parent()
 	if err != nil {
 		log.Printf("signature files update failed, %v", err)
+		return false
 	}
 
 	prelid := p.Release
@@ -150,10 +152,12 @@ func (r *Release) updateReleaseSigFiles() bool {
 	pkey, err := p.SignerKey()
 	if err != nil {
 		log.Printf("signature files update failed, %v", err)
+		return false
 	}
 	key, err := r.SignerKey()
 	if err != nil {
 		log.Printf("signature files update failed, %v", err)
+		return false
 	}
 
 	if key != pkey || relid.String() != prelid.String() {
