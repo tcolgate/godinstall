@@ -87,7 +87,7 @@ func doHTTPConfigPutHandler(ctx context.Context, w http.ResponseWriter, r *http.
 	if d.PruneRules != nil && *d.PruneRules != cfg.PruneRules {
 		acts = append(acts, ReleaseLogAction{
 			Type:        ActionCONFIGCHANGE,
-			Description: fmt.Sprintf("%s changed from %v to %v", cfg.PruneRules, *d.PruneRules),
+			Description: fmt.Sprintf("PruneRules changed from %v to %v", cfg.PruneRules, *d.PruneRules),
 		})
 		cfg.PruneRules = *d.PruneRules
 	}
