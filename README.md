@@ -18,6 +18,8 @@ availability), along with optional validation of signed changes and debs.
 - Control the number of version and revisions retained (see Pruning)
 - Run scripts on package upload, and pre/post repository regeneration
 - Signing and verification keys can be updated via the API
+- Configuration is managed via the API and is version controlled, along
+  with the rest of the repository content
 - pool layout is used, with configurable groupings
 - A git-inspired sha1 object store is used on the backend, with
   hard links to keep disk usage down
@@ -28,9 +30,7 @@ availability), along with optional validation of signed changes and debs.
 
 - The signing key for the repository is stored in plain text in the blob store.
   It is not retrievable using the service, but could be found on disk. This will
-  bre remedied soon. (fix should be in the next release)
-- Config editing is currently not supported, set the defaults at start-up
-  and createa a ewn repository, this will be changed soon (fix should be in the next release)
+  be remedied soon. (fix should be in the next release)
 - The objects in the blob store should be fairly stable now, some changes may
   still be needed (I may swap them over to protobufs for future proofing, they are gob right now)
 - Not all the api calls have cli tools at present (fix should be in the next release)
@@ -105,6 +105,12 @@ Note that when deleting the sining key, or the public keys, they will no be
 removed from the blob store until they are removed by garbage collection. History
 trimming must be enabled for this to happen (otherwise keys are retained to permit
 use of dists history)
+
+Configuraiton is also managed via the API
+```
+$ curl -XGET http://localhost:3000/dists/master/config
+$ curl -XPUT -d '{"AcceptLoneDebs":true}' http://localhost:3000/dists/master/config
+```
 
 The binary includes an upload client
 ```
