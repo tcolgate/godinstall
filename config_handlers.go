@@ -266,6 +266,12 @@ func doHTTPConfigSigningKeyPutHandler(ctx context.Context, w http.ResponseWriter
 		return doHTTPConfigSigningKeyGetHandler(ctx, w, r)
 	}
 
+	rel.Actions = []ReleaseLogAction{
+		ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("Signing key updated from %v to %v", cfg.SigningKeyID.String(), id.String()),
+		},
+	}
 	cfg.SigningKeyID = id
 
 	newcfgid, err := state.Archive.AddReleaseConfig(*cfg)
@@ -322,6 +328,12 @@ func doHTTPConfigSigningKeyDeleteHandler(ctx context.Context, w http.ResponseWri
 		return doHTTPConfigSigningKeyGetHandler(ctx, w, r)
 	}
 
+	rel.Actions = []ReleaseLogAction{
+		ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("Signing key removed"),
+		},
+	}
 	cfg.SigningKeyID = nil
 
 	newcfgid, err := state.Archive.AddReleaseConfig(*cfg)
@@ -452,6 +464,12 @@ func doHTTPConfigPublicKeysPostHandler(ctx context.Context, w http.ResponseWrite
 		return &appError{Error: fmt.Errorf("failed to add new release config , %v", err)}
 	}
 
+	rel.Actions = []ReleaseLogAction{
+		ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("Added Public key %s", id.String()),
+		},
+	}
 	rel.ConfigID = newcfgid
 	newrelid, err := state.Archive.AddRelease(rel)
 	if err != nil {
@@ -518,6 +536,12 @@ func doHTTPConfigPublicKeysDeleteHandler(ctx context.Context, w http.ResponseWri
 		return sendResponse(w, http.StatusNotFound, nil)
 	}
 
+	rel.Actions = []ReleaseLogAction{
+		ReleaseLogAction{
+			Type:        ActionCONFIGCHANGE,
+			Description: fmt.Sprintf("Deleted Public key %s", id),
+		},
+	}
 	c.PublicKeyIDs = finalKeys
 	newcfgid, err := state.Archive.AddReleaseConfig(*c)
 	if err != nil {
