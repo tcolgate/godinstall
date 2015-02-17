@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"time"
 )
 
@@ -22,91 +24,83 @@ var cfg struct {
 var state struct {
 	Archive        Archiver              // The generator for updating the repo
 	SessionManager *UploadSessionManager // The session manager
-	UpdateChannel  chan UpdateRequest    // A channel to recieve update requests
 	Lock           *Governor             // Locks to ensure the repo update is atomic
 	getCount       *expvar.Int           // Download count
 }
 
-// ServerResponse is a custom error type to
+// appError is a custom error type to
 // encode the HTTP status and meesage we will
 // send back to a client
-type ServerResponse struct {
-	StatusCode int
-	Message    []byte
+type appError struct {
+	Code    int
+	Message []byte
+	Error   error
 }
 
-func (r ServerResponse) Error() string {
-	return "ERROR: " + string(r.Message)
+type appHandler func(context.Context, http.ResponseWriter, *http.Request) *appError
+
+func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if e := fn(ctx, w, r); e != nil { // e is *appError, not os.Error.
+		if e.Code == 0 {
+			e.Code = http.StatusInternalServerError
+		}
+		if e.Message == nil {
+			e.Message = []byte(http.StatusText(e.Code))
+		}
+		log.Printf("ERROR: %v", e.Error)
+		sendResponse(w, e.Code, e.Message)
+	}
 }
 
 // NewServerResponse contructs a new repsonse to a client and can take
 // a string of JSON'able object
-func NewServerResponse(status int, msg interface{}) *ServerResponse {
+func sendResponse(w http.ResponseWriter, code int, obj interface{}) *appError {
 	var err error
 	var j []byte
 
-	resp := ServerResponse{
-		StatusCode: status,
-	}
-
-	j, err = json.Marshal(msg)
-	if err != nil {
-		resp.StatusCode = http.StatusInternalServerError
-		resp.Message = []byte("failed to marshal response, " + err.Error())
+	if obj != nil {
+		j, err = json.Marshal(obj)
+		if err != nil {
+			code = http.StatusInternalServerError
+			j = []byte("{\"error\": \"Failed to marshal response, " + err.Error() + "\"}")
+			w.WriteHeader(code)
+			w.Write(j)
+			return nil
+		}
 	} else {
-		resp.Message = j
+		j, _ = json.Marshal(http.StatusText(code))
 	}
 
-	return &resp
+	w.WriteHeader(code)
+	w.Write(j)
+	return nil
 }
 
-func SendResponse(w http.ResponseWriter, msg *ServerResponse) {
-	if len(msg.Message) == 0 {
-		msg.Message = []byte(http.StatusText(msg.StatusCode))
-	}
-	if msg.StatusCode >= 400 {
-		log.Println(msg.Error())
-	}
-	w.WriteHeader(msg.StatusCode)
-	w.Write(msg.Message)
+func sendOKResponse(w http.ResponseWriter, obj interface{}) *appError {
+	return sendResponse(w, http.StatusOK, obj)
 }
 
-func SendOKResponse(w http.ResponseWriter, obj interface{}) {
-	msg := NewServerResponse(http.StatusOK, obj)
-	SendResponse(w, msg)
-}
-
-func SendDefaultResponse(w http.ResponseWriter, status int) {
-	SendResponse(w, NewServerResponse(status, http.StatusText(status)))
-}
-
-func SendOKOrErrorResponse(w http.ResponseWriter, obj interface{}, err error, errStatus int) {
-	var msg *ServerResponse
-	if err != nil {
-		msg = NewServerResponse(errStatus, err.Error())
-	} else {
-		msg = NewServerResponse(http.StatusOK, obj)
-	}
-	SendResponse(w, msg)
-}
-
-func handleWithReadLock(f http.HandlerFunc, w http.ResponseWriter, r *http.Request) {
+func handleWithReadLock(f appHandler, ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	state.Lock.ReadLock()
 	defer state.Lock.ReadUnLock()
-	f(w, r)
+	return f(ctx, w, r)
 }
 
-func handleWithWriteLock(f http.HandlerFunc, w http.ResponseWriter, r *http.Request) {
+func handleWithWriteLock(f appHandler, ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
 	state.Lock.WriteLock()
 	defer state.Lock.WriteUnLock()
-	f(w, r)
+	return f(ctx, w, r)
 }
 
-func AuthorisedAdmin(w http.ResponseWriter, r *http.Request) bool {
+// AuthorisedAdmin returns true if the web request is sufficient
+// for performing administration functions
+func AuthorisedAdmin(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
 	h := r.RemoteAddr[:strings.LastIndex(r.RemoteAddr, ":")]
 	if !(h == "127.0.0.1" || h == "[::1]") {
 		log.Printf("UNAUTHORIZED: %v %v", r.RemoteAddr, r.RequestURI)
-		SendDefaultResponse(w, http.StatusUnauthorized)
 		return false
 	}
 	return true

@@ -21,6 +21,7 @@ type PruneRule struct {
 // PruneRuleSet is a group of pruning rules provided by the user
 type PruneRuleSet []*PruneRule
 
+// Pruner should return true if the given Index entry sould be removed
 type Pruner func(*ReleaseIndexEntry) bool
 
 // MakePruner creates a new pruner. The pruner is a function that takes

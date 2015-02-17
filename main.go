@@ -10,6 +10,7 @@ package main
 import (
 	_ "expvar"
 	"os"
+	"time"
 
 	"github.com/codegangsta/cli"
 )
@@ -39,9 +40,9 @@ func main() {
 					Value: "-",
 					Usage: "A file to log to, defaults to stdout",
 				},
-				cli.StringFlag{
+				cli.DurationFlag{
 					Name:  "t, ttl",
-					Value: "60s",
+					Value: time.Minute,
 					Usage: "Upload session will be terminated after the TTL",
 				},
 				cli.IntFlag{

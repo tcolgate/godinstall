@@ -7,11 +7,11 @@ import (
 	"errors"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
-	"time"
+
+	"golang.org/x/net/context"
 
 	"code.google.com/p/go-uuid/uuid"
 )
@@ -34,29 +34,25 @@ type UploadFile struct {
 
 // UploadSession holds the information relating to an active upload session
 type UploadSession struct {
-	SessionID   string                 // Name of the session
-	ReleaseName string                 // The release this is meant for
-	Expecting   map[string]*UploadFile // The files we are expecting in this upload
-	LoneDeb     bool                   // Is user attempting to upload a lone deb
-	Complete    bool                   // The files we are expecting in this upload
-	TTL         time.Duration          // How long should this session stick around for
+	SessionID         string                 // Name of the session
+	ReleaseName       string                 // The release this is meant for
+	Expecting         map[string]*UploadFile // The files we are expecting in this upload
+	LoneDeb           bool                   // Is user attempting to upload a lone deb
+	Complete          bool                   // The files we are expecting in this upload
+	PreGenHookOutput  *HookOutput            `json:",omitempty"`
+	PostGenHookOutput *HookOutput            `json:",omitempty"`
 
 	usm       *UploadSessionManager
 	release   *Release
 	dir       string       // Temporary directory for storage
 	changes   *ChangesFile // The changes file for this session
 	changesID StoreID      // The raw changes file as uploaded
+	err       error
 
 	// Channels for requests
 	// TODO revisit this
-	finished  chan UpdateRequest // A channel to anounce completion and trigger a repo update
-	incoming  chan addItemMsg    // New item upload requests
-	close     chan closeMsg      // A channel for close messages
-	getstatus chan getStatusMsg  // A channel for responding to status requests
-
-	// output session
-	// TODO revisit this
-	done chan struct{} // A channel to be informed of closure on
+	incoming  chan addItemMsg   // New item upload requests
+	getstatus chan getStatusMsg // A channel for responding to status requests
 }
 
 // ID returns the ID of this session
@@ -77,11 +73,11 @@ func (s *UploadSession) MarshalJSON() (j []byte, err error) {
 // NewUploadSession creates a session for uploading using a changes
 // file to describe the set of files to be uploaded
 func NewUploadSession(
+	ctx context.Context,
 	rel *Release,
 	loneDeb bool,
 	changesReader io.ReadCloser,
 	tmpDirBase *string,
-	finished chan UpdateRequest,
 	uploadSessionManager *UploadSessionManager,
 ) (UploadSession, error) {
 	var s UploadSession
@@ -89,9 +85,6 @@ func NewUploadSession(
 	s.ReleaseName = rel.Suite
 	s.release = rel
 	s.usm = uploadSessionManager
-	s.TTL = s.usm.TTL
-	s.done = make(chan struct{})
-	s.finished = finished
 	s.dir = *tmpDirBase + "/" + s.SessionID
 	s.Expecting = make(map[string]*UploadFile, 0)
 	s.LoneDeb = loneDeb
@@ -99,7 +92,6 @@ func NewUploadSession(
 	os.Mkdir(s.dir, os.FileMode(0755))
 
 	s.incoming = make(chan addItemMsg)
-	s.close = make(chan closeMsg)
 	s.getstatus = make(chan getStatusMsg)
 
 	if !s.LoneDeb {
@@ -138,25 +130,23 @@ func NewUploadSession(
 		}
 	}
 
-	go s.handler()
+	go s.handler(ctx)
 
 	return s, nil
 }
 
-type closeMsg struct{}
-
 type addItemMsg struct {
 	file *UploadFile
-	resp chan *ServerResponse
+	resp chan UploadSession
 }
 
 type getStatusMsg struct {
-	resp chan *ServerResponse
+	resp chan UploadSession
 }
 
 // All item additions to this session are
 // serialized through this routine
-func (s *UploadSession) handler() {
+func (s *UploadSession) handler(ctx context.Context) {
 	s.usm.Store.DisableGarbageCollector()
 
 	defer func() {
@@ -165,30 +155,20 @@ func (s *UploadSession) handler() {
 			log.Println(err)
 		}
 		s.usm.Store.EnableGarbageCollector()
-		close(s.done)
 	}()
 
-	timeout := time.After(s.TTL)
 	for {
 		select {
-		case <-timeout:
-			{
-				return
-			}
-		case <-s.close:
-			{
-				return
-			}
+		case <-ctx.Done():
+			return
 		case msg := <-s.getstatus:
 			{
-				msg.resp <- NewServerResponse(http.StatusOK, s)
+				msg.resp <- *s
 			}
 		case msg := <-s.incoming:
 			{
-				err := s.doAddFile(msg.file)
-
-				if err != nil {
-					msg.resp <- NewServerResponse(http.StatusBadRequest, err.Error())
+				if s.err = s.doAddFile(msg.file); s.err != nil {
+					msg.resp <- *s
 					break
 				}
 
@@ -200,46 +180,23 @@ func (s *UploadSession) handler() {
 				}
 
 				if !complete {
-					msg.resp <- NewServerResponse(http.StatusAccepted, s)
+					msg.resp <- *s
 					break
 				} else {
 					s.Complete = true
 				}
 
-				// We're done, lets call out to the server to update
-				// with the contents of this session
-
-				c := make(chan *ServerResponse)
-				s.finished <- UpdateRequest{
-					session: s,
-					resp:    c,
-				}
-
-				updateresp := <-c
-				msg.resp <- updateresp
-
-				// Need to do the update and return the response
-				return
+				s.usm.mergeSession(s)
+				msg.resp <- *s
 			}
 		}
 	}
 }
 
-// Close is used to indicate that a session is finished
-func (s *UploadSession) Close() {
-	s.close <- closeMsg{}
-}
-
-// Done returns a channels that can be used to be informed of
-// the completiong of a session
-func (s *UploadSession) Done() chan struct{} {
-	return s.done
-}
-
 // Status returns a server response indivating the running state
 // of the session
-func (s *UploadSession) Status() *ServerResponse {
-	c := make(chan *ServerResponse)
+func (s *UploadSession) Status() UploadSession {
+	c := make(chan UploadSession)
 	s.getstatus <- getStatusMsg{
 		resp: c,
 	}
@@ -248,10 +205,14 @@ func (s *UploadSession) Status() *ServerResponse {
 
 // AddFile adds an uploaded file to the given session, taking hashes,
 // and placing it in the archive store.
-func (s *UploadSession) AddFile(upload *UploadFile) *ServerResponse {
-	c := make(chan *ServerResponse)
+func (s *UploadSession) AddFile(name string, r io.Reader) UploadSession {
+	u := &UploadFile{
+		Name:   name,
+		reader: r,
+	}
+	c := make(chan UploadSession)
 	s.incoming <- addItemMsg{
-		file: upload,
+		file: u,
 		resp: c,
 	}
 	return <-c
@@ -286,10 +247,10 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 
 	storeFilename := s.dir + "/" + upload.Name
 	blob, err := s.usm.Store.Store()
-	hasher := MakeWriteHasher(blob)
 	if err != nil {
 		return errors.New("Upload to store failed: " + err.Error())
 	}
+	hasher := MakeWriteHasher(blob)
 
 	_, err = io.Copy(hasher, upload.reader)
 	if err != nil {
@@ -424,5 +385,16 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 
 	uf.Received = true
 
-	return
+	return nil
+}
+
+// Err returns the error value that has been set on the
+// given session
+func (s *UploadSession) Err() error {
+	c := make(chan UploadSession)
+	s.getstatus <- getStatusMsg{
+		resp: c,
+	}
+	status := <-c
+	return status.err
 }

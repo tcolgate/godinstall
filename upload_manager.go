@@ -1,10 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"io"
-	"net/http"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 // UploadSessionManager is a concreate implmentation of the UploadSessionManager
@@ -18,78 +18,11 @@ type UploadSessionManager struct {
 	sessMap  *SafeMap
 }
 
-// CompletedUpload describes a finished session, the details of the session,
-// and the output of any hooks
-type CompletedUpload struct {
-	*UploadSession
-	PreGenHookOutput  HookOutput
-	PostGenHookOutput HookOutput
-}
-
-// MarshalJSON implements the json.Marshaler interface to allow
-// presentation of a completed session to the user
-func (s CompletedUpload) MarshalJSON() (j []byte, err error) {
-	resp := struct {
-		UploadSession
-		PreGenHookOutput  HookOutput
-		PostGenHookOutput HookOutput
-	}{
-		*s.UploadSession,
-		s.PreGenHookOutput,
-		s.PostGenHookOutput,
-	}
-	j, err = json.Marshal(resp)
-	return
-}
-
-// Updater ensures that updates to the repository are serialized.
-// it reads from a channel of messages, responds to clients, and
-// instigates the actual regernation of the repository
-func updater() {
-	for {
-		select {
-		case msg := <-state.UpdateChannel:
-			{
-				var err error
-				respStatus := http.StatusOK
-				var respObj interface{}
-
-				session := msg.session
-				completedsession := CompletedUpload{UploadSession: session}
-
-				state.Lock.WriteLock()
-
-				hookResult := cfg.PreGenHook.Run(session.Directory())
-				if hookResult.err != nil {
-					respStatus = http.StatusBadRequest
-					respObj = "Pre gen hook failed " + hookResult.Error()
-				} else {
-					completedsession.PreGenHookOutput = hookResult
-				}
-
-				respStatus, respObj, err = state.Archive.AddUpload(session)
-				if err == nil {
-					hookResult := cfg.PostGenHook.Run(session.ID())
-					completedsession.PostGenHookOutput = hookResult
-				}
-
-				state.Lock.WriteUnLock()
-
-				if respStatus == http.StatusOK {
-					respObj = completedsession
-				}
-
-				msg.resp <- NewServerResponse(respStatus, respObj)
-			}
-		}
-	}
-}
-
 // UpdateRequest contains the information needed to
 // request an update, only regeneration is supported
 // at present
 type UpdateRequest struct {
-	resp    chan *ServerResponse
+	resp    chan *appError
 	session *UploadSession
 }
 
@@ -101,9 +34,11 @@ func NewUploadSessionManager(
 	tmpDir *string,
 	store ArchiveStorer,
 	uploadHook HookRunner,
-	finished chan UpdateRequest,
 ) *UploadSessionManager {
-	return &UploadSessionManager{
+
+	finished := make(chan UpdateRequest)
+
+	res := &UploadSessionManager{
 		TTL:        TTL,
 		TmpDir:     tmpDir,
 		Store:      store,
@@ -112,10 +47,14 @@ func NewUploadSessionManager(
 		finished: finished,
 		sessMap:  NewSafeMap(),
 	}
+
+	go res.updater()
+
+	return res
 }
 
 // GetSession retrieves a given upload session by the session's id
-func (usm *UploadSessionManager) GetSession(sid string) (UploadSession, bool) {
+func (usm *UploadSessionManager) GetSession(sid string) (s UploadSession, ok bool) {
 	val := usm.sessMap.Get(sid)
 	if val == nil {
 		return UploadSession{}, false
@@ -138,12 +77,13 @@ func (usm *UploadSessionManager) GetSession(sid string) (UploadSession, bool) {
 func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.ReadCloser, loneDeb bool) (string, error) {
 	var err error
 
+	ctx, _ := context.WithTimeout(context.Background(), usm.TTL)
 	s, err := NewUploadSession(
+		ctx,
 		rel,
 		loneDeb,
 		changesReader,
 		usm.TmpDir,
-		usm.finished,
 		usm,
 	)
 
@@ -151,21 +91,56 @@ func (usm *UploadSessionManager) NewSession(rel *Release, changesReader io.ReadC
 		return "", err
 	}
 
-	usm.sessMap.Set(s.ID(), s)
-	go usm.cleanup(s)
+	id := s.ID()
+	usm.sessMap.Set(id, s)
 
-	return s.ID(), nil
+	go func() {
+		<-ctx.Done()
+		usm.sessMap.Set(id, nil)
+	}()
+
+	return id, nil
 }
 
-// This is used as a go routine manages the upload session and is used
-// to serialize all actions on the given session.
-// TODO need to revisit this
-func (usm *UploadSessionManager) cleanup(s UploadSession) {
-	select {
-	case <-s.Done():
-		{
-			// The sesession has completed
-			usm.sessMap.Set(s.ID(), nil)
+// mergeSession Merges the provided upload session into the
+// release it was uploaded to.
+func (usm *UploadSessionManager) mergeSession(s *UploadSession) *appError {
+	c := make(chan *appError)
+	usm.finished <- UpdateRequest{
+		session: s,
+		resp:    c,
+	}
+
+	return <-c
+}
+
+// Updater ensures that updates to the repository are serialized.
+// it reads from a channel of messages, responds to clients, and
+// instigates the actual regernation of the repository
+func (usm *UploadSessionManager) updater() {
+	for {
+		select {
+		case msg := <-usm.finished:
+			{
+				var apperr *appError
+
+				s := msg.session
+
+				state.Lock.WriteLock()
+
+				hookResult := cfg.PreGenHook.Run(s.Directory())
+				s.PreGenHookOutput = &hookResult
+
+				if err := state.Archive.AddUpload(s); err == nil {
+					hookResult := cfg.PostGenHook.Run(s.ID())
+					s.PostGenHookOutput = &hookResult
+				} else {
+					apperr = &appError{Error: err}
+				}
+				state.Lock.WriteUnLock()
+
+				msg.resp <- apperr
+			}
 		}
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"regexp"
 	"syscall"
-	"time"
 
 	"github.com/codegangsta/cli"
 	"github.com/gorilla/mux"
@@ -20,7 +19,7 @@ func CmdServe(c *cli.Context) {
 	listenAddress := c.String("listen")
 
 	logFile := c.String("log-file")
-	ttl := c.String("ttl")
+	ttl := c.Duration("ttl")
 	maxReqs := c.Int("max-requests")
 	repoBase := c.String("repo-base")
 	cookieName := c.String("cookie-name")
@@ -36,6 +35,84 @@ func CmdServe(c *cli.Context) {
 	autoTrim := c.Bool("default-auto-trim")
 	trimLen := c.Int("default-auto-trim-length")
 
+	setupLog(logFile)
+
+	if repoBase == "" {
+		log.Fatalln("You must pass --repo-base")
+	}
+
+	storeDir := repoBase + "/store"
+	tmpDir := repoBase + "/tmp"
+	publicDir := repoBase + "/archive"
+
+	dirMustExist(publicDir)
+	dirMustExist(storeDir)
+	dirMustExist(tmpDir)
+
+	if _, err := ParsePruneRules(pruneRulesStr); err != nil {
+		log.Fatalln(err)
+	}
+
+	if _, err := regexp.CompilePOSIX("^(" + poolPattern + ")"); err != nil {
+		log.Fatalln(err)
+	}
+
+	state.Archive = NewAptBlobArchive(
+		&storeDir,
+		&tmpDir,
+		&publicDir,
+		ReleaseConfig{
+			VerifyChanges:           verifyChanges,
+			VerifyChangesSufficient: verifyChangesSufficient,
+			VerifyDebs:              verifyDebs,
+			AcceptLoneDebs:          acceptLoneDebs,
+			PruneRules:              pruneRulesStr,
+			AutoTrim:                autoTrim,
+			AutoTrimLength:          trimLen,
+			PoolPattern:             poolPattern,
+		},
+	)
+
+	cfg.CookieName = cookieName
+	cfg.PreGenHook = NewScriptHook(&preGenHook)
+	cfg.PostGenHook = NewScriptHook(&postGenHook)
+
+	state.Lock = NewGovernor(maxReqs)
+	state.getCount = expvar.NewInt("GetRequests")
+
+	state.SessionManager = NewUploadSessionManager(
+		ttl,
+		&tmpDir,
+		state.Archive,
+		NewScriptHook(&uploadHook),
+	)
+
+	r := mux.NewRouter()
+
+	r.HandleFunc("/debug/pprof/", pprof.Index)
+	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	r.Handle("/debug/vars", http.DefaultServeMux)
+
+	r.PathPrefix("/repo/").Handler(appHandler(makeHTTPDownloadHandler()))
+
+	r.Handle("/dists", appHandler(httpDistsHandler))
+	r.Handle("/dists/{name}", appHandler(httpDistsHandler))
+	r.Handle("/dists/{name}/config", appHandler(httpConfigHandler))
+	r.Handle("/dists/{name}/config/signingkey", appHandler(httpConfigSigningKeyHandler))
+	r.Handle("/dists/{name}/config/publickeys", appHandler(httpConfigPublicKeysHandler))
+	r.Handle("/dists/{name}/config/publickeys/{id}", appHandler(httpConfigPublicKeysHandler))
+	r.Handle("/dists/{name}/log", appHandler(httpLogHandler))
+	r.Handle("/dists/{name}/upload", appHandler(httpUploadHandler))
+	r.Handle("/dists/{name}/upload/{session}", appHandler(httpUploadHandler))
+
+	http.ListenAndServe(listenAddress, r)
+}
+
+// setupLog manages the provided log file so we can do log rotation in
+// a hippee stylee
+func setupLog(logFile string) {
 	logready := make(chan struct{})
 	sighup := make(chan os.Signal, 1)
 
@@ -66,115 +143,14 @@ func CmdServe(c *cli.Context) {
 	signal.Notify(sighup, syscall.SIGHUP)
 
 	<-logready
+}
 
-	if repoBase == "" {
-		log.Println("You must pass --repo-base")
-		return
-	}
-
-	expire, err := time.ParseDuration(ttl)
-	if err != nil {
-		log.Println(err.Error())
-		return
-	}
-
-	storeDir := repoBase + "/store"
-	tmpDir := repoBase + "/tmp"
-	publicDir := repoBase + "/archive"
-
-	_, patherr := os.Stat(publicDir)
-	if os.IsNotExist(patherr) {
-		err = os.Mkdir(publicDir, 0777)
-		if err != nil {
-			log.Println(err.Error())
-			return
+// dirMustExist creates the directory if it does not already exist
+// fatal error if it can't
+func dirMustExist(dir string) {
+	if _, patherr := os.Stat(dir); os.IsNotExist(patherr) {
+		if err := os.Mkdir(dir, 0777); err != nil {
+			log.Fatal(err)
 		}
 	}
-	_, patherr = os.Stat(storeDir)
-	if os.IsNotExist(patherr) {
-		err = os.Mkdir(storeDir, 0777)
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
-	}
-
-	_, patherr = os.Stat(tmpDir)
-	if os.IsNotExist(patherr) {
-		err = os.Mkdir(tmpDir, 0777)
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
-	}
-
-	_, err = ParsePruneRules(pruneRulesStr)
-	if err != nil {
-		log.Println(err.Error())
-		return
-	}
-
-	_, err = regexp.CompilePOSIX("^(" + poolPattern + ")")
-	if err != nil {
-		log.Println(err.Error())
-		return
-	}
-
-	state.Archive = NewAptBlobArchive(
-		&storeDir,
-		&tmpDir,
-		&publicDir,
-		ReleaseConfig{
-			VerifyChanges:           verifyChanges,
-			VerifyChangesSufficient: verifyChangesSufficient,
-			VerifyDebs:              verifyDebs,
-			AcceptLoneDebs:          acceptLoneDebs,
-			PruneRules:              pruneRulesStr,
-			AutoTrim:                autoTrim,
-			AutoTrimLength:          trimLen,
-			PoolPattern:             poolPattern,
-		},
-	)
-
-	state.UpdateChannel = make(chan UpdateRequest)
-	state.SessionManager = NewUploadSessionManager(
-		expire,
-		&tmpDir,
-		state.Archive,
-		NewScriptHook(&uploadHook),
-		state.UpdateChannel,
-	)
-
-	cfg.CookieName = cookieName
-	cfg.PreGenHook = NewScriptHook(&preGenHook)
-	cfg.PostGenHook = NewScriptHook(&postGenHook)
-
-	state.Lock = NewGovernor(maxReqs)
-	state.getCount = expvar.NewInt("GetRequests")
-
-	go updater()
-
-	r := mux.NewRouter()
-
-	r.HandleFunc("/debug/pprof/", pprof.Index)
-	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	r.Handle("/debug/vars", http.DefaultServeMux)
-
-	r.PathPrefix("/repo/").HandlerFunc(makeHTTPDownloadHandler())
-	r.PathPrefix("/upload").HandlerFunc(httpUploadHandler)
-
-	r.HandleFunc("/dists", httpDistsHandler)
-	r.HandleFunc("/dists/{name}", httpDistsHandler)
-	r.HandleFunc("/dists/{name}/config", httpConfigHandler)
-	r.HandleFunc("/dists/{name}/config/signingkey", httpConfigSigningKeyHandler)
-	r.HandleFunc("/dists/{name}/config/publickeys", httpConfigPublicKeysHandler)
-	r.HandleFunc("/dists/{name}/config/publickeys/{id}", httpConfigPublicKeysHandler)
-	r.HandleFunc("/dists/{name}/log", httpLogHandler)
-	r.HandleFunc("/dists/{name}/upload", httpUploadHandler)
-	r.HandleFunc("/dists/{name}/upload/{session}", httpUploadHandler)
-
-	http.ListenAndServe(listenAddress, r)
-
 }

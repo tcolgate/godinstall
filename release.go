@@ -66,13 +66,14 @@ type ReleaseLogActionType int
 //	ActionSKIPPRESENT - An item was skipped, as it alerady existed
 //	ActionSKIPPRUNE   - An item was was skipped, dur to purge rules
 const (
-	ActionUNKNOWN     ReleaseLogActionType = 1 << iota
-	ActionADD         ReleaseLogActionType = 2
-	ActionDELETE      ReleaseLogActionType = 3
-	ActionPRUNE       ReleaseLogActionType = 4
-	ActionSKIPPRESENT ReleaseLogActionType = 5
-	ActionSKIPPRUNE   ReleaseLogActionType = 6
-	ActionTRIM        ReleaseLogActionType = 7
+	ActionUNKNOWN      ReleaseLogActionType = 1 << iota
+	ActionADD          ReleaseLogActionType = 2
+	ActionDELETE       ReleaseLogActionType = 3
+	ActionPRUNE        ReleaseLogActionType = 4
+	ActionSKIPPRESENT  ReleaseLogActionType = 5
+	ActionSKIPPRUNE    ReleaseLogActionType = 6
+	ActionTRIM         ReleaseLogActionType = 7
+	ActionCONFIGCHANGE ReleaseLogActionType = 8
 )
 
 // ReleaseLogAction desribes an action taken during a merge or update
@@ -118,29 +119,31 @@ type compTempData struct {
 
 type relTempData map[string]*compTempData
 
+// Parent returns the Release this Reelase was built from
 func (r *Release) Parent() (*Release, error) {
 	return r.store.GetRelease(r.id)
 }
 
-func (p *Release) NewChildRelease() *Release {
-	r := *p
-
-	r.ParentID = p.id
-	r.Date = time.Now()
+// NewChild return a new Release
+func (r *Release) NewChild() *Release {
+	c := *r
+	c.ParentID = r.id
+	c.Date = time.Now()
 
 	ver, err := strconv.ParseUint(r.Version, 10, 64)
 	if err == nil {
 		ver++
-		r.Version = strconv.FormatUint(ver, 10)
+		c.Version = strconv.FormatUint(ver, 10)
 	}
 
-	return &r
+	return &c
 }
 
 func (r *Release) updateReleaseSigFiles() bool {
 	p, err := r.Parent()
 	if err != nil {
 		log.Printf("signature files update failed, %v", err)
+		return false
 	}
 
 	prelid := p.Release
@@ -149,10 +152,12 @@ func (r *Release) updateReleaseSigFiles() bool {
 	pkey, err := p.SignerKey()
 	if err != nil {
 		log.Printf("signature files update failed, %v", err)
+		return false
 	}
 	key, err := r.SignerKey()
 	if err != nil {
 		log.Printf("signature files update failed, %v", err)
+		return false
 	}
 
 	if key != pkey || relid.String() != prelid.String() {
@@ -175,9 +180,8 @@ func (r *Release) updateReleaseSigFiles() bool {
 		}
 		wplain, err := clearsign.Encode(win, key.PrivateKey, nil)
 		if err != nil {
-			log.Printf("InRelease clear-signer, ", err)
+			log.Printf("InRelease clear-signer, %v", err)
 			return false
-
 		}
 		_, err = io.Copy(wplain, rd)
 		if err != nil {
@@ -489,7 +493,7 @@ func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []Rel
 	if err != nil {
 		return nil, err
 	}
-	release := parent.NewChildRelease()
+	release := parent.NewChild()
 	release.IndexID = indexid
 	release.Actions = actions
 
@@ -535,6 +539,8 @@ func (r *Release) Config() *ReleaseConfig {
 	return r.config
 }
 
+// SignerKey returns the key that will be used to sign
+// this release
 func (r *Release) SignerKey() (*openpgp.Entity, error) {
 	id := r.Config().SigningKeyID
 	if len(id) == 0 {
@@ -558,6 +564,8 @@ func (r *Release) SignerKey() (*openpgp.Entity, error) {
 	return kr[0], nil
 }
 
+// PubRing returns the set of public keys of the people
+// permitted to upload packages
 func (r *Release) PubRing() (openpgp.EntityList, error) {
 	var kr openpgp.EntityList
 	ids := r.Config().PublicKeyIDs

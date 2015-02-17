@@ -32,6 +32,24 @@ type failResponse struct {
 	Message string
 }
 
+// CmdUpload is the implementation of the godinstall "upload" command
+func CmdUpload(c *cli.Context) {
+	ret := 0
+	url := c.String("url")
+	client := &http.Client{}
+
+	for _, a := range c.Args() {
+		err := cliUploadFile(client, url, a)
+
+		if err != nil {
+			log.Printf("Upload of %s failed, %s", a, err.Error())
+			ret = 1
+		}
+	}
+
+	os.Exit(ret)
+}
+
 // Streams upload directly from file -> mime/multipart -> pipe -> http-request
 func streamingUploadFile(res chan request, uri, paramName, path string) {
 	file, err := os.Open(path)
@@ -153,24 +171,4 @@ func cliUploadFile(c *http.Client, uri, firstfn string) error {
 	default:
 		return errors.New("Do not know how to upload ")
 	}
-
-	return nil
-}
-
-// CmdUpload is the implementation of the godinstall "upload" command
-func CmdUpload(c *cli.Context) {
-	ret := 0
-	url := c.String("url")
-	client := &http.Client{}
-
-	for _, a := range c.Args() {
-		err := cliUploadFile(client, url, a)
-
-		if err != nil {
-			log.Printf("Upload of %s failed, %s", a, err.Error())
-			ret = 1
-		}
-	}
-
-	os.Exit(ret)
 }
