@@ -47,6 +47,9 @@ func doHTTPConfigGetHandler(ctx context.Context, w http.ResponseWriter, r *http.
 
 // This build a function to update the config of a distribution
 func doHTTPConfigPutHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) *appError {
+	if !AuthorisedAdmin(ctx, w, r) {
+		return sendResponse(w, http.StatusUnauthorized, nil)
+	}
 
 	// We use this to determine if the fields in the
 	// update were included or left out
@@ -164,8 +167,6 @@ func doHTTPConfigPutHandler(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 
 	n.ConfigID = newcfgid
-
-	// Since the pool pattern may have changed, we need to update the release
 	n.updateReleasefiles()
 
 	newrelid, err := state.Archive.AddRelease(n)
@@ -282,9 +283,7 @@ func doHTTPConfigSigningKeyPutHandler(ctx context.Context, w http.ResponseWriter
 	}
 
 	rel.ConfigID = newcfgid
-	if !rel.updateReleaseSigFiles() {
-		return doHTTPConfigSigningKeyGetHandler(ctx, w, r)
-	}
+	rel.updateReleasefiles()
 
 	newrelid, err := state.Archive.AddRelease(rel)
 	if err != nil {
@@ -342,9 +341,7 @@ func doHTTPConfigSigningKeyDeleteHandler(ctx context.Context, w http.ResponseWri
 	}
 
 	rel.ConfigID = newcfgid
-	if !rel.updateReleaseSigFiles() {
-		return doHTTPConfigSigningKeyGetHandler(ctx, w, r)
-	}
+	rel.updateReleasefiles()
 
 	newrelid, err := state.Archive.AddRelease(rel)
 	if err != nil {
