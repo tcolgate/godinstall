@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"log"
 	"sync"
 )
 
@@ -35,7 +34,6 @@ func NewGovernor(max int) *Governor {
 
 // ReadLock takes a read lock on this governor
 func (g *Governor) ReadLock() {
-	log.Println("read loccked")
 	//	debug.PrintStack()
 	if g.Max != 0 {
 		_ = <-g.reqs
@@ -45,7 +43,6 @@ func (g *Governor) ReadLock() {
 
 // ReadUnLock releases a read lock
 func (g *Governor) ReadUnLock() {
-	log.Println("read unloccked")
 	//	debug.PrintStack()
 	g.rwLock.RUnlock()
 	if g.Max != 0 {
@@ -56,7 +53,6 @@ func (g *Governor) ReadUnLock() {
 // WriteLock takes a write lock. THis shoudl block  until all readers
 // are complete
 func (g *Governor) WriteLock() {
-	log.Println("write loccked")
 	//	debug.PrintStack()
 
 	if g.Max != 0 {
@@ -69,7 +65,6 @@ func (g *Governor) WriteLock() {
 
 // WriteUnLock releases the write lock
 func (g *Governor) WriteUnLock() (err error) {
-	log.Println("write unloccked")
 	//	debug.PrintStack()
 	g.rwLock.Unlock()
 	if g.Max != 0 {

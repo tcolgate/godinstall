@@ -1,3 +1,10 @@
+godinstall (0.7.0) precise; urgency=low
+
+  * Cconfiguration files are stored in the repositoryu
+  * Additional API end points for configuration
+
+ -- tristan <tristan@clonebase.we7.local>  Tue, 24 Feb 2015 16:37:40 +0000
+
 godinstall (0.6.3) precise; urgency=low
 
   * Add log rotation support
