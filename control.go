@@ -16,7 +16,7 @@ import (
 	"code.google.com/p/go.crypto/openpgp/errors"
 )
 
-const rfc2822DateLayout = "Mon, 02 Jan 2006 15:04:05 -0700"
+const rfc2822DateLayout = "Mon, 2 Jan 2006 15:04:05 -0700"
 
 // ParseDebianDate parses an rfc2822 date as used by debian
 // control files
