@@ -255,7 +255,7 @@ func (a *archiveStoreArchive) updatePool(release *Release) error {
 			srcVersion,
 		)
 
-		err = a.Link(e.ChangesID, poolpath+"changes")
+		err = a.Link(e.ChangesID, poolpath+fmt.Sprintf("%s_%s.changes", srcName, srcVersion))
 		if err != nil {
 			return err
 		}
