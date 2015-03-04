@@ -1,3 +1,11 @@
+godinstall (0.7.1) precise; urgency=low
+
+  * Fix a date handling bug
+  * Use full name for the changes file
+  * report errors during upload quicker
+
+ -- tristan <tristan@clonebase.we7.local>  Wed, 04 Mar 2015 13:06:23 +0000
+
 godinstall (0.7.0) precise; urgency=low
 
   * Cconfiguration files are stored in the repositoryu
