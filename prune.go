@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -77,14 +76,12 @@ func (rules PruneRuleSet) MakePruner() Pruner {
 
 		if currRule.limitVersions {
 			if int64(currVersionCnt) > currRule.retainVersions+1 {
-				log.Printf("Limiting %v to %v historical versions", currPkg, currRule.retainVersions)
 				return true
 			}
 		}
 
 		if currRule.limitRevisions {
 			if int64(currRevisionCnt) > currRule.retainRevisions+1 {
-				log.Printf("Limiting %v to %v historical revisions", currPkg, currRule.retainRevisions)
 				return true
 			}
 		}
