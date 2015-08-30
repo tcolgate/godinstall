@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/tcolgate/godinstall/store"
 )
 
 // Trimmer is an type for describing functions that can be used to
@@ -40,13 +42,13 @@ func MakeLengthTrimmer(commitcount int) Trimmer {
 //   If the release history is already shorter than the Trimmer allows, or
 // the release history has previous been trimmed to a shorter length than would
 // be allowed, the original parentid is returned.
-func (release *Release) TrimHistory(store Archiver, trimmer Trimmer) error {
+func (release *Release) TrimHistory(s Archiver, trimmer Trimmer) error {
 	curr := release.ParentID
 	trimCount := int32(0)
 	activeTrim := int32(0)
 
 	for {
-		if StoreID(curr).String() == store.EmptyFileID().String() {
+		if store.ID(curr).String() == s.EmptyFileID().String() {
 			// We reached an empty commit before we decided to trim
 			return nil
 		}
@@ -58,7 +60,7 @@ func (release *Release) TrimHistory(store Archiver, trimmer Trimmer) error {
 			return nil
 		}
 
-		c, err := store.GetRelease(curr)
+		c, err := s.GetRelease(curr)
 		if err != nil {
 			return errors.New("error while trimming, " + err.Error())
 		}

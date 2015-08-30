@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tcolgate/godinstall/store"
+
 	"compress/gzip"
 
 	"code.google.com/p/go.crypto/openpgp"
@@ -22,7 +24,7 @@ import (
 // within a component of a release.
 type Architecture struct {
 	Name       string
-	PackagesGz StoreID
+	PackagesGz store.ID
 }
 
 // Component collates all the information for a component
@@ -30,28 +32,28 @@ type Architecture struct {
 type Component struct {
 	Name          string
 	Architectures []Architecture
-	SourcesGz     StoreID
+	SourcesGz     store.ID
 }
 
 // Release collects all the information for a release
 type Release struct {
-	ParentID    StoreID
-	IndexID     StoreID
+	ParentID    store.ID
+	IndexID     store.ID
 	CodeName    string
 	Suite       string
 	Description string
 	Version     string
 	Date        time.Time
 	Components  []Component
-	InRelease   StoreID
-	Release     StoreID
-	ReleaseGPG  StoreID
+	InRelease   store.ID
+	Release     store.ID
+	ReleaseGPG  store.ID
 	Actions     []ReleaseLogAction
 	TrimAfter   int32
-	ConfigID    StoreID
+	ConfigID    store.ID
 
 	store  ArchiveStorer
-	id     StoreID
+	id     store.ID
 	config *ReleaseConfig
 }
 
@@ -85,7 +87,7 @@ type ReleaseLogAction struct {
 type archTempData struct {
 	packagesFileWriter   *WriteHasher
 	packagesGzFile       *WriteHasher
-	packagesGzStore      StoreWriteCloser
+	packagesGzStore      store.StoreWriteCloser
 	packagesGzFileWriter io.WriteCloser
 	packagesWriter       io.Writer
 	packagesSize         int64
@@ -96,14 +98,14 @@ type archTempData struct {
 	packagesGzMD5        string
 	packagesGzSHA1       string
 	packagesGzSHA256     string
-	PackagesGzID         StoreID
+	PackagesGzID         store.ID
 }
 
 type compTempData struct {
 	archs               map[string]*archTempData
 	sourcesFileWriter   *WriteHasher
 	sourcesGzFile       *WriteHasher
-	sourcesGzStore      StoreWriteCloser
+	sourcesGzStore      store.StoreWriteCloser
 	sourcesGzFileWriter io.WriteCloser
 	sourcesWriter       io.Writer
 	sourcesSize         int64
@@ -114,7 +116,7 @@ type compTempData struct {
 	sourcesGzMD5        string
 	sourcesGzSHA1       string
 	sourcesGzSHA256     string
-	SourcesGzID         StoreID
+	SourcesGzID         store.ID
 }
 
 type relTempData map[string]*compTempData
@@ -162,8 +164,8 @@ func (r *Release) updateReleaseSigFiles() bool {
 
 	if key != pkey || relid.String() != prelid.String() {
 		if key == nil {
-			r.ReleaseGPG = StoreID("")
-			r.InRelease = StoreID("")
+			r.ReleaseGPG = store.ID("")
+			r.InRelease = store.ID("")
 			return true
 		}
 
@@ -488,7 +490,7 @@ func (r *Release) updateReleasefiles() {
 // NewRelease creates a new release object in the specified store, based on the
 // parent and built using the passed in index, and associated set of
 // actions
-func NewRelease(store Archiver, parentid StoreID, indexid StoreID, actions []ReleaseLogAction) (id StoreID, err error) {
+func NewRelease(store Archiver, parentid store.ID, indexid store.ID, actions []ReleaseLogAction) (id store.ID, err error) {
 	parent, err := store.GetRelease(parentid)
 	if err != nil {
 		return nil, err

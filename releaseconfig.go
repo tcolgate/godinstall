@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"regexp"
+
+	"github.com/tcolgate/godinstall/store"
 )
 
 // ReleaseConfig is used for configuration options which can be set and managed
@@ -21,8 +23,8 @@ type ReleaseConfig struct {
 
 	PruneRules string
 
-	PublicKeyIDs []StoreID `json:",omitempty"`
-	SigningKeyID StoreID   `json:",omitempty"`
+	PublicKeyIDs []store.ID `json:",omitempty"`
+	SigningKeyID store.ID   `json:",omitempty"`
 
 	pruneRules *PruneRuleSet
 	poolRegex  *regexp.Regexp

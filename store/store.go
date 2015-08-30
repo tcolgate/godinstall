@@ -288,8 +288,8 @@ func (t *hashStore) ForEach(fn func(ID)) {
 	return
 }
 
-// Sha1Store creates a blob store that uses  hex encoded sha1 strings of
-// ingested blobs for IDs
+// New creates a blob store that uses  hex encoded hash strings of
+// ingested blobs for IDs, using the provided hash function
 func New(
 	baseDir string, // Base directory of the persistant store
 	tempDir string, // Temporary directory for ingesting files
@@ -304,4 +304,18 @@ func New(
 	}
 
 	return store
+}
+
+// Sha1Store creates a blob store that uses  hex encoded sha1 strings of
+// ingested blobs for IDs
+func Sha1Store(
+	baseDir string, // Base directory of the persistant store
+	tempDir string, // Temporary directory for ingesting files
+	prefixDepth int, // How many chars to use for directory prefixes
+) Storer {
+	return New(
+		tempDir,
+		baseDir,
+		prefixDepth,
+		sha1.New)
 }

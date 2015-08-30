@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/tcolgate/godinstall/store"
 )
 
 // ReleaseIndexEntryItemFile repesent one file that makes up part of an
@@ -13,7 +15,7 @@ import (
 // file (the deb package), but a Source item may have many
 type ReleaseIndexEntryItemFile struct {
 	Name    string // File name as it will appear in the repo
-	StoreID StoreID
+	StoreID store.ID
 	Size    int64
 
 	Md5    []byte
@@ -30,7 +32,7 @@ type ReleaseIndexEntryItem struct {
 	Version      DebVersion
 	Architecture string
 	Component    string
-	ControlID    StoreID                     // StoreID for the control data
+	ControlID    store.ID                    // store.ID for the control data
 	Files        []ReleaseIndexEntryItemFile // This list of files that make up this item
 }
 
@@ -39,7 +41,7 @@ type ReleaseIndexEntryItem struct {
 type ReleaseIndexEntry struct {
 	SourceItem  ReleaseIndexEntryItem
 	BinaryItems []ReleaseIndexEntryItem
-	ChangesID   StoreID // StoreID for the changes data
+	ChangesID   store.ID // store.ID for the changes data
 }
 
 // NewReleaseIndexEntry  turns an UploadSession (a collection of hash verified
@@ -184,7 +186,7 @@ func ReleaseIndexEntryItemOrder(a, b *ReleaseIndexEntryItem) int {
 // one item at a time
 type ReleaseIndexWriter interface {
 	AddEntry(item *ReleaseIndexEntry) (err error)
-	Close() (StoreID, error)
+	Close() (store.ID, error)
 }
 
 // ReleaseIndexReader is used to read an index from a store
@@ -195,7 +197,7 @@ type ReleaseIndexReader interface {
 }
 
 // Merge the content of index into the parent commit and return a new index
-func (a archiveStoreArchive) mergeEntryIntoRelease(parentid StoreID, entry *ReleaseIndexEntry) (result StoreID, actions []ReleaseLogAction, err error) {
+func (a archiveStoreArchive) mergeEntryIntoRelease(parentid store.ID, entry *ReleaseIndexEntry) (result store.ID, actions []ReleaseLogAction, err error) {
 	parent, err := a.GetRelease(parentid)
 	actions = make([]ReleaseLogAction, 0)
 	if err != nil {
@@ -305,5 +307,5 @@ func (a archiveStoreArchive) mergeEntryIntoRelease(parentid StoreID, entry *Rele
 	}
 
 	id, err := mergedidx.Close()
-	return StoreID(id), actions, err
+	return store.ID(id), actions, err
 }

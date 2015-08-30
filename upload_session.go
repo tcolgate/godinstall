@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/tcolgate/godinstall/store"
 	"golang.org/x/net/context"
 
 	"code.google.com/p/go-uuid/uuid"
@@ -28,8 +29,8 @@ type UploadFile struct {
 
 	pkg       DebPackageInfoer
 	reader    io.Reader
-	storeID   StoreID
-	controlID StoreID
+	storeID   store.ID
+	controlID store.ID
 }
 
 // UploadSession holds the information relating to an active upload session
@@ -46,7 +47,7 @@ type UploadSession struct {
 	release   *Release
 	dir       string       // Temporary directory for storage
 	changes   *ChangesFile // The changes file for this session
-	changesID StoreID      // The raw changes file as uploaded
+	changesID store.ID     // The raw changes file as uploaded
 	err       error
 
 	// Channels for requests

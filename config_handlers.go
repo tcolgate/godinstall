@@ -11,6 +11,7 @@ import (
 
 	"code.google.com/p/go.crypto/openpgp"
 	"github.com/gorilla/mux"
+	"github.com/tcolgate/godinstall/store"
 	"golang.org/x/net/context"
 )
 
@@ -454,7 +455,7 @@ func doHTTPConfigPublicKeysPostHandler(ctx context.Context, w http.ResponseWrite
 
 	c := rel.Config()
 	c.PublicKeyIDs = append(c.PublicKeyIDs, id)
-	sort.Sort(ByID(c.PublicKeyIDs))
+	sort.Sort(store.ByID(c.PublicKeyIDs))
 
 	newcfgid, err := state.Archive.AddReleaseConfig(*c)
 	if err != nil {
@@ -504,7 +505,7 @@ func doHTTPConfigPublicKeysDeleteHandler(ctx context.Context, w http.ResponseWri
 	c := rel.Config()
 
 	found := false
-	finalKeys := []StoreID{}
+	finalKeys := []store.ID{}
 	for _, k := range c.PublicKeyIDs {
 		rdr, err := rel.store.Open(k)
 		if err != nil {

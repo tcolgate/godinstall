@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tcolgate/godinstall/store"
+
 	"compress/gzip"
 )
 
@@ -16,10 +18,10 @@ import (
 // the on disk repository
 type Archiver interface {
 	PublicDir() string
-	Dists() map[string]StoreID
+	Dists() map[string]store.ID
 	GetDist(name string) (*Release, error)
-	SetDist(name string, newrel StoreID) error
-	ReifyRelease(id StoreID) (err error)
+	SetDist(name string, newrel store.ID) error
+	ReifyRelease(id store.ID) (err error)
 	DeleteDist(name string) error
 	AddUpload(session *UploadSession) error
 	ArchiveStorer
@@ -47,9 +49,9 @@ func NewAptBlobArchive(
 	}
 }
 
-func (a *archiveStoreArchive) Dists() map[string]StoreID {
+func (a *archiveStoreArchive) Dists() map[string]store.ID {
 	tags := a.ReleaseTags()
-	dists := make(map[string]StoreID, 0)
+	dists := make(map[string]store.ID, 0)
 	for tag := range tags {
 		if !strings.HasPrefix(tag, "heads/") {
 			continue
@@ -80,7 +82,7 @@ func (a *archiveStoreArchive) GetDist(name string) (*Release, error) {
 	return release, nil
 }
 
-func (a *archiveStoreArchive) SetDist(name string, newrel StoreID) error {
+func (a *archiveStoreArchive) SetDist(name string, newrel store.ID) error {
 	if strings.Index(name, "/") != -1 {
 		return errors.New("Distribution name cannot include /")
 	}
@@ -100,7 +102,7 @@ func (a *archiveStoreArchive) DeleteDist(name string) error {
 	return os.RemoveAll(*a.base + "/dists/" + name)
 }
 
-func (a *archiveStoreArchive) ReifyRelease(id StoreID) (err error) {
+func (a *archiveStoreArchive) ReifyRelease(id store.ID) (err error) {
 	release, err := a.GetRelease(id)
 	if err != nil {
 		return err
@@ -368,7 +370,7 @@ func (a *archiveStoreArchive) AddUpload(session *UploadSession) error {
 	if err = a.SetDist(branchName, newhead); err != nil {
 		return fmt.Errorf("Setting dist ref failed, %v", err)
 	}
-	log.Printf("Branch %v set to %v", branchName, StoreID(newhead).String())
+	log.Printf("Branch %v set to %v", branchName, store.ID(newhead).String())
 
 	if err = a.ReifyRelease(newhead); err != nil {
 		return fmt.Errorf("Repopulating the archive directory failed,, %v", err)

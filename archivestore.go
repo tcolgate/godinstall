@@ -8,36 +8,38 @@ import (
 	"log"
 	"sort"
 	"time"
+
+	"github.com/tcolgate/godinstall/store"
 )
 
 // ArchiveStorer defines an interface for interacting with an on disk
 // versioned apt repository
 type ArchiveStorer interface {
-	ReleaseTags() map[string]StoreID
-	GetReleaseTag(string) (StoreID, error)
-	SetReleaseTag(string, StoreID) error
+	ReleaseTags() map[string]store.ID
+	GetReleaseTag(string) (store.ID, error)
+	SetReleaseTag(string, store.ID) error
 	DeleteReleaseTag(string) error
 
 	//		AddDeb(file *ChangesItem) (*ReleaseIndexItem, error)
-	AddControlFile(data ControlFile) (StoreID, error)
-	GetControlFile(id StoreID) (ControlFile, error)
+	AddControlFile(data ControlFile) (store.ID, error)
+	GetControlFile(id store.ID) (ControlFile, error)
 
-	GetReleaseRoot(seed Release) (StoreID, error)
-	AddRelease(data *Release) (StoreID, error)
-	GetRelease(id StoreID) (*Release, error)
+	GetReleaseRoot(seed Release) (store.ID, error)
+	AddRelease(data *Release) (store.ID, error)
+	GetRelease(id store.ID) (*Release, error)
 
-	AddReleaseConfig(cfg ReleaseConfig) (StoreID, error)
-	GetReleaseConfig(id StoreID) (ReleaseConfig, error)
-	GetDefaultReleaseConfigID() (StoreID, error)
+	AddReleaseConfig(cfg ReleaseConfig) (store.ID, error)
+	GetReleaseConfig(id store.ID) (ReleaseConfig, error)
+	GetDefaultReleaseConfigID() (store.ID, error)
 
-	EmptyReleaseIndex() (StoreID, error)
+	EmptyReleaseIndex() (store.ID, error)
 	AddReleaseIndex() (ReleaseIndexWriter, error)
-	OpenReleaseIndex(id StoreID) (ReleaseIndexReader, error)
+	OpenReleaseIndex(id store.ID) (ReleaseIndexReader, error)
 
 	GarbageCollect()
 	DisableGarbageCollector()
 	EnableGarbageCollector()
-	Storer
+	store.Storer
 }
 
 type gcReq struct {
@@ -45,7 +47,7 @@ type gcReq struct {
 }
 
 type archiveBlobStore struct {
-	Storer
+	store.Storer
 	DefaultReleaseConfig ReleaseConfig
 	enableGCChan         chan gcReq
 	disableGCChan        chan gcReq
@@ -56,7 +58,7 @@ type archiveBlobStore struct {
 // addressable fs
 func NewArchiveBlobStore(storeDir string, tmpDir string, defRelConfig ReleaseConfig) ArchiveStorer {
 	result := &archiveBlobStore{
-		Sha1Store(storeDir, tmpDir, 3),
+		store.Sha1Store(storeDir, tmpDir, 3),
 		defRelConfig,
 		make(chan gcReq),
 		make(chan gcReq),
@@ -68,7 +70,7 @@ func NewArchiveBlobStore(storeDir string, tmpDir string, defRelConfig ReleaseCon
 	return result
 }
 
-func (r archiveBlobStore) gcWalkReleaseConfig(used *SafeMap, id StoreID) {
+func (r archiveBlobStore) gcWalkReleaseConfig(used *SafeMap, id store.ID) {
 	used.Set(id.String(), true)
 
 	item, _ := r.GetReleaseConfig(id)
@@ -87,8 +89,8 @@ func (r archiveBlobStore) gcWalkReleaseIndexEntryItem(used *SafeMap, item *Relea
 	}
 }
 
-func (r archiveBlobStore) gcWalkReleaseIndex(used *SafeMap, id StoreID) {
-	used.Set(StoreID(id).String(), true)
+func (r archiveBlobStore) gcWalkReleaseIndex(used *SafeMap, id store.ID) {
+	used.Set(store.ID(id).String(), true)
 	index, _ := r.OpenReleaseIndex(id)
 	for {
 		entry, err := index.NextEntry()
@@ -107,7 +109,7 @@ func (r archiveBlobStore) gcWalkReleaseIndex(used *SafeMap, id StoreID) {
 	index.Close()
 }
 
-func (r archiveBlobStore) gcWalkRelease(used *SafeMap, releaseID StoreID) {
+func (r archiveBlobStore) gcWalkRelease(used *SafeMap, releaseID store.ID) {
 	curr := releaseID
 	trimmerActive := false
 	trimAfter := int32(0)
@@ -139,15 +141,15 @@ func (r archiveBlobStore) gcWalkRelease(used *SafeMap, releaseID StoreID) {
 				}
 			}
 
-			if !used.Check(StoreID(release.IndexID).String()) {
+			if !used.Check(store.ID(release.IndexID).String()) {
 				r.gcWalkReleaseIndex(used, release.IndexID)
 			}
 		}
 
-		if StoreID(release.ParentID).String() == r.EmptyFileID().String() {
+		if store.ID(release.ParentID).String() == r.EmptyFileID().String() {
 			break
 		}
-		if used.Check(StoreID(release.ParentID).String()) {
+		if used.Check(store.ID(release.ParentID).String()) {
 			break
 		}
 
@@ -174,10 +176,10 @@ func (r archiveBlobStore) runGC() {
 	refs := r.ListRefs()
 
 	for _, id := range refs {
-		r.gcWalkRelease(used, StoreID(id))
+		r.gcWalkRelease(used, store.ID(id))
 	}
 
-	f := func(id StoreID) {
+	f := func(id store.ID) {
 		if !used.Check(id.String()) {
 			gcFiles++
 			size, _ := r.Size(id)
@@ -236,12 +238,12 @@ func (r archiveBlobStore) EnableGarbageCollector() {
 	<-c
 }
 
-func (r archiveBlobStore) GetReleaseTag(name string) (StoreID, error) {
+func (r archiveBlobStore) GetReleaseTag(name string) (store.ID, error) {
 	return r.GetRef(name)
 }
 
-func (r archiveBlobStore) SetReleaseTag(name string, id StoreID) error {
-	return r.SetRef(name, StoreID(id))
+func (r archiveBlobStore) SetReleaseTag(name string, id store.ID) error {
+	return r.SetRef(name, store.ID(id))
 }
 
 func (r archiveBlobStore) DeleteReleaseTag(name string) error {
@@ -253,7 +255,7 @@ func (r archiveBlobStore) AddDeb(file *ChangesItem) (*ReleaseIndexItem, error) {
 		var item ReleaseIndexItem
 		item.Type = BINARY
 
-		pkgReader, err := r.Open(file.StoreID)
+		pkgReader, err := r.Open(file.store.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -292,7 +294,7 @@ func (r archiveBlobStore) AddDeb(file *ChangesItem) (*ReleaseIndexItem, error) {
 		fileSlice := make([]ReleaseIndexItemFile, 1)
 		fileSlice[0] = ReleaseIndexItemFile{
 			Name: file.Filename,
-			ID:   file.StoreID,
+			ID:   file.store.ID,
 		}
 		item.Files = fileSlice
 
@@ -313,10 +315,10 @@ type consistantControlFile struct {
 	SignedBy          []string
 	Signed            bool
 	SignatureVerified bool
-	Original          StoreID
+	Original          store.ID
 }
 
-func (r archiveBlobStore) GetControlFile(id StoreID) (ControlFile, error) {
+func (r archiveBlobStore) GetControlFile(id store.ID) (ControlFile, error) {
 	reader, err := r.Open(id)
 	if err != nil {
 		return ControlFile{}, err
@@ -351,7 +353,7 @@ func (r archiveBlobStore) GetControlFile(id StoreID) (ControlFile, error) {
 	return result, nil
 }
 
-func (r archiveBlobStore) AddControlFile(item ControlFile) (StoreID, error) {
+func (r archiveBlobStore) AddControlFile(item ControlFile) (store.ID, error) {
 	data := make([]consistantControlFileParagraph, len(item.Data))
 
 	for i := range item.Data {
@@ -403,7 +405,7 @@ func (r archiveBlobStore) AddControlFile(item ControlFile) (StoreID, error) {
 	return id, nil
 }
 
-func (r archiveBlobStore) EmptyReleaseIndex() (id StoreID, err error) {
+func (r archiveBlobStore) EmptyReleaseIndex() (id store.ID, err error) {
 	idx, err := r.AddReleaseIndex()
 	return idx.Close()
 }
@@ -424,7 +426,7 @@ func (r archiveBlobStore) AddReleaseIndex() (ReleaseIndexWriter, error) {
 
 // Used for tracking the state of reads from an ReleaseIndex
 type repoReleaseIndexWriterHandle struct {
-	handle  StoreWriteCloser
+	handle  store.StoreWriteCloser
 	encoder *gob.Encoder
 }
 
@@ -433,7 +435,7 @@ func (r *repoReleaseIndexWriterHandle) AddEntry(item *ReleaseIndexEntry) (err er
 	return
 }
 
-func (r *repoReleaseIndexWriterHandle) Close() (StoreID, error) {
+func (r *repoReleaseIndexWriterHandle) Close() (store.ID, error) {
 	err := r.handle.Close()
 	if err != nil {
 		return nil, err
@@ -448,7 +450,7 @@ type repoReleaseIndexReaderHandle struct {
 	decoder *gob.Decoder
 }
 
-func (r archiveBlobStore) OpenReleaseIndex(id StoreID) (ReleaseIndexReader, error) {
+func (r archiveBlobStore) OpenReleaseIndex(id store.ID) (ReleaseIndexReader, error) {
 	var h repoReleaseIndexReaderHandle
 	var err error
 
@@ -471,7 +473,7 @@ func (r *repoReleaseIndexReaderHandle) Close() error {
 	return err
 }
 
-func (r archiveBlobStore) GetRelease(id StoreID) (*Release, error) {
+func (r archiveBlobStore) GetRelease(id store.ID) (*Release, error) {
 	var rel Release
 	reader, err := r.Open(id)
 	if err != nil {
@@ -492,13 +494,13 @@ func (r archiveBlobStore) GetRelease(id StoreID) (*Release, error) {
 }
 
 // GetReleaseRags  Get all of the refs related to a relesse
-func (r archiveBlobStore) ReleaseTags() map[string]StoreID {
+func (r archiveBlobStore) ReleaseTags() map[string]store.ID {
 	return r.ListRefs()
 }
 
 // GetReleaseRoot returns an ID suitable for use as the parent ID for a new
 // release
-func (r archiveBlobStore) GetReleaseRoot(seed Release) (StoreID, error) {
+func (r archiveBlobStore) GetReleaseRoot(seed Release) (store.ID, error) {
 	var err error
 
 	seed.ParentID = r.EmptyFileID()
@@ -526,7 +528,7 @@ func (r archiveBlobStore) GetReleaseRoot(seed Release) (StoreID, error) {
 	return id, nil
 }
 
-func (r archiveBlobStore) AddRelease(data *Release) (StoreID, error) {
+func (r archiveBlobStore) AddRelease(data *Release) (store.ID, error) {
 	writer, err := r.Store()
 	if err != nil {
 		return nil, err
@@ -540,16 +542,16 @@ func (r archiveBlobStore) AddRelease(data *Release) (StoreID, error) {
 		return nil, err
 	}
 
-	return StoreID(id), nil
+	return store.ID(id), nil
 }
 
 // GetReleaseConfig returns the release configuration stored in the given blob
-func (r archiveBlobStore) GetDefaultReleaseConfigID() (StoreID, error) {
+func (r archiveBlobStore) GetDefaultReleaseConfigID() (store.ID, error) {
 	return r.AddReleaseConfig(r.DefaultReleaseConfig)
 }
 
 // GetReleaseConfig returns the release configuration stored in the given blob
-func (r archiveBlobStore) GetReleaseConfig(id StoreID) (ReleaseConfig, error) {
+func (r archiveBlobStore) GetReleaseConfig(id store.ID) (ReleaseConfig, error) {
 	var cfg ReleaseConfig
 	reader, err := r.Open(id)
 	if err != nil {
@@ -564,7 +566,7 @@ func (r archiveBlobStore) GetReleaseConfig(id StoreID) (ReleaseConfig, error) {
 }
 
 // AddReleaseConfig stored a ReleaseConfig in the blob store, and returns the ID
-func (r archiveBlobStore) AddReleaseConfig(cfg ReleaseConfig) (StoreID, error) {
+func (r archiveBlobStore) AddReleaseConfig(cfg ReleaseConfig) (store.ID, error) {
 	writer, err := r.Store()
 	if err != nil {
 		return nil, err
@@ -586,5 +588,5 @@ func (r archiveBlobStore) AddReleaseConfig(cfg ReleaseConfig) (StoreID, error) {
 		return nil, err
 	}
 
-	return StoreID(id), nil
+	return store.ID(id), nil
 }
