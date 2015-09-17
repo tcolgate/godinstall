@@ -9,6 +9,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/tcolgate/godinstall/deb"
 	"github.com/tcolgate/godinstall/store"
 )
 
@@ -21,8 +22,8 @@ type ArchiveStorer interface {
 	DeleteReleaseTag(string) error
 
 	//		AddDeb(file *ChangesItem) (*ReleaseIndexItem, error)
-	AddControlFile(data ControlFile) (store.ID, error)
-	GetControlFile(id store.ID) (ControlFile, error)
+	AddControlFile(data deb.ControlFile) (store.ID, error)
+	GetControlFile(id store.ID) (deb.ControlFile, error)
 
 	GetReleaseRoot(seed Release) (store.ID, error)
 	AddRelease(data *Release) (store.ID, error)
@@ -318,10 +319,10 @@ type consistantControlFile struct {
 	Original          store.ID
 }
 
-func (r archiveBlobStore) GetControlFile(id store.ID) (ControlFile, error) {
+func (r archiveBlobStore) GetControlFile(id store.ID) (deb.ControlFile, error) {
 	reader, err := r.Open(id)
 	if err != nil {
-		return ControlFile{}, err
+		return deb.ControlFile{}, err
 	}
 	defer reader.Close()
 
@@ -329,18 +330,18 @@ func (r archiveBlobStore) GetControlFile(id store.ID) (ControlFile, error) {
 	var item consistantControlFile
 	err = dec.Decode(&item)
 	if err != nil {
-		return ControlFile{}, err
+		return deb.ControlFile{}, err
 	}
 
-	result := ControlFile{
+	result := deb.ControlFile{
 		SignatureVerified: item.SignatureVerified,
 		SignedBy:          item.SignedBy,
 		Signed:            item.Signed,
 	}
 
-	result.Data = make([]*ControlParagraph, len(item.Paragraphs))
+	result.Data = make([]*deb.ControlParagraph, len(item.Paragraphs))
 	for i := range item.Paragraphs {
-		para := MakeControlParagraph()
+		para := deb.MakeControlParagraph()
 		result.Data[i] = &para
 		for j := range item.Paragraphs[i].Keys {
 			strVals := item.Paragraphs[i].Values[j]
@@ -353,7 +354,7 @@ func (r archiveBlobStore) GetControlFile(id store.ID) (ControlFile, error) {
 	return result, nil
 }
 
-func (r archiveBlobStore) AddControlFile(item ControlFile) (store.ID, error) {
+func (r archiveBlobStore) AddControlFile(item deb.ControlFile) (store.ID, error) {
 	data := make([]consistantControlFileParagraph, len(item.Data))
 
 	for i := range item.Data {

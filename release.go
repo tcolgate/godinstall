@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tcolgate/godinstall/deb"
+	"github.com/tcolgate/godinstall/hasher"
 	"github.com/tcolgate/godinstall/store"
 
 	"compress/gzip"
@@ -85,8 +87,8 @@ type ReleaseLogAction struct {
 }
 
 type archTempData struct {
-	packagesFileWriter   *WriteHasher
-	packagesGzFile       *WriteHasher
+	packagesFileWriter   *hasher.Hasher
+	packagesGzFile       *hasher.Hasher
 	packagesGzStore      store.StoreWriteCloser
 	packagesGzFileWriter io.WriteCloser
 	packagesWriter       io.Writer
@@ -103,8 +105,8 @@ type archTempData struct {
 
 type compTempData struct {
 	archs               map[string]*archTempData
-	sourcesFileWriter   *WriteHasher
-	sourcesGzFile       *WriteHasher
+	sourcesFileWriter   *hasher.Hasher
+	sourcesGzFile       *hasher.Hasher
 	sourcesGzStore      store.StoreWriteCloser
 	sourcesGzFileWriter io.WriteCloser
 	sourcesWriter       io.Writer
@@ -242,13 +244,13 @@ func (r *Release) updateReleasefiles() {
 			if !ok {
 				relMap[compName] = &compTempData{}
 				comp = relMap[compName]
-				comp.sourcesFileWriter = MakeWriteHasher(ioutil.Discard)
+				comp.sourcesFileWriter = hasher.New(ioutil.Discard)
 				comp.sourcesGzStore, err = r.store.Store()
 				if err != nil {
 					log.Printf("failed to update releases, %v", err)
 					return
 				}
-				comp.sourcesGzFile = MakeWriteHasher(comp.sourcesGzStore)
+				comp.sourcesGzFile = hasher.New(comp.sourcesGzStore)
 				comp.sourcesGzFileWriter = gzip.NewWriter(comp.sourcesGzFile)
 				comp.sourcesWriter = io.MultiWriter(comp.sourcesFileWriter, comp.sourcesGzFileWriter)
 				comp.archs = make(map[string]*archTempData, 0)
@@ -259,12 +261,12 @@ func (r *Release) updateReleasefiles() {
 				// This is a new arch in this component
 				arch = new(archTempData)
 
-				arch.packagesFileWriter = MakeWriteHasher(ioutil.Discard)
+				arch.packagesFileWriter = hasher.New(ioutil.Discard)
 				arch.packagesGzStore, err = r.store.Store()
 				if err != nil {
 					log.Printf("failed to update releases, %v", err)
 				}
-				arch.packagesGzFile = MakeWriteHasher(arch.packagesGzStore)
+				arch.packagesGzFile = hasher.New(arch.packagesGzStore)
 				arch.packagesGzFileWriter = gzip.NewWriter(arch.packagesGzFile)
 				arch.packagesWriter = io.MultiWriter(arch.packagesFileWriter, arch.packagesGzFileWriter)
 				comp.archs[archName] = arch
@@ -320,7 +322,7 @@ func (r *Release) updateReleasefiles() {
 				continue
 			}
 
-			FormatDpkgControlFile(srcComp.sourcesWriter, srcCtrl)
+			deb.FormatDpkgControlFile(srcComp.sourcesWriter, srcCtrl)
 			srcComp.sourcesWriter.Write([]byte("\n"))
 		}
 
@@ -349,13 +351,13 @@ func (r *Release) updateReleasefiles() {
 			}
 			control.Data[0].SetValue("Filename", path)
 
-			FormatDpkgControlFile(arch.packagesWriter, control)
+			deb.FormatDpkgControlFile(arch.packagesWriter, control)
 			arch.packagesWriter.Write([]byte("\n"))
 
 			if archName == "all" {
 				for _, otherArchName := range archNames {
 					otherArch, _ := comp.archs[otherArchName]
-					FormatDpkgControlFile(otherArch.packagesWriter, control)
+					deb.FormatDpkgControlFile(otherArch.packagesWriter, control)
 					otherArch.packagesWriter.Write([]byte("\n"))
 				}
 			}
@@ -425,8 +427,8 @@ func (r *Release) updateReleasefiles() {
 		r.Components = append(r.Components, comp)
 	}
 
-	releaseControl := ControlFile{}
-	para := MakeControlParagraph()
+	releaseControl := deb.ControlFile{}
+	para := deb.MakeControlParagraph()
 
 	releaseStartFields := []string{"Origin", "Suite", "Codename"}
 	releaseEndFields := []string{"SHA256"}
@@ -480,7 +482,7 @@ func (r *Release) updateReleasefiles() {
 	releaseControl.Data = append(releaseControl.Data, &para)
 
 	releaseWriter, _ := r.store.Store()
-	WriteDebianControl(releaseWriter, releaseControl, releaseStartFields, releaseEndFields)
+	deb.WriteDebianControl(releaseWriter, releaseControl, releaseStartFields, releaseEndFields)
 	releaseWriter.Close()
 	r.Release, _ = releaseWriter.Identity()
 

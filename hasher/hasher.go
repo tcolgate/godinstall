@@ -1,4 +1,4 @@
-package main
+package hasher
 
 import (
 	"crypto/md5"
@@ -8,9 +8,9 @@ import (
 	"io"
 )
 
-// WriteHasher counts writes to a io.writer, used to assess the size of a file
+// Hasher counts writes to a io.writer, used to assess the size of a file
 // without needing to store it
-type WriteHasher struct {
+type Hasher struct {
 	backing  io.Writer
 	count    int64
 	md5er    hash.Hash
@@ -18,9 +18,8 @@ type WriteHasher struct {
 	sha256er hash.Hash
 }
 
-// Write writes some bytes to the hasher and the backing
-// writer
-func (w *WriteHasher) Write(p []byte) (n int, err error) {
+// Write implmeents the io.Writer interface for the hasher
+func (w *Hasher) Write(p []byte) (n int, err error) {
 	n, err = w.backing.Write(p)
 	w.md5er.Write(p)
 	w.sha1er.Write(p)
@@ -31,29 +30,29 @@ func (w *WriteHasher) Write(p []byte) (n int, err error) {
 
 // Count returns the number of hytes in total that have
 // been written to the writer
-func (w *WriteHasher) Count() int64 {
+func (w *Hasher) Count() int64 {
 	return w.count
 }
 
 // MD5Sum of the input so far
-func (w *WriteHasher) MD5Sum() []byte {
+func (w *Hasher) MD5Sum() []byte {
 	return w.md5er.Sum(nil)
 }
 
 // SHA1Sum of the input so far
-func (w *WriteHasher) SHA1Sum() []byte {
+func (w *Hasher) SHA1Sum() []byte {
 	return w.sha1er.Sum(nil)
 }
 
 // SHA256Sum of the input so far
-func (w *WriteHasher) SHA256Sum() []byte {
+func (w *Hasher) SHA256Sum() []byte {
 	return w.sha256er.Sum(nil)
 }
 
-// MakeWriteHasher creates an io.Writer to calculate the sha1,sha256 and
+// New creates an io.Writer to calculate the sha1,sha256 and
 // md5 sums and measure the size of a data written to the passed writer
-func MakeWriteHasher(w io.Writer) *WriteHasher {
-	return &WriteHasher{
+func New(w io.Writer) *Hasher {
+	return &Hasher{
 		backing:  w,
 		count:    0,
 		md5er:    md5.New(),

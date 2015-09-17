@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/tcolgate/godinstall/deb"
 	"golang.org/x/net/context"
 )
 
@@ -43,7 +44,7 @@ func httpUploadHandler(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		}
 	case "PUT", "POST":
 		{
-			changesReader, otherParts, err := ChangesFromHTTPRequest(r)
+			changesReader, otherParts, err := deb.ChangesFromHTTPRequest(r)
 			if err != nil {
 				return sendResponse(w, http.StatusBadRequest, err.Error())
 			}

@@ -4,198 +4,200 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/tcolgate/godinstall/deb"
 )
 
 var testRepoPruneInput = []*ReleaseIndexEntry{
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: DebVersion{0, "1", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: deb.DebVersion{0, "1", ""}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "4", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "3", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "4", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "3", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{1, "1", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "3"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "2"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", ""}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "2"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{1, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "3"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "1", "1"}}},
 }
 
 // .*_*-*
 var testPruneOutput1 = []*ReleaseIndexEntry{
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: DebVersion{0, "1", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: deb.DebVersion{0, "1", ""}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "4", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "3", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "4", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "3", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{1, "1", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "3"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "2"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", ""}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "2"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{1, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "3"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "1", "1"}}},
 }
 
 // .*_*-0
 var testPruneOutput2 = []*ReleaseIndexEntry{
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: DebVersion{0, "1", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: deb.DebVersion{0, "1", ""}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "4", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "3", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "4", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "3", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{1, "1", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "3"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "2"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{1, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "3"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "1", "1"}}},
 }
 
 // .*_*-2
 var testPruneOutput3 = []*ReleaseIndexEntry{
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: DebVersion{0, "1", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: deb.DebVersion{0, "1", ""}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "4", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "3", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "4", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "3", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{1, "1", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "3"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "2"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "2"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{1, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "3"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "1", "1"}}},
 }
 
 // .*_0-*
 var testPruneOutput4 = []*ReleaseIndexEntry{
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: DebVersion{0, "1", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: deb.DebVersion{0, "1", ""}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "2", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "4", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "4", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{1, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{1, "1", "1"}}},
 }
 
 // .*_2-*
 var testPruneOutput5 = []*ReleaseIndexEntry{
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: DebVersion{0, "1", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: deb.DebVersion{0, "1", ""}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "4", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "3", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "4", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "3", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "2", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{1, "1", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "3"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "2"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", ""}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "2"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{1, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "3"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "1"}}},
 }
 
 // .*_0-0
 var testPruneOutput6 = []*ReleaseIndexEntry{
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: DebVersion{0, "1", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: deb.DebVersion{0, "1", ""}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "2", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "4", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "4", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{1, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{1, "1", "1"}}},
 }
 
 // .*_2-2
 var testPruneOutput7 = []*ReleaseIndexEntry{
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: DebVersion{0, "1", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: deb.DebVersion{0, "1", ""}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "2", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "4", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "3", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "4", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "3", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "2", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{1, "1", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "3"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "2"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "2"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{1, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "3"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "1"}}},
 }
 
 // pkgf_2-0,.*_0-0
 var testPruneOutput8 = []*ReleaseIndexEntry{
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: DebVersion{0, "1", ""}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkga", Version: deb.DebVersion{0, "1", ""}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgb", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: DebVersion{0, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgc", Version: deb.DebVersion{0, "1", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: DebVersion{0, "2", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgd", Version: deb.DebVersion{0, "2", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: DebVersion{0, "4", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkge", Version: deb.DebVersion{0, "4", "1"}}},
 
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{1, "1", "1"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "3", "3"}}},
-	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: DebVersion{0, "2", "2"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{1, "1", "1"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "3", "3"}}},
+	&ReleaseIndexEntry{SourceItem: ReleaseIndexEntryItem{Name: "pkgf", Version: deb.DebVersion{0, "2", "2"}}},
 }
 
 var testRepoPrune = []struct {

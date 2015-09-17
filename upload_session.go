@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/tcolgate/godinstall/deb"
+	"github.com/tcolgate/godinstall/hasher"
 	"github.com/tcolgate/godinstall/store"
 	"golang.org/x/net/context"
 
@@ -27,7 +29,7 @@ type UploadFile struct {
 	SignedBy         []string   `json:",omitempty"`
 	UploadHookResult HookOutput `json:",omitempty"`
 
-	pkg       DebPackageInfoer
+	pkg       deb.DebPackageInfoer
 	reader    io.Reader
 	storeID   store.ID
 	controlID store.ID
@@ -45,9 +47,9 @@ type UploadSession struct {
 
 	usm       *UploadSessionManager
 	release   *Release
-	dir       string       // Temporary directory for storage
-	changes   *ChangesFile // The changes file for this session
-	changesID store.ID     // The raw changes file as uploaded
+	dir       string           // Temporary directory for storage
+	changes   *deb.ChangesFile // The changes file for this session
+	changesID store.ID         // The raw changes file as uploaded
 	err       error
 
 	// Channels for requests
@@ -108,7 +110,7 @@ func NewUploadSession(
 		}
 
 		changesReader, _ = s.usm.Store.Open(s.changesID)
-		changes, err := ParseDebianChanges(changesReader, kr)
+		changes, err := deb.ParseDebianChanges(changesReader, kr)
 
 		if rel.Config().VerifyChanges && !changes.Control.Signed {
 			err = errors.New("Changes file was not signed")
@@ -221,7 +223,7 @@ func (s *UploadSession) AddFile(name string, r io.Reader) UploadSession {
 
 func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 	var uf *UploadFile
-	var expectedFileIdx ChangesFilesIndex
+	var expectedFileIdx deb.ChangesFilesIndex
 	var ok bool
 
 	if !s.LoneDeb {
@@ -251,7 +253,7 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 	if err != nil {
 		return errors.New("Upload to store failed: " + err.Error())
 	}
-	hasher := MakeWriteHasher(blob)
+	hasher := hasher.New(blob)
 
 	_, err = io.Copy(hasher, upload.reader)
 	if err != nil {
@@ -282,7 +284,7 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 			if err != nil {
 				return errors.New("Reading pubring failed failed,  " + err.Error())
 			}
-			pkg := NewDebPackage(f, kr)
+			pkg := deb.NewDebPackage(f, kr)
 			_, err = pkg.Name()
 			if err != nil {
 				return errors.New("upload deb failed,  " + err.Error())
@@ -290,7 +292,7 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 			f.Close()
 
 			if s.LoneDeb {
-				s.changes, err = LoneChanges(pkg, upload.Name, s.ReleaseName)
+				s.changes, err = deb.LoneChanges(pkg, upload.Name, s.ReleaseName)
 				if err != nil {
 					return errors.New("Generating changes file failed,  " + err.Error())
 				}
@@ -298,7 +300,7 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 				if err != nil {
 					return errors.New("Generating changes file failed,  " + err.Error())
 				}
-				FormatChangesFile(changesWriter, s.changes)
+				deb.FormatChangesFile(changesWriter, s.changes)
 				changesWriter.Close()
 				s.changesID, err = changesWriter.Identity()
 				if err != nil {
@@ -353,7 +355,7 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 			if err != nil {
 				return errors.New("Reading pubring failed failed,  " + err.Error())
 			}
-			ctrl, err := ParseDebianControl(f, kr)
+			ctrl, err := deb.ParseDebianControl(f, kr)
 			if err != nil {
 				return errors.New("Parsing dsc failed, " + err.Error())
 			}

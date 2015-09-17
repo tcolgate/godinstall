@@ -1,4 +1,4 @@
-package main
+package deb
 
 import (
 	//"code.google.com/p/go.crypto/openpgp"

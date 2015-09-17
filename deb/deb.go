@@ -1,4 +1,4 @@
-package main
+package deb
 
 import (
 	"archive/tar"
@@ -16,6 +16,7 @@ import (
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/clearsign"
 	"github.com/blakesmith/ar"
+	"github.com/tcolgate/godinstall/hasher"
 )
 
 // DebPackageInfoer for describing extracting information relating to
@@ -305,7 +306,7 @@ func (d *debPackage) Size() (int64, error) {
 //  debian-binary - Package version info
 //  _gpg* - dpkg-sig signatures covering hashes of the other files
 func (d *debPackage) parseDebPackage() (err error) {
-	pkghasher := MakeWriteHasher(ioutil.Discard)
+	pkghasher := hasher.New(ioutil.Discard)
 	pkgtee := io.TeeReader(d.reader, pkghasher)
 
 	arReader := ar.NewReader(pkgtee)
@@ -331,7 +332,7 @@ func (d *debPackage) parseDebPackage() (err error) {
 			return err
 		}
 
-		hasher := MakeWriteHasher(ioutil.Discard)
+		hasher := hasher.New(ioutil.Discard)
 
 		switch {
 		case strings.HasPrefix(header.Name, "_gpg"):
