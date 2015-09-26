@@ -19,11 +19,11 @@ import (
 	"github.com/tcolgate/godinstall/hasher"
 )
 
-// DebPackageInfoer for describing extracting information relating to
+// PackageInfoer for describing extracting information relating to
 // a debian package
-type DebPackageInfoer interface {
+type PackageInfoer interface {
 	Name() (string, error)
-	Version() (DebVersion, error)
+	Version() (Version, error)
 	Description() (string, error)
 	Maintainer() (string, error)
 	Architecture() (string, error)
@@ -92,7 +92,7 @@ func parseSigsFile(sig string, kr openpgp.EntityList) (*debSigsFile, error) {
 	result.signedBy, _ = openpgp.CheckDetachedSignature(kr, bsig, msg.ArmoredSignature.Body)
 
 	sigDataReader := bytes.NewReader(msg.Plaintext)
-	controlFile, _ := ParseDebianControl(sigDataReader, nil)
+	controlFile, _ := ParseControl(sigDataReader, nil)
 	control := controlFile.Data[0]
 
 	strVersion, _ := control.GetValue("Version")
@@ -121,9 +121,9 @@ func parseSigsFile(sig string, kr openpgp.EntityList) (*debSigsFile, error) {
 	return result, nil
 }
 
-// NewDebPackage creates a debian package description, which will be lazily parsed and
+// NewPackage creates a debian package description, which will be lazily parsed and
 // verified against the provided keyring
-func NewDebPackage(r io.Reader, kr openpgp.EntityList) DebPackageInfoer {
+func NewPackage(r io.Reader, kr openpgp.EntityList) PackageInfoer {
 	return &debPackage{
 		reader:  r,
 		keyRing: kr,
@@ -135,7 +135,7 @@ func (d *debPackage) IsSigned() (bool, error) {
 	var err error
 
 	if !d.parsed {
-		err = d.parseDebPackage()
+		err = d.parsePackage()
 		if err != nil {
 			return false, err
 		}
@@ -150,7 +150,7 @@ func (d *debPackage) IsVerified() (bool, error) {
 	var err error
 
 	if !d.parsed {
-		err = d.parseDebPackage()
+		err = d.parsePackage()
 		if err != nil {
 			return false, err
 		}
@@ -164,7 +164,7 @@ func (d *debPackage) SignedBy() (*openpgp.Entity, error) {
 	var err error
 
 	if !d.parsed {
-		err = d.parseDebPackage()
+		err = d.parsePackage()
 		if err != nil {
 			return nil, err
 		}
@@ -178,7 +178,7 @@ func (d *debPackage) Control() (*ControlFile, error) {
 	var err error
 
 	if !d.parsed {
-		err = d.parseDebPackage()
+		err = d.parsePackage()
 		if err != nil {
 			return nil, err
 		}
@@ -195,12 +195,12 @@ func (d *debPackage) Name() (string, error) {
 }
 
 // The package version string
-func (d *debPackage) Version() (debver DebVersion, err error) {
+func (d *debPackage) Version() (debver Version, err error) {
 	verStr, err := d.getMandatoryControl("Version")
 	if err != nil {
 		return
 	}
-	return ParseDebVersion(verStr)
+	return ParseVersion(verStr)
 }
 
 // The package description
@@ -236,7 +236,7 @@ func (d *debPackage) getControl(key string) (string, bool, error) {
 	var err error
 
 	if !d.parsed {
-		err = d.parseDebPackage()
+		err = d.parsePackage()
 		if err != nil {
 			return "", false, err
 		}
@@ -252,7 +252,7 @@ func (d *debPackage) Md5() ([]byte, error) {
 	var err error
 
 	if !d.parsed {
-		err = d.parseDebPackage()
+		err = d.parsePackage()
 		if err != nil {
 			return nil, err
 		}
@@ -265,7 +265,7 @@ func (d *debPackage) Sha1() ([]byte, error) {
 	var err error
 
 	if !d.parsed {
-		err = d.parseDebPackage()
+		err = d.parsePackage()
 		if err != nil {
 			return nil, err
 		}
@@ -278,7 +278,7 @@ func (d *debPackage) Sha256() ([]byte, error) {
 	var err error
 
 	if !d.parsed {
-		err = d.parseDebPackage()
+		err = d.parsePackage()
 		if err != nil {
 			return nil, err
 		}
@@ -291,7 +291,7 @@ func (d *debPackage) Size() (int64, error) {
 	var err error
 
 	if !d.parsed {
-		err = d.parseDebPackage()
+		err = d.parsePackage()
 		if err != nil {
 			return 0, err
 		}
@@ -305,7 +305,7 @@ func (d *debPackage) Size() (int64, error) {
 //  contro.tar.gz - The control data from when the package was built
 //  debian-binary - Package version info
 //  _gpg* - dpkg-sig signatures covering hashes of the other files
-func (d *debPackage) parseDebPackage() (err error) {
+func (d *debPackage) parsePackage() (err error) {
 	pkghasher := hasher.New(ioutil.Discard)
 	pkgtee := io.TeeReader(d.reader, pkghasher)
 
@@ -392,7 +392,7 @@ func (d *debPackage) parseDebPackage() (err error) {
 	}
 
 	controlReader = bytes.NewReader(controlBytes.Bytes())
-	controlFile, err := ParseDebianControl(controlReader, nil)
+	controlFile, err := ParseControl(controlReader, nil)
 	if err != nil {
 		return errors.New("parsing control failed, " + err.Error())
 	}
@@ -431,5 +431,5 @@ func (d *debPackage) parseDebPackage() (err error) {
 func FormatDpkgControlFile(ctrlWriter io.Writer, paragraphs ControlFile) {
 	debStartFields := []string{"Package", "Version", "Filename", "Directory", "Size"}
 	debEndFields := []string{"MD5Sum", "MD5sum", "SHA1", "SHA256", "Description"}
-	WriteDebianControl(ctrlWriter, paragraphs, debStartFields, debEndFields)
+	WriteControl(ctrlWriter, paragraphs, debStartFields, debEndFields)
 }

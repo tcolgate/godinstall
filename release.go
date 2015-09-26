@@ -482,7 +482,7 @@ func (r *Release) updateReleasefiles() {
 	releaseControl.Data = append(releaseControl.Data, &para)
 
 	releaseWriter, _ := r.store.Store()
-	deb.WriteDebianControl(releaseWriter, releaseControl, releaseStartFields, releaseEndFields)
+	deb.WriteControl(releaseWriter, releaseControl, releaseStartFields, releaseEndFields)
 	releaseWriter.Close()
 	r.Release, _ = releaseWriter.Identity()
 

@@ -36,10 +36,10 @@ type ChangesFile struct {
 	Control       ControlFile
 	Date          time.Time
 	Binaries      []string
-	BinaryVersion DebVersion
+	BinaryVersion Version
 	Architectures []string
 	Source        string
-	SourceVersion DebVersion
+	SourceVersion Version
 	FileHashes    ChangesFilesHashMap
 }
 
@@ -133,10 +133,10 @@ var changesFileRequiredFields = []string{
 	"Files",
 }
 
-// ParseDebianChanges parses a debian chnages file into a ChangesFile object
+// ParseChanges parses a debian chnages file into a ChangesFile object
 // and verify any signature against keys in GPG keyring kr.
-func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p ChangesFile, err error) {
-	controlFile, err := ParseDebianControl(r, kr)
+func ParseChanges(r io.Reader, kr openpgp.EntityList) (p ChangesFile, err error) {
+	controlFile, err := ParseControl(r, kr)
 	if err != nil {
 		return ChangesFile{}, err
 	}
@@ -159,7 +159,7 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p ChangesFile, err 
 	}
 
 	dateStr, _ := control.GetValue("Date")
-	date, err := ParseDebianDate(dateStr)
+	date, err := ParseDate(dateStr)
 	if err != nil {
 		return ChangesFile{}, err
 	}
@@ -171,7 +171,7 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p ChangesFile, err 
 	binaries := strings.Split(binaryStr, " ")
 
 	versionStr, _ := control.GetValue("Version")
-	version, err := ParseDebVersion(versionStr)
+	version, err := ParseVersion(versionStr)
 
 	sourceStr, _ := control.GetValue("Source")
 	source := sourceStr
@@ -185,7 +185,7 @@ func ParseDebianChanges(r io.Reader, kr openpgp.EntityList) (p ChangesFile, err 
 		}
 
 		var err error
-		sourceVersion, err = ParseDebVersion(source[srcVerStart+1 : srcVerStart+1+srcVerEnd])
+		sourceVersion, err = ParseVersion(source[srcVerStart+1 : srcVerStart+1+srcVerEnd])
 		if err != nil {
 			return ChangesFile{}, errors.New("Corrupt Source version")
 		}
@@ -232,7 +232,7 @@ func ChangesFromHTTPRequest(r *http.Request) (
 }
 
 // LoneChanges generates a changes file that covers this package
-func LoneChanges(pkg DebPackageInfoer, fileName, dist string) (*ChangesFile, error) {
+func LoneChanges(pkg PackageInfoer, fileName, dist string) (*ChangesFile, error) {
 	name, err := pkg.Name()
 	if err != nil {
 		return nil, err
@@ -255,7 +255,7 @@ func LoneChanges(pkg DebPackageInfoer, fileName, dist string) (*ChangesFile, err
 	newPara := ControlParagraph{}
 
 	newPara.AddValue("Format", "1.8")
-	newPara.AddValue("Date", DebFormatTime(time.Now()))
+	newPara.AddValue("Date", FormatTime(time.Now()))
 	newPara.AddValue("Source", name)
 	newPara.AddValue("Binary", name)
 	newPara.AddValue("Architecture", arch)
@@ -305,5 +305,5 @@ func FormatChangesFile(w io.Writer, c *ChangesFile) {
 	changesStartFields := []string{"Format", "Date", "Source", "Binary"}
 	changesEndFields := []string{"Checksums-Sha1", "Checksums-Sha256", "Files"}
 
-	WriteDebianControl(w, c.Control, changesStartFields, changesEndFields)
+	WriteControl(w, c.Control, changesStartFields, changesEndFields)
 }

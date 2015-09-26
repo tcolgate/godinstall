@@ -8,21 +8,21 @@ import (
 	"code.google.com/p/go.crypto/openpgp"
 )
 
-func TestDebControlInvalid1(t *testing.T) {
-	_, err := ParseDebianControl(strings.NewReader("Total rubbish"), nil)
+func TestControlInvalid1(t *testing.T) {
+	_, err := ParseControl(strings.NewReader("Total rubbish"), nil)
 	if err == nil {
 		t.Errorf("Non-field value should not parse")
 	}
 }
 
-func TestDebControlInvalid2(t *testing.T) {
-	_, err := ParseDebianControl(strings.NewReader("  continuation before a field is declared"), nil)
+func TestControlInvalid2(t *testing.T) {
+	_, err := ParseControl(strings.NewReader("  continuation before a field is declared"), nil)
 	if err == nil {
 		t.Errorf("Misplaced continuation field should not parse")
 	}
 }
 
-var testDebControlEmptyStart = []string{
+var testControlEmptyStart = []string{
 	"",
 	"Package: first",
 	"fieldb: bit of stuff",
@@ -33,7 +33,7 @@ var testDebControlEmptyStart = []string{
 	" val3",
 }
 
-var testDebControlEmptyStartResult = []string{
+var testControlEmptyStartResult = []string{
 	"Package: first",
 	"fieldb: bit of stuff",
 	"fieldc: and other stuff",
@@ -44,11 +44,11 @@ var testDebControlEmptyStartResult = []string{
 }
 
 // Check that we output unknown fields in a consistant order
-func TestDebControlEmptyStart(t *testing.T) {
-	inStr := strings.Join(testDebControlEmptyStart, "\n") + "\n"
-	resStr := strings.Join(testDebControlEmptyStartResult, "\n") + "\n"
+func TestControlEmptyStart(t *testing.T) {
+	inStr := strings.Join(testControlEmptyStart, "\n") + "\n"
+	resStr := strings.Join(testControlEmptyStartResult, "\n") + "\n"
 
-	paragraphs, err := ParseDebianControl(strings.NewReader(inStr), nil)
+	paragraphs, err := ParseControl(strings.NewReader(inStr), nil)
 	if err != nil {
 		t.Errorf("parsedebiancontrol failure: %s", inStr)
 	}
@@ -56,14 +56,14 @@ func TestDebControlEmptyStart(t *testing.T) {
 	var buf bytes.Buffer
 	debStartFields := []string{"Package", "Version", "Filename", "Directory", "Size"}
 	debEndFields := []string{"MD5Sum", "MD5sum", "SHA1", "SHA256", "Description"}
-	WriteDebianControl(&buf, paragraphs, debStartFields, debEndFields)
+	WriteControl(&buf, paragraphs, debStartFields, debEndFields)
 	outStr := string(buf.Bytes())
 	if outStr != resStr {
 		t.Errorf("\nExpected:\n%s\nGot:\n%s", inStr, outStr)
 	}
 }
 
-var testDebControlPersist = []string{
+var testControlPersist = []string{
 	"Package: first",
 	"fieldb: bit of stuff",
 	"fieldc: and other stuff",
@@ -89,10 +89,10 @@ var testDebControlPersist = []string{
 }
 
 // Check that we output unknown fields in a consistant order
-func TestDebControlPersist(t *testing.T) {
-	inStr := strings.Join(testDebControlPersist, "\n") + "\n"
+func TestControlPersist(t *testing.T) {
+	inStr := strings.Join(testControlPersist, "\n") + "\n"
 
-	paragraphs, err := ParseDebianControl(strings.NewReader(inStr), nil)
+	paragraphs, err := ParseControl(strings.NewReader(inStr), nil)
 	if err != nil {
 		t.Errorf("parsedebiancontrol failure: %s", inStr)
 	}
@@ -100,7 +100,7 @@ func TestDebControlPersist(t *testing.T) {
 	var buf bytes.Buffer
 	debStartFields := []string{"Package", "Version", "Filename", "Directory", "Size"}
 	debEndFields := []string{"MD5Sum", "MD5sum", "SHA1", "SHA256", "Description"}
-	WriteDebianControl(&buf, paragraphs, debStartFields, debEndFields)
+	WriteControl(&buf, paragraphs, debStartFields, debEndFields)
 	outStr := string(buf.Bytes())
 	if outStr != inStr {
 		t.Errorf("\nExpected:\n%s\nGot:\n%s", inStr, outStr)
@@ -164,15 +164,15 @@ E6ZHucq5u1AleysWUUt4llmcJ69jtFK69PV4+Q1It+iFAWrS+H2kwMsZAUir2edO
 -----END PGP PUBLIC KEY BLOCK-----`
 
 // Check that we output unknown fields in a consistant order
-func TestDebControlVerify(t *testing.T) {
+func TestControlVerify(t *testing.T) {
 	var kr openpgp.EntityList
 	kreader := strings.NewReader(testKrStr)
 	kr, _ = openpgp.ReadArmoredKeyRing(kreader)
 
-	c, err := ParseDebianControl(strings.NewReader(testControlSignedValid), kr)
+	c, err := ParseControl(strings.NewReader(testControlSignedValid), kr)
 
 	if err != nil {
-		t.Errorf("ParseDebianControl failed, %s", err.Error())
+		t.Errorf("ParseControl failed, %s", err.Error())
 		return
 	}
 
@@ -199,13 +199,13 @@ func TestDebControlVerify(t *testing.T) {
 }
 
 // Check that we output unknown fields in a consistant order
-func TestDebControlUnknownSigner(t *testing.T) {
+func TestControlUnknownSigner(t *testing.T) {
 	kr := openpgp.EntityList{}
 
-	c, err := ParseDebianControl(strings.NewReader(testControlSignedValid), kr)
+	c, err := ParseControl(strings.NewReader(testControlSignedValid), kr)
 
 	if err != nil {
-		t.Errorf("ParseDebianControl failed, %s", err.Error())
+		t.Errorf("ParseControl failed, %s", err.Error())
 		return
 	}
 
@@ -253,14 +253,14 @@ uiTJMgKpAOxBFeEzO1quFyWnQePIjQ2zWVaTwqDPiZNQ6+377gCrC4Fu+SYdmlQ=
 
 // Check that we output unknown fields in a consistant order
 /*
-func TestDebControlBadSignature(t *testing.T) {
+func TestControlBadSignature(t *testing.T) {
 	kr := openpgp.EntityList{}
 	kreader := strings.NewReader(testKrStr)
 	kr, _ = openpgp.ReadArmoredKeyRing(kreader)
 
-	c, err := ParseDebianControl(strings.NewReader(testControlSignedInvalid), kr)
+	c, err := ParseControl(strings.NewReader(testControlSignedInvalid), kr)
 	if err != nil {
-		t.Errorf("ParseDebianControl failed, %s", err.Error())
+		t.Errorf("ParseControl failed, %s", err.Error())
 		return
 	}
 

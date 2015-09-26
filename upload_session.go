@@ -29,7 +29,7 @@ type UploadFile struct {
 	SignedBy         []string   `json:",omitempty"`
 	UploadHookResult HookOutput `json:",omitempty"`
 
-	pkg       deb.DebPackageInfoer
+	pkg       deb.PackageInfoer
 	reader    io.Reader
 	storeID   store.ID
 	controlID store.ID
@@ -110,7 +110,7 @@ func NewUploadSession(
 		}
 
 		changesReader, _ = s.usm.Store.Open(s.changesID)
-		changes, err := deb.ParseDebianChanges(changesReader, kr)
+		changes, err := deb.ParseChanges(changesReader, kr)
 
 		if rel.Config().VerifyChanges && !changes.Control.Signed {
 			err = errors.New("Changes file was not signed")
@@ -284,7 +284,7 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 			if err != nil {
 				return errors.New("Reading pubring failed failed,  " + err.Error())
 			}
-			pkg := deb.NewDebPackage(f, kr)
+			pkg := deb.NewPackage(f, kr)
 			_, err = pkg.Name()
 			if err != nil {
 				return errors.New("upload deb failed,  " + err.Error())
@@ -355,7 +355,7 @@ func (s *UploadSession) doAddFile(upload *UploadFile) (err error) {
 			if err != nil {
 				return errors.New("Reading pubring failed failed,  " + err.Error())
 			}
-			ctrl, err := deb.ParseDebianControl(f, kr)
+			ctrl, err := deb.ParseControl(f, kr)
 			if err != nil {
 				return errors.New("Parsing dsc failed, " + err.Error())
 			}

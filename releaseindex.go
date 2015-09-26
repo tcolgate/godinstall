@@ -30,7 +30,7 @@ type ReleaseIndexEntryItemFile struct {
 // part of a ReleaseIndexEntry
 type ReleaseIndexEntryItem struct {
 	Name         string
-	Version      deb.DebVersion
+	Version      deb.Version
 	Architecture string
 	Component    string
 	ControlID    store.ID                    // store.ID for the control data
@@ -141,7 +141,7 @@ func ReleaseIndexEntryOrder(a, b *ReleaseIndexEntry) int {
 
 	// We'll use reverse order for the version, to make pruning
 	// a touch easier
-	debCmp := deb.DebVersionCompare(b.SourceItem.Version, a.SourceItem.Version)
+	debCmp := deb.VersionCompare(b.SourceItem.Version, a.SourceItem.Version)
 
 	return debCmp
 }
@@ -178,7 +178,7 @@ func ReleaseIndexEntryItemOrder(a, b *ReleaseIndexEntryItem) int {
 
 	// We'll use reverse order for the version, to make pruning
 	// a touch easier
-	debCmp := deb.DebVersionCompare(b.Version, a.Version)
+	debCmp := deb.VersionCompare(b.Version, a.Version)
 
 	return debCmp
 }

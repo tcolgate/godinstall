@@ -2,7 +2,7 @@ package deb
 
 import "testing"
 
-var testDebVersionComparison = []struct {
+var testVersionComparison = []struct {
 	a      string
 	b      string
 	result int
@@ -32,21 +32,21 @@ var testDebVersionComparison = []struct {
 	{"2.3~pre1003.wheezy1", "2.30~pre1002.wheezy1", -1},
 }
 
-func TestDebVersionComparison(t *testing.T) {
-	for i, tt := range testDebVersionComparison {
+func TestVersionComparison(t *testing.T) {
+	for i, tt := range testVersionComparison {
 		var err error
-		aVer, err := ParseDebVersion(tt.a)
+		aVer, err := ParseVersion(tt.a)
 		if err != nil {
 			t.Errorf("%d. failed: %q\n", i, err.Error())
 		}
-		bVer, err := ParseDebVersion(tt.b)
+		bVer, err := ParseVersion(tt.b)
 		if err != nil {
 			t.Errorf("%d. failed: %q\n", i, err.Error())
 		}
 
 		//log.Println("a: ", aVer)
 		//log.Println("b: ", bVer)
-		comparison := DebVersionCompare(aVer, bVer)
+		comparison := VersionCompare(aVer, bVer)
 
 		switch {
 		case tt.result == 0 && comparison != 0:
@@ -59,24 +59,24 @@ func TestDebVersionComparison(t *testing.T) {
 	}
 }
 
-var testParseDebVersion = []struct {
+var testParseVersion = []struct {
 	in  string
-	out *DebVersion
+	out *Version
 	err error
 }{
-	{"20a", &DebVersion{0, "20a", ""}, nil},
-	{"20a-1", &DebVersion{0, "20a", "1"}, nil},
-	{"2.01-1-1", &DebVersion{0, "2.01-1", "1"}, nil},
-	{"1:2.3-1", &DebVersion{1, "2.3", "1"}, nil},
-	{"1:2.3-1-1", &DebVersion{1, "2.3-1", "1"}, nil},
-	{"1:1:1.0-1-1~1", &DebVersion{1, "1:1.0-1", "1~1"}, nil},
-	{"2.3~pre13.wheezy1", &DebVersion{0, "2.3~pre13.wheezy1", ""}, nil},
+	{"20a", &Version{0, "20a", ""}, nil},
+	{"20a-1", &Version{0, "20a", "1"}, nil},
+	{"2.01-1-1", &Version{0, "2.01-1", "1"}, nil},
+	{"1:2.3-1", &Version{1, "2.3", "1"}, nil},
+	{"1:2.3-1-1", &Version{1, "2.3-1", "1"}, nil},
+	{"1:1:1.0-1-1~1", &Version{1, "1:1.0-1", "1~1"}, nil},
+	{"2.3~pre13.wheezy1", &Version{0, "2.3~pre13.wheezy1", ""}, nil},
 }
 
-func TestParseDebVersion(t *testing.T) {
-	for i, tt := range testParseDebVersion {
+func TestParseVersion(t *testing.T) {
+	for i, tt := range testParseVersion {
 		var err error
-		inVer, err := ParseDebVersion(tt.in)
+		inVer, err := ParseVersion(tt.in)
 
 		if inVer != *tt.out || err != tt.err {
 			t.Errorf("%d. failed: expected %q got %q\n", i, tt.out, inVer)
@@ -84,20 +84,20 @@ func TestParseDebVersion(t *testing.T) {
 	}
 }
 
-var testDebVersionString = []struct {
-	in  *DebVersion
+var testgsionString = []struct {
+	in  *Version
 	out string
 }{
-	{&DebVersion{0, "20a", ""}, "20a"},
-	{&DebVersion{0, "20a", "1"}, "20a-1"},
-	{&DebVersion{0, "2.01-1", "1"}, "2.01-1-1"},
-	{&DebVersion{1, "2.3", "1"}, "1:2.3-1"},
-	{&DebVersion{1, "2.3-1", "1"}, "1:2.3-1-1"},
-	{&DebVersion{1, "1:1.0-1", "1~1"}, "1:1:1.0-1-1~1"},
+	{&Version{0, "20a", ""}, "20a"},
+	{&Version{0, "20a", "1"}, "20a-1"},
+	{&Version{0, "2.01-1", "1"}, "2.01-1-1"},
+	{&Version{1, "2.3", "1"}, "1:2.3-1"},
+	{&Version{1, "2.3-1", "1"}, "1:2.3-1-1"},
+	{&Version{1, "1:1.0-1", "1~1"}, "1:1:1.0-1-1~1"},
 }
 
-func TestDebVersionString(t *testing.T) {
-	for i, tt := range testDebVersionString {
+func TestgsionString(t *testing.T) {
+	for i, tt := range testgsionString {
 		outStr := tt.in.String()
 
 		if outStr != tt.out {

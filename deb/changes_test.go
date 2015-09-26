@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var testParseDebianChanges = []struct {
+var testParseChanges = []struct {
 	s      string
 	err    string
 	expect ChangesFile
@@ -19,9 +19,9 @@ var testParseDebianChanges = []struct {
 	{testChanges2, "", testChanges1Result},
 }
 
-func TestParseDebianChanges(t *testing.T) {
-	for i, tt := range testParseDebianChanges {
-		c, err := ParseDebianChanges(strings.NewReader(tt.s), nil)
+func TestParseChanges(t *testing.T) {
+	for i, tt := range testParseChanges {
+		c, err := ParseChanges(strings.NewReader(tt.s), nil)
 		if err == nil {
 			c.Control = ControlFile{}
 			if !reflect.DeepEqual(tt.expect, c) {
@@ -102,9 +102,9 @@ var testChanges1Result = (func() ChangesFile {
 		Date:          date,
 		Architectures: []string{"source", "amd64"},
 		Binaries:      []string{"whacky-package", "whacky-package-assets", "whacky-package-assets-1417610953"},
-		BinaryVersion: MustParseDebVersion("1.0.0-2"),
+		BinaryVersion: MustParseVersion("1.0.0-2"),
 		Source:        "whacky-package",
-		SourceVersion: MustParseDebVersion("1.0.0-1"),
+		SourceVersion: MustParseVersion("1.0.0-1"),
 		FileHashes: ChangesFilesHashMap{
 			ChangesFilesIndex{Name: "whacky-package_1.0.0.dsc", Size: 744}: ChangesFilesHashSet{
 				"md5":    f1md5,

@@ -18,15 +18,15 @@ import (
 
 const rfc2822DateLayout = "Mon, 2 Jan 2006 15:04:05 -0700"
 
-// ParseDebianDate parses an rfc2822 date as used by debian
+// ParseDate parses an rfc2822 date as used by debian
 // control files
-func ParseDebianDate(s string) (time.Time, error) {
+func ParseDate(s string) (time.Time, error) {
 	return time.Parse(rfc2822DateLayout, s)
 }
 
-// DebFormatTime formats a go time.Time as per the debian standard
+// FormatTime formats a go time.Time as per the debian standard
 // usage (rfc2822)
-func DebFormatTime(t time.Time) string {
+func FormatTime(t time.Time) string {
 	return t.Format(rfc2822DateLayout)
 }
 
@@ -79,14 +79,14 @@ func (ctrl ControlParagraph) AddValue(item string, val string) {
 	return
 }
 
-// ParseDebianControl parses the contents of the reader as a debian
+// ParseControl parses the contents of the reader as a debian
 // control file. It does not collapse folding or multiple value fields
 // and assumes this has already been done.
-func ParseDebianControl(rawin io.Reader, kr openpgp.EntityList) (ControlFile, error) {
+func ParseControl(rawin io.Reader, kr openpgp.EntityList) (ControlFile, error) {
 	c := ControlFile{}
 	c.Data = []*ControlParagraph{}
 
-	r := c.parseDebianControlSignature(rawin, kr)
+	r := c.parseControlSignature(rawin, kr)
 
 	var newpara = MakeControlParagraph()
 	c.Data = append(c.Data, &newpara)
@@ -133,10 +133,10 @@ func ParseDebianControl(rawin io.Reader, kr openpgp.EntityList) (ControlFile, er
 	return c, nil
 }
 
-// WriteDebianControl writes the control paragraphs to the io.Writer, using the keys
+// WriteControl writes the control paragraphs to the io.Writer, using the keys
 // from start first, if present. Any keys from end are output last, if present,
 // any remaining keys. Other keys are output in between, sorted by key
-func WriteDebianControl(out io.Writer, c ControlFile, start []string, end []string) {
+func WriteControl(out io.Writer, c ControlFile, start []string, end []string) {
 	for p := range c.Data {
 		fields := c.Data[p]
 		orderedMap := make(map[string]bool, len(*fields))
@@ -205,7 +205,7 @@ func WriteDebianControl(out io.Writer, c ControlFile, start []string, end []stri
 }
 
 // Check any clear signed signature
-func (c *ControlFile) parseDebianControlSignature(rawin io.Reader, kr openpgp.EntityList) io.Reader {
+func (c *ControlFile) parseControlSignature(rawin io.Reader, kr openpgp.EntityList) io.Reader {
 	var br io.Reader
 
 	// This could be a signed file, we'll peek first, as if it is, we need to
