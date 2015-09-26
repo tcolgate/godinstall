@@ -6,9 +6,9 @@ import (
 	"io"
 )
 
-// StoreWriteCloser is used to arite a file to the file store.
+// WriteCloser is used to arite a file to the file store.
 // Write data, and call Close() when done, Identity then retries the items ID
-type StoreWriteCloser interface {
+type WriteCloser interface {
 	io.WriteCloser
 	CloseAndLink(string) error // Close the store, and create a link on disk
 	Identity() (ID, error)     // Return the ID of the item in the store, once closed.

@@ -7,7 +7,7 @@ import (
 
 // An interface to a content addressable file store
 
-// StoreID is a handle for an object within the store
+// ID is a handle for an object within the store
 type ID []byte
 
 func (s ID) String() string {
@@ -37,7 +37,7 @@ func (a ByID) Less(i, j int) bool {
 	return c < 0
 }
 
-// StoreIDFromString parses a string and returns the StoreID
+// IDFromString parses a string and returns the StoreID
 // that it would represent
 func IDFromString(str string) (ID, error) {
 	b, err := hex.DecodeString(str)

@@ -427,7 +427,7 @@ func (r archiveBlobStore) AddReleaseIndex() (ReleaseIndexWriter, error) {
 
 // Used for tracking the state of reads from an ReleaseIndex
 type repoReleaseIndexWriterHandle struct {
-	handle  store.StoreWriteCloser
+	handle  store.WriteCloser
 	encoder *gob.Encoder
 }
 

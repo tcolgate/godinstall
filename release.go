@@ -89,7 +89,7 @@ type ReleaseLogAction struct {
 type archTempData struct {
 	packagesFileWriter   *hasher.Hasher
 	packagesGzFile       *hasher.Hasher
-	packagesGzStore      store.StoreWriteCloser
+	packagesGzStore      store.WriteCloser
 	packagesGzFileWriter io.WriteCloser
 	packagesWriter       io.Writer
 	packagesSize         int64
@@ -107,7 +107,7 @@ type compTempData struct {
 	archs               map[string]*archTempData
 	sourcesFileWriter   *hasher.Hasher
 	sourcesGzFile       *hasher.Hasher
-	sourcesGzStore      store.StoreWriteCloser
+	sourcesGzStore      store.WriteCloser
 	sourcesGzFileWriter io.WriteCloser
 	sourcesWriter       io.Writer
 	sourcesSize         int64

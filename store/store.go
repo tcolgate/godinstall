@@ -15,7 +15,7 @@ import (
 
 // An interface to a content addressable file store
 
-// StoreWalker is used to enumerate a store. Given a StoreID as an
+// Walker is used to enumerate a store. Given a StoreID as an
 // argument, it returns all the StoreIDs that the contents of the
 // input store item may refer to
 type Walker func(ID) []ID
@@ -24,7 +24,7 @@ type Walker func(ID) []ID
 // can be written to it, and then accesed and referred to based on an
 // ID representing the content of the written item.
 type Storer interface {
-	Store() (StoreWriteCloser, error)      // Write something to the store
+	Store() (WriteCloser, error)           // Write something to the store
 	CopyToStore(io.ReadCloser) (ID, error) // Write something to the store
 	Open(ID) (io.ReadCloser, error)        // Open a file by id
 	Size(ID) (int64, error)                // Open a file by id
@@ -64,7 +64,7 @@ func (t *hashStore) IDToPath(id ID) (string, string, error) {
 	return fileName, filePath, nil
 }
 
-func (t *hashStore) Store() (StoreWriteCloser, error) {
+func (t *hashStore) Store() (WriteCloser, error) {
 	file, err := ioutil.TempFile(t.tempDir, "blob")
 
 	if err != nil {
