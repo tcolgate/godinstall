@@ -9,7 +9,7 @@ all: $(NAME)
 version.go: debian/changelog
 	echo "package main\nvar godinstallVersion = \""`dpkg-parsechangelog | grep ^Version | awk '{print $$2}'   `-`git show-ref -s --abbrev HEAD`\" > version.go
 
-$(NAME): version.go
+$(NAME): version.go *.go deb/*.go hasher/*.go store/*.go
 	GO15VENDOREXPERIMENT=1 go build
 	if [ -f $(BINNAME) ]; then test $(BINNAME) -ef $(NAME) || mv -f  $(BINNAME) $(NAME) ; fi
 
