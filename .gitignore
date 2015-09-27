@@ -3,3 +3,4 @@ godinstall
 /*.gpg
 /build
 version.go
+*.out
