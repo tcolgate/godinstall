@@ -1,3 +1,5 @@
+// Package deb provides tools for reading debian bianry packages and the
+// the various metadata files related to them
 package deb
 
 import (

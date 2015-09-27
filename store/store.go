@@ -1,3 +1,5 @@
+// Package store is a content addressable file store
+// TODO(tcm): Abstract out file operations to allow alternate backing stores
 package store
 
 import (
@@ -12,8 +14,6 @@ import (
 	"runtime/debug"
 	"strings"
 )
-
-// An interface to a content addressable file store
 
 // Walker is used to enumerate a store. Given a StoreID as an
 // argument, it returns all the StoreIDs that the contents of the
