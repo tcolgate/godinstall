@@ -1,0 +1,63 @@
+ dpkg-buildpackage -rfakeroot -D -us -uc
+dpkg-buildpackage: source package testpkg
+dpkg-buildpackage: source version 1.0
+dpkg-buildpackage: source distribution precise
+dpkg-buildpackage: source changed by tristan <tristan@clonebase.we7.local>
+ dpkg-source --before-build testpkg-1.0
+dpkg-buildpackage: host architecture amd64
+dpkg-source: info: using options from testpkg-1.0/debian/source/options: --compression=gzip
+ fakeroot debian/rules clean
+dh clean
+   dh_testdir
+   dh_auto_clean
+   dh_clean
+ dpkg-source -b testpkg-1.0
+dpkg-source: info: using options from testpkg-1.0/debian/source/options: --compression=gzip
+dpkg-source: info: using source format `3.0 (native)'
+dpkg-source: info: building testpkg in testpkg_1.0.tar.gz
+dpkg-source: info: building testpkg in testpkg_1.0.dsc
+ debian/rules build
+dh build
+   dh_testdir
+   dh_auto_configure
+   dh_auto_build
+   dh_auto_test
+ fakeroot debian/rules binary
+dh binary
+   dh_testroot
+   dh_prep
+   dh_installdirs
+   dh_auto_install
+   dh_installdocs
+   dh_installchangelogs
+   dh_pysupport
+dh_pysupport: This program is deprecated, you should use dh_python2 instead. Migration guide: http://deb.li/dhs2p
+   dh_perl
+   dh_link
+   dh_compress
+   dh_fixperms
+   dh_strip
+   dh_makeshlibs
+   dh_shlibdeps
+   dh_installdeb
+   dh_gencontrol
+   dh_md5sums
+   dh_builddeb
+dpkg-deb: building package `testpkg' in `../testpkg_1.0_amd64.deb'.
+ dpkg-genchanges  >../testpkg_1.0_amd64.changes
+dpkg-genchanges: including full source code in upload
+ dpkg-source --after-build testpkg-1.0
+dpkg-source: info: using options from testpkg-1.0/debian/source/options: --compression=gzip
+dpkg-buildpackage: full upload; Debian-native package (full source is included)
+Now running lintian...
+E: testpkg changes: bad-distribution-in-changes-file precise
+W: testpkg source: package-depends-on-hardcoded-libc testpkg depends
+W: testpkg source: debhelper-but-no-misc-depends testpkg
+E: testpkg source: depends-on-build-essential-package-without-using-version dpkg-dev [build-depends: dpkg-dev]
+W: testpkg source: changelog-should-mention-nmu
+W: testpkg source: source-nmu-has-incorrect-version-number 1.0
+W: testpkg source: ancient-standards-version 3.8.3 (current is 3.9.6)
+W: testpkg: description-starts-with-leading-spaces
+W: testpkg: spelling-error-in-description debians Debian's
+W: testpkg: empty-binary-package
+Finished running lintian.

@@ -99,7 +99,7 @@ func NewUploadSession(
 
 	if !s.LoneDeb {
 		var err error
-		s.changesID, err = s.usm.Store.CopyToStore(changesReader)
+		s.changesID, err = store.CopyToStore(s.usm.Store, changesReader)
 		if err != nil {
 			return UploadSession{}, err
 		}

@@ -60,8 +60,7 @@ func doHTTPLogGetHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		}
 
 		// Reached end of history
-		if state.Archive.EmptyFileID().String() == curr.ParentID.String() ||
-			curr.Release.String() == "" {
+		if state.Archive.IsEmptyFileID(curr.ParentID); curr.Release.String() == "" {
 			return nil
 		}
 

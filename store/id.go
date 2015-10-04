@@ -14,6 +14,18 @@ func (s ID) String() string {
 	return hex.EncodeToString(s)
 }
 
+func CompareID(a, b ID) bool {
+	if bytes.Compare(a, b) == 0 {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (s ID) Compare(b ID) bool {
+	return CompareID(s, b)
+}
+
 // MarshalJSON marshals a StoreID to a json string
 func (s ID) MarshalJSON() ([]byte, error) {
 	return []byte("\"" + s.String() + "\""), nil

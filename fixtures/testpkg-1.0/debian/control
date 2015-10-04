@@ -1,0 +1,13 @@
+Source: testpkg
+Section: utils
+Priority: extra
+Maintainer: Tristan Colgate-McFarlane <tcolgate@gmail.com>
+Build-Depends: debhelper (>= 7), dpkg-dev
+Standards-Version: 3.8.3
+
+Package: testpkg
+Architecture: amd64
+Depends: debhelper (>= 7), libc6
+Description:  Test package for testing package uploads
+  This is a debian package created with debians package tools to
+  test godinstall

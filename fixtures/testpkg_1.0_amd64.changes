@@ -1,0 +1,28 @@
+Format: 1.8
+Date: Wed, 04 Mar 2015 13:06:23 +0000
+Source: testpkg
+Binary: testpkg
+Architecture: source amd64
+Version: 1.0
+Distribution: precise
+Urgency: low
+Maintainer: Tristan Colgate-McFarlane <tcolgate@gmail.com>
+Changed-By: tristan <tristan@clonebase.we7.local>
+Description:
+ testpkg    - Test package for testing package uploads
+Changes:
+ testpkg (1.0) precise; urgency=low
+ .
+   * More log info
+Checksums-Sha1:
+ 2c89b86ebede345fff3d4ad796c9ac6f1cc4604e 517 testpkg_1.0.dsc
+ f49957f3d59a74b16d95cb2a860fc597b5bbeb9d 1466 testpkg_1.0.tar.gz
+ c56d5349c655515f882895da58c1a1ff6f370af7 1766 testpkg_1.0_amd64.deb
+Checksums-Sha256:
+ 391a60041ca83ff58d5c02c089629f2e94093dca45753c2e62bdb4706815ed73 517 testpkg_1.0.dsc
+ 49991bfe5bb8146a04992e19639d64ee7431bdbb3e8207591bd8f4dbea5f9d7b 1466 testpkg_1.0.tar.gz
+ e26ba95cd57abcd5e13a76575fb6fe50c7dc297c04cdcea8b151e5cf25760430 1766 testpkg_1.0_amd64.deb
+Files:
+ bda88084aa6c07088d136c7e10131ebd 517 utils extra testpkg_1.0.dsc
+ 11fa630ea0132d68fc07c4f240d64280 1466 utils extra testpkg_1.0.tar.gz
+ 00c8dcf7864e80d2516d36705b0b35c3 1766 utils extra testpkg_1.0_amd64.deb

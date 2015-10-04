@@ -8,11 +8,7 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
-	"path/filepath"
-	"runtime/debug"
-	"strings"
 )
 
 // Walker is used to enumerate a store. Given a StoreID as an
@@ -24,44 +20,28 @@ type Walker func(ID) []ID
 // can be written to it, and then accesed and referred to based on an
 // ID representing the content of the written item.
 type Storer interface {
-	Store() (WriteCloser, error)           // Write something to the store
-	CopyToStore(io.ReadCloser) (ID, error) // Write something to the store
-	Open(ID) (io.ReadCloser, error)        // Open a file by id
-	Size(ID) (int64, error)                // Open a file by id
-	Link(ID, ...string) error              // Link a file id to a given location
-	UnLink(ID) error                       // UnLink a blob
-	EmptyFileID() ID                       // Return the StoreID for an 0 byte object
-	SetRef(name string, id ID) error       // Set a reference
-	GetRef(name string) (ID, error)        // Get a reference
-	DeleteRef(name string) error           // Delete a reference
-	ListRefs() map[string]ID               // Get a reference
-	ForEach(f func(ID))                    // Call function for each ID
+	Store() (WriteCloser, error) // Write something to the store
+
+	Open(ID) (io.ReadCloser, error) // Open a file by id
+	Size(ID) (int64, error)         // Open a file by id
+	Link(ID, ...string) error       // Link a file id to a given location
+	UnLink(ID) error                // UnLink a blob
+	ForEach(f func(ID))             // Call function for each ID
+
+	EmptyFileID() ID       // Return the StoreID for an 0 byte object
+	IsEmptyFileID(ID) bool // Compares the ID to the stores empty ID
+
+	SetRef(name string, id ID) error // Set a reference
+	GetRef(name string) (ID, error)  // Get a reference
+	DeleteRef(name string) error     // Delete a reference
+	ListRefs() map[string]ID         // Get a reference
 }
 
 type hashStore struct {
-	newHash     func() hash.Hash
+	Hasher
 	tempDir     string
 	baseDir     string
 	prefixDepth int
-}
-
-func (t *hashStore) IDToPath(id ID) (string, string, error) {
-	if len(id) != sha1.Size {
-		log.Printf("Invalid store ID(%v)", id)
-		debug.PrintStack()
-		return "", "", errors.New("invalid StoreID " + string(id))
-	}
-	idStr := id.String()
-	prefix := idStr[0:t.prefixDepth]
-
-	filePath := t.baseDir + "/"
-	for c := range prefix {
-		filePath = filePath + string(prefix[c]) + "/"
-	}
-
-	fileName := filePath + idStr
-
-	return fileName, filePath, nil
 }
 
 func (t *hashStore) Store() (WriteCloser, error) {
@@ -71,7 +51,7 @@ func (t *hashStore) Store() (WriteCloser, error) {
 		return nil, err
 	}
 
-	h := t.newHash()
+	h := t.NewHash()
 	mwriter := io.MultiWriter(file, h)
 
 	doneChan := make(chan string)
@@ -114,7 +94,7 @@ func (t *hashStore) Store() (WriteCloser, error) {
 			return
 		}
 
-		name, path, err := t.IDToPath(id)
+		name, path, err := t.idToPath(id)
 		if err != nil {
 			err = errors.New("Failed to translate id to path " + err.Error())
 			os.Remove(file.Name())
@@ -165,127 +145,25 @@ func (t *hashStore) Store() (WriteCloser, error) {
 	return writer, nil
 }
 
-func (t *hashStore) CopyToStore(r io.ReadCloser) (id ID, err error) {
-	w, err := t.Store()
+func CopyToStore(d Storer, r io.ReadCloser) (id ID, err error) {
+	w, err := d.Store()
 	if err != nil {
 		return nil, errors.New("during copy to store, " + err.Error())
 	}
-	_, err = io.Copy(w, r)
-	if err != nil {
+
+	if _, err = io.Copy(w, r); err != nil {
 		return nil, errors.New("during copy to store, " + err.Error())
 	}
-	err = r.Close()
-	if err != nil {
+
+	if r.Close() != nil {
 		return nil, errors.New("during copy to store, " + err.Error())
 	}
-	err = w.Close()
-	if err != nil {
+
+	if w.Close() != nil {
 		return nil, errors.New("during copy to store, " + err.Error())
 	}
 
 	return w.Identity()
-}
-
-func (t *hashStore) Open(id ID) (reader io.ReadCloser, err error) {
-	name, _, err := t.IDToPath(id)
-	if err != nil {
-		err = errors.New("Failed to translate id to path " + err.Error())
-		return nil, err
-	}
-	reader, err = os.Open(name)
-
-	return reader, err
-}
-
-func (t *hashStore) Size(id ID) (size int64, err error) {
-	name, _, err := t.IDToPath(id)
-	if err != nil {
-		err = errors.New("Failed to translate id to path " + err.Error())
-		return 0, err
-	}
-	info, err := os.Stat(name)
-	size = info.Size()
-
-	return size, err
-}
-
-func (t *hashStore) Link(id ID, targets ...string) (err error) {
-	name, _, err := t.IDToPath(id)
-	if err != nil {
-		err = errors.New("Failed to translate id to path " + err.Error())
-		return err
-	}
-
-	for t := range targets {
-		target := targets[t]
-		prefix := strings.LastIndex(target, "/")
-		if prefix > -1 {
-			linkDir := target[0 : prefix+1]
-			linkName := target[prefix+1:]
-			if linkName == "" {
-				return errors.New("reference name cannot end in /")
-			}
-			err = os.MkdirAll(linkDir, 0777)
-			if err != nil {
-				if os.IsExist(err) {
-					break
-				} else {
-					return err
-				}
-			}
-		}
-
-		linkerr := os.Link(name, targets[t])
-		if linkerr != nil {
-			if os.IsExist(linkerr) {
-				var f1, f2 os.FileInfo
-				f1, err = os.Stat(name)
-				f2, err = os.Stat(targets[t])
-				if os.SameFile(f1, f2) {
-					break
-				}
-				return errors.New("File associated with differet hashes")
-			}
-			return err
-		}
-	}
-	return err
-}
-
-func (t *hashStore) UnLink(id ID) (err error) {
-	name, _, err := t.IDToPath(id)
-	if err != nil {
-		err = errors.New("Failed to translate id to path " + err.Error())
-		return err
-	}
-	err = os.Remove(name)
-
-	return err
-}
-
-func (t *hashStore) EmptyFileID() ID {
-	hasher := t.newHash()
-	id := hasher.Sum(nil)
-	return id
-}
-
-func (t *hashStore) ForEach(fn func(ID)) {
-	walker := func(path string, info os.FileInfo, err error) error {
-		var reterr error
-
-		if info.IsDir() {
-			return reterr
-		}
-
-		id, _ := IDFromString(info.Name())
-		if len(id) != 0 {
-			fn(id)
-		}
-		return reterr
-	}
-
-	filepath.Walk(t.baseDir, walker)
-	return
 }
 
 // New creates a blob store that uses  hex encoded hash strings of
@@ -297,10 +175,10 @@ func New(
 	hf func() hash.Hash,
 ) Storer {
 	store := &hashStore{
+		Hasher:      NewHasher(hf),
 		tempDir:     tempDir,
 		baseDir:     baseDir,
 		prefixDepth: prefixDepth,
-		newHash:     hf,
 	}
 
 	return store

@@ -1,0 +1,11 @@
+testpkg (1.0) precise; urgency=low
+
+  * More log info
+
+ -- tristan <tristan@clonebase.we7.local>  Wed, 04 Mar 2015 13:06:23 +0000
+
+testpkg (0.1) precise; urgency=low
+
+  * Some changelog info
+
+ -- tristan <tristan@clonebase.we7.local>  Tue, 24 Feb 2015 16:37:40 +0000

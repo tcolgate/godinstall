@@ -147,7 +147,7 @@ func (r archiveBlobStore) gcWalkRelease(used *SafeMap, releaseID store.ID) {
 			}
 		}
 
-		if store.ID(release.ParentID).String() == r.EmptyFileID().String() {
+		if r.IsEmptyFileID(store.ID(release.ParentID)) {
 			break
 		}
 		if used.Check(store.ID(release.ParentID).String()) {

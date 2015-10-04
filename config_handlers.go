@@ -251,7 +251,7 @@ func doHTTPConfigSigningKeyPutHandler(ctx context.Context, w http.ResponseWriter
 
 	rel := p.NewChild()
 
-	id, err := state.Archive.CopyToStore(r.Body)
+	id, err := store.CopyToStore(state.Archive, r.Body)
 	if err != nil {
 		return &appError{
 			Error: errors.New("Failed to copy key to store, " + err.Error()),
@@ -426,7 +426,7 @@ func doHTTPConfigPublicKeysPostHandler(ctx context.Context, w http.ResponseWrite
 
 	rel := p.NewChild()
 
-	id, err := state.Archive.CopyToStore(r.Body)
+	id, err := store.CopyToStore(state.Archive, r.Body)
 	if err != nil {
 		return &appError{Error: fmt.Errorf("failed to copy key to store, %v", err)}
 	}

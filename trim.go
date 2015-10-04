@@ -48,7 +48,7 @@ func (release *Release) TrimHistory(s Archiver, trimmer Trimmer) error {
 	activeTrim := int32(0)
 
 	for {
-		if store.ID(curr).String() == s.EmptyFileID().String() {
+		if s.IsEmptyFileID(store.ID(curr)) {
 			// We reached an empty commit before we decided to trim
 			return nil
 		}
