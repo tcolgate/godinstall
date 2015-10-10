@@ -10,15 +10,14 @@ import (
 // Write data, and call Close() when done, Identity then retries the items ID
 type WriteCloser interface {
 	io.WriteCloser
-	CloseAndLink(string) error // Close the store, and create a link on disk
-	Identity() (ID, error)     // Return the ID of the item in the store, once closed.
+	Identity() (ID, error) // Return the ID of the item in the store, once closed.
 }
 
 type hashedStoreWriter struct {
 	writer   io.Writer
 	hasher   hash.Hash
 	closed   bool
-	done     chan string // Indicate completion, pass a filename to create a link atomically
+	done     chan struct{}
 	complete chan error
 }
 
@@ -31,16 +30,12 @@ func (w *hashedStoreWriter) Write(p []byte) (n int, err error) {
 }
 
 func (w *hashedStoreWriter) Close() (err error) {
-	return w.CloseAndLink("")
-}
-
-func (w *hashedStoreWriter) CloseAndLink(target string) error {
 	if w.closed {
 		return errors.New("attempt to close closed file")
 	}
 
 	w.closed = true
-	w.done <- target
+	w.done <- struct{}{}
 
 	return <-w.complete
 }

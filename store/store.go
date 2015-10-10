@@ -54,7 +54,7 @@ func (t *hashStore) Store() (WriteCloser, error) {
 	h := t.NewHash()
 	mwriter := io.MultiWriter(file, h)
 
-	doneChan := make(chan string)
+	doneChan := make(chan struct{})
 	completeChan := make(chan error)
 	writer := &hashedStoreWriter{
 		hasher:   h,
@@ -68,7 +68,7 @@ func (t *hashStore) Store() (WriteCloser, error) {
 		// we must ensure it is deleted before we return success
 		// to the calling channel. Should probably rewrite this
 
-		extraLink := <-doneChan
+		<-doneChan
 
 		err := file.Sync()
 		if err != nil {
@@ -120,21 +120,6 @@ func (t *hashStore) Store() (WriteCloser, error) {
 				os.Remove(file.Name())
 				writer.complete <- err
 				return
-			}
-		}
-
-		if extraLink != "" {
-			srcInfo, _ := os.Stat(name)
-			targetInfo, _ := os.Stat(extraLink)
-
-			if !os.SameFile(srcInfo, targetInfo) {
-				err = os.Link(name, extraLink)
-				if err != nil {
-					err = errors.New("Failed to link blob  " + err.Error())
-					os.Remove(file.Name())
-					writer.complete <- err
-					return
-				}
 			}
 		}
 
