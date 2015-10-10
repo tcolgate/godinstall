@@ -14,16 +14,12 @@ func (s ID) String() string {
 	return hex.EncodeToString(s)
 }
 
+// CompareID returns true when store IDs are the same
 func CompareID(a, b ID) bool {
 	if bytes.Compare(a, b) == 0 {
 		return true
-	} else {
-		return false
 	}
-}
-
-func (s ID) Compare(b ID) bool {
-	return CompareID(s, b)
+	return false
 }
 
 // MarshalJSON marshals a StoreID to a json string
@@ -35,7 +31,7 @@ func (s ID) MarshalJSON() ([]byte, error) {
 func (s *ID) UnMarshalJSON(j []byte) error {
 	b, err := hex.DecodeString(string(j))
 	sid := ID(b)
-	s = &sid
+	*s = sid
 	return err
 }
 
