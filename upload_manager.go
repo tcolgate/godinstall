@@ -15,7 +15,7 @@ type UploadSessionManager struct {
 	UploadHook HookRunner
 
 	finished chan UpdateRequest
-	sessMap  *SafeMap
+	sessMap  *safeMap
 }
 
 // UpdateRequest contains the information needed to

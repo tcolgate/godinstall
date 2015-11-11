@@ -71,7 +71,7 @@ func NewArchiveBlobStore(storeDir string, tmpDir string, defRelConfig ReleaseCon
 	return result
 }
 
-func (r archiveBlobStore) gcWalkReleaseConfig(used *SafeMap, id store.ID) {
+func (r archiveBlobStore) gcWalkReleaseConfig(used *safeMap, id store.ID) {
 	used.Set(id.String(), true)
 
 	item, _ := r.GetReleaseConfig(id)
@@ -82,7 +82,7 @@ func (r archiveBlobStore) gcWalkReleaseConfig(used *SafeMap, id store.ID) {
 	}
 }
 
-func (r archiveBlobStore) gcWalkReleaseIndexEntryItem(used *SafeMap, item *ReleaseIndexEntryItem) {
+func (r archiveBlobStore) gcWalkReleaseIndexEntryItem(used *safeMap, item *ReleaseIndexEntryItem) {
 	ctrlid := item.ControlID
 	used.Set(ctrlid.String(), true)
 	for _, f := range item.Files {
@@ -90,7 +90,7 @@ func (r archiveBlobStore) gcWalkReleaseIndexEntryItem(used *SafeMap, item *Relea
 	}
 }
 
-func (r archiveBlobStore) gcWalkReleaseIndex(used *SafeMap, id store.ID) {
+func (r archiveBlobStore) gcWalkReleaseIndex(used *safeMap, id store.ID) {
 	used.Set(store.ID(id).String(), true)
 	index, _ := r.OpenReleaseIndex(id)
 	for {
@@ -110,7 +110,7 @@ func (r archiveBlobStore) gcWalkReleaseIndex(used *SafeMap, id store.ID) {
 	index.Close()
 }
 
-func (r archiveBlobStore) gcWalkRelease(used *SafeMap, releaseID store.ID) {
+func (r archiveBlobStore) gcWalkRelease(used *safeMap, releaseID store.ID) {
 	curr := releaseID
 	trimmerActive := false
 	trimAfter := int32(0)
