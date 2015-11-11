@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -15,13 +14,13 @@ var storeTestStringHash = "d83bc8150b1469193705c6e2e166db5963be38bf"
 var storeTestNullStringHash = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
 
 func makeTestSha1Store(t *testing.T) (Storer, func(), error) {
-	testTempDir, err := ioutil.TempDir("", "")
+	testTempDir, err := TempDir("", "")
 	if err != nil {
 		t.Errorf("Test setup failed, %v", err)
 		return nil, nil, err
 	}
 
-	testBaseDir, err := ioutil.TempDir("", "")
+	testBaseDir, err := TempDir("", "")
 	if err != nil {
 		os.RemoveAll(testTempDir)
 		t.Errorf("Test setup failed, %v", err)

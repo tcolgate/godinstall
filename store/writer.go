@@ -4,6 +4,7 @@ import (
 	"errors"
 	"hash"
 	"io"
+	"os"
 )
 
 // WriteCloser is used to arite a file to the file store.
@@ -35,9 +36,53 @@ func (w *hashedStoreWriter) Close() (err error) {
 	}
 
 	w.closed = true
-	w.done <- struct{}{}
 
-	return <-w.complete
+	err = file.Sync()
+	if err != nil {
+		err = errors.New("failed to sync blob, " + err.Error())
+		os.Remove(file.Name())
+		return
+	}
+
+	err = file.Close()
+	if err != nil {
+		err = errors.New("failed to close blob, " + err.Error())
+		os.Remove(file.Name())
+		return
+	}
+
+	id, err := writer.Identity()
+	if err != nil {
+		err = errors.New("failed to rewtrieve hash of blob, " + err.Error())
+		os.Remove(file.Name())
+		return
+	}
+
+	name, path, err := t.idToPath(id)
+	if err != nil {
+		err = errors.New("Failed to translate id to path " + err.Error())
+		os.Remove(file.Name())
+		return
+	}
+
+	err = os.MkdirAll(path, 0755)
+	if err != nil {
+		err = errors.New("Failed to create blob directory " + err.Error())
+		os.Remove(file.Name())
+		return
+	}
+
+	_, err = os.Stat(name)
+	if err == nil {
+		os.Remove(file.Name())
+	} else {
+		err = os.Link(file.Name(), name)
+		if err != nil {
+			err = errors.New("Failed to link blob  " + err.Error())
+			os.Remove(file.Name())
+			return
+		}
+	}
 }
 
 func (w *hashedStoreWriter) Identity() (id ID, err error) {

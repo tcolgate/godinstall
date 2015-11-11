@@ -7,8 +7,6 @@ import (
 	"errors"
 	"hash"
 	"io"
-	"io/ioutil"
-	"os"
 )
 
 // Walker is used to enumerate a store. Given a StoreID as an
@@ -45,8 +43,7 @@ type hashStore struct {
 }
 
 func (t *hashStore) Store() (WriteCloser, error) {
-	file, err := ioutil.TempFile(t.tempDir, "blob")
-
+	file, err := TempFile(t.tempDir, "blob")
 	if err != nil {
 		return nil, err
 	}
@@ -54,78 +51,11 @@ func (t *hashStore) Store() (WriteCloser, error) {
 	h := t.NewHash()
 	mwriter := io.MultiWriter(file, h)
 
-	doneChan := make(chan struct{})
-	completeChan := make(chan error)
 	writer := &hashedStoreWriter{
-		hasher:   h,
-		writer:   mwriter,
-		done:     doneChan,
-		complete: completeChan,
+		file:   file,
+		hasher: h,
+		writer: mwriter,
 	}
-
-	go func() {
-		// We can't use defer to clean up the TempFile, as
-		// we must ensure it is deleted before we return success
-		// to the calling channel. Should probably rewrite this
-
-		<-doneChan
-
-		err := file.Sync()
-		if err != nil {
-			err = errors.New("failed to sync blob, " + err.Error())
-			os.Remove(file.Name())
-			writer.complete <- err
-			return
-		}
-
-		err = file.Close()
-		if err != nil {
-			err = errors.New("failed to close blob, " + err.Error())
-			os.Remove(file.Name())
-			writer.complete <- err
-			return
-		}
-
-		id, err := writer.Identity()
-		if err != nil {
-			err = errors.New("failed to rewtrieve hash of blob, " + err.Error())
-			os.Remove(file.Name())
-			writer.complete <- err
-			return
-		}
-
-		name, path, err := t.idToPath(id)
-		if err != nil {
-			err = errors.New("Failed to translate id to path " + err.Error())
-			os.Remove(file.Name())
-			writer.complete <- err
-			return
-		}
-
-		err = os.MkdirAll(path, 0755)
-		if err != nil {
-			err = errors.New("Failed to create blob directory " + err.Error())
-			os.Remove(file.Name())
-			writer.complete <- err
-			return
-		}
-
-		_, err = os.Stat(name)
-		if err == nil {
-			os.Remove(file.Name())
-		} else {
-			err = os.Link(file.Name(), name)
-			if err != nil {
-				err = errors.New("Failed to link blob  " + err.Error())
-				os.Remove(file.Name())
-				writer.complete <- err
-				return
-			}
-		}
-
-		os.Remove(file.Name())
-		writer.complete <- err
-	}()
 
 	return writer, nil
 }
