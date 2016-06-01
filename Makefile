@@ -2,34 +2,22 @@ PREFIX=/usr/bin
 
 NAME=godinstall
 CWD=$(shell pwd)
-BINNAME=$(shell basename $(CWD))
-
-export GOPATH=$(CWD)/build
-BINDIR=$(GOPATH)/bin
+VERSION=$(shell sed -n '1s/godinstall (\([0-9.]*\)) .*/\1/p' debian/changelog)
+GITREF=$(shell git show-ref -s --abbrev HEAD)
 
 all: $(NAME)
 
 version.go: debian/changelog
-	echo "package main\nvar godinstallVersion = \""`dpkg-parsechangelog | grep ^Version | awk '{print $$2}'   `-`git show-ref -s --abbrev HEAD`\" > version.go
+	echo -e "package main\nvar godinstallVersion = \""$(VERSION)-$(GITREF)\" > version.go
 
-$(GOPATH):
-	mkdir $(GOPATH)
-	mkdir -p $(GOPATH)/pkg
-	mkdir -p $(BINDIR)
-
-$(BINDIR)/godep: $(GOPATH)
-	go get github.com/tools/godep
-
-$(NAME): $(BINDIR)/godep version.go
-	$(GOPATH)/bin/godep go build
-	if [ -f $(BINNAME) ]; then test $(BINNAME) -ef $(NAME) || mv -f  $(BINNAME) $(NAME) ; fi
+$(NAME): debian/changelog version.go
+	go build -o $(NAME)
 
 install: $(NAME)
 	install -D $(NAME) $(DESTDIR)/$(PREFIX)/$(NAME)
 
 check:
-	$(GOPATH)/bin/godep go test -v
+	go test -v
 
 clean:
 	rm -rf build $(NAME)
-	rm -f version.go
