@@ -16,7 +16,7 @@ import (
 	"github.com/tcolgate/godinstall/store"
 	"golang.org/x/net/context"
 
-	"code.google.com/p/go-uuid/uuid"
+	"github.com/pborman/uuid"
 )
 
 // UploadFile holds information about a file that has been uploaded. It

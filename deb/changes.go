@@ -1,8 +1,6 @@
 package deb
 
 import (
-	//"code.google.com/p/go.crypto/openpgp"
-
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -13,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/go.crypto/openpgp"
+	"golang.org/x/crypto/openpgp"
 )
 
 // ChangesFilesIndex is used to index individual entries in the list

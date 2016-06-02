@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"code.google.com/p/go.crypto/openpgp"
+	"golang.org/x/crypto/openpgp"
 )
 
 func TestControlInvalid1(t *testing.T) {

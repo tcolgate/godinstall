@@ -15,10 +15,10 @@ import (
 	"strconv"
 	"strings"
 
-	"code.google.com/p/go.crypto/openpgp"
-	"code.google.com/p/go.crypto/openpgp/clearsign"
 	"github.com/blakesmith/ar"
 	"github.com/tcolgate/godinstall/hasher"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/clearsign"
 )
 
 // PackageInfoer for describing extracting information relating to

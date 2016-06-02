@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/go.crypto/openpgp"
-	"code.google.com/p/go.crypto/openpgp/clearsign"
-	"code.google.com/p/go.crypto/openpgp/errors"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/clearsign"
+	"golang.org/x/crypto/openpgp/errors"
 )
 
 const rfc2822DateLayout = "Mon, 2 Jan 2006 15:04:05 -0700"

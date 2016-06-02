@@ -18,8 +18,8 @@ import (
 
 	"compress/gzip"
 
-	"code.google.com/p/go.crypto/openpgp"
-	"code.google.com/p/go.crypto/openpgp/clearsign"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/clearsign"
 )
 
 // Architecture collates all the information for an architecture

@@ -9,9 +9,9 @@ import (
 	"os"
 	"sort"
 
-	"code.google.com/p/go.crypto/openpgp"
 	"github.com/gorilla/mux"
 	"github.com/tcolgate/godinstall/store"
+	"golang.org/x/crypto/openpgp"
 	"golang.org/x/net/context"
 )
 
