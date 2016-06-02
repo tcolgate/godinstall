@@ -5,6 +5,8 @@ CWD=$(shell pwd)
 VERSION=$(shell sed -n '1s/godinstall (\([0-9.]*\)) .*/\1/p' debian/changelog)
 GITREF=$(shell git show-ref -s --abbrev HEAD)
 
+.PHONY: tags clean all install check
+
 all: $(NAME)
 
 version.go: debian/changelog
@@ -18,6 +20,9 @@ install: $(NAME)
 
 check:
 	go test -v
+
+tags:
+	gotags -R . > tags
 
 clean:
 	rm -rf build $(NAME)
