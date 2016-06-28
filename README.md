@@ -87,12 +87,12 @@ The Releases file for a repository will not be signed until a signing key is giv
 signing you need to set the signing key (it cannot have a passphrase on it at this time):
 
 ```
-$  gpg --armor --export-secret-key | curl -XPUT --data-binary @- http://192.168.0.7:3000/dists/master/config/signingkey
+$  gpg --armor --export-secret-key | curl -XPUT --data-binary @- http://localhost:3000/dists/master/config/signingkey
 ```
 
 By default, changes fiels to be uploaded much be signed, to add keys to verify changes files against:
 ```
-$  gpg --armor --export--key | curl -XPOST --data-binary @- http://192.168.0.7:3000/dists/master/config/publickeys
+$  gpg --armor --export--key | curl -XPOST --data-binary @- http://localhost:3000/dists/master/config/publickeys
 ```
 
 Public Keys are managed via the API
