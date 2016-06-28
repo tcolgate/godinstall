@@ -333,8 +333,9 @@ func (d *debPackage) parseDebPackage() (err error) {
 
 		hasher := MakeWriteHasher(ioutil.Discard)
 
+		arfn := strings.TrimRight(header.Name, "/")
 		switch {
-		case strings.HasPrefix(header.Name, "_gpg"):
+		case strings.HasPrefix(arfn, "_gpg"):
 			// This file is a dpkg-sig signature file
 			d.signed = true
 			var sig bytes.Buffer
@@ -343,9 +344,9 @@ func (d *debPackage) parseDebPackage() (err error) {
 				io.MultiWriter(&sig, hasher),
 				arReader)
 
-			d.signatures[header.Name], _ = parseSigsFile(sig.String(), d.keyRing)
+			d.signatures[arfn], _ = parseSigsFile(sig.String(), d.keyRing)
 
-		case header.Name == "control.tar.gz":
+		case arfn == "control.tar.gz":
 			// This file is the control.tar.gz, we can get the
 			// package metadata from here in a file called ./control
 			tee := io.TeeReader(arReader, hasher)
